@@ -19,10 +19,10 @@ export const Route = createFileRoute("/track/$id")({
   head: ({ loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.track.title} — SonicChain` },
-          { name: "description", content: `Stream ${loaderData.track.title} on SonicChain.` },
-          { property: "og:title", content: `${loaderData.track.title} — SonicChain` },
-          { property: "og:description", content: `Stream ${loaderData.track.title} on SonicChain.` },
+          { title: `${loaderData.track.title} — Layam` },
+          { name: "description", content: `Stream ${loaderData.track.title} on Layam.` },
+          { property: "og:title", content: `${loaderData.track.title} — Layam` },
+          { property: "og:description", content: `Stream ${loaderData.track.title} on Layam.` },
           { property: "og:type", content: "music.song" },
           { name: "twitter:card", content: "summary_large_image" },
         ]

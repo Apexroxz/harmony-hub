@@ -15,10 +15,10 @@ export const Route = createFileRoute("/artist/$id")({
   head: ({ loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.artist.name} — SonicChain` },
-          { name: "description", content: `Listen to ${loaderData.artist.name} on SonicChain.` },
-          { property: "og:title", content: `${loaderData.artist.name} — SonicChain` },
-          { property: "og:description", content: `Listen to ${loaderData.artist.name} on SonicChain.` },
+          { title: `${loaderData.artist.name} — Layam` },
+          { name: "description", content: `Listen to ${loaderData.artist.name} on Layam.` },
+          { property: "og:title", content: `${loaderData.artist.name} — Layam` },
+          { property: "og:description", content: `Listen to ${loaderData.artist.name} on Layam.` },
           { property: "og:type", content: "profile" },
           { name: "twitter:card", content: "summary" },
         ]

@@ -24,12 +24,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/upload")({
   head: () => ({
     meta: [
-      { title: "Upload a Track — SonicChain" },
+      { title: "Upload a Track — Layam" },
       {
         name: "description",
         content: "Upload lossless masters up to 24-bit/192 kHz and publish to IPFS, Arweave or CDN.",
       },
-      { property: "og:title", content: "Upload a Track — SonicChain" },
+      { property: "og:title", content: "Upload a Track — Layam" },
       {
         property: "og:description",
         content: "Upload lossless masters up to 24-bit/192 kHz and publish to IPFS, Arweave or CDN.",
@@ -198,7 +198,7 @@ function UploadPage() {
       owner_id: userId,
       name,
       handle: `@${slugify(name)}`,
-      bio: "New to SonicChain.",
+      bio: "New to Layam.",
       followers: 0,
       verified: false,
     });

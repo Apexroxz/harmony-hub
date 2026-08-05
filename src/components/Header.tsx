@@ -19,7 +19,7 @@ export function Header() {
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2 text-foreground">
             <Disc3 className="h-7 w-7 text-primary" />
-            <span className="text-xl font-bold tracking-tight">SonicChain</span>
+            <span className="text-xl font-bold tracking-tight">Layam</span>
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">

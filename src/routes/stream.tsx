@@ -15,12 +15,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/stream")({
   head: () => ({
     meta: [
-      { title: "Your Stream — SonicChain" },
+      { title: "Your Stream — Layam" },
       {
         name: "description",
         content: "The newest uploads and reposts from the artists you follow, in lossless quality.",
       },
-      { property: "og:title", content: "Your Stream — SonicChain" },
+      { property: "og:title", content: "Your Stream — Layam" },
       {
         property: "og:description",
         content: "The newest uploads and reposts from the artists you follow, in lossless quality.",

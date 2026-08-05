@@ -14,9 +14,9 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "SonicChain — Web3 Music Streaming" },
+      { title: "Layam — Web3 Music Streaming" },
       { name: "description", content: "Discover, stream, and collect music NFTs on Solana." },
-      { property: "og:title", content: "SonicChain — Web3 Music Streaming" },
+      { property: "og:title", content: "Layam — Web3 Music Streaming" },
       { property: "og:description", content: "Discover, stream, and collect music NFTs on Solana." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

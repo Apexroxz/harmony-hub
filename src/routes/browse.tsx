@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/browse")({
   head: () => ({
     meta: [
-      { title: "Browse — SonicChain" },
-      { name: "description", content: "Browse token-gated and open music on SonicChain." },
-      { property: "og:title", content: "Browse — SonicChain" },
-      { property: "og:description", content: "Browse token-gated and open music on SonicChain." },
+      { title: "Browse — Layam" },
+      { name: "description", content: "Browse token-gated and open music on Layam." },
+      { property: "og:title", content: "Browse — Layam" },
+      { property: "og:description", content: "Browse token-gated and open music on Layam." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
