@@ -1,0 +1,163 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system: Web3 music streaming — dark surfaces with a warm orange accent.
+ *
+ * Deep near-black backgrounds, orange primary, amber/magenta support hues,
+ * glassmorphic surfaces. All colors use oklch.
+ */
+
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  /* Extended tokens */
+  --color-glow: var(--glow);
+  --color-glow-soft: var(--glow-soft);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-violet: var(--violet);
+  --color-cyan: var(--cyan);
+  --color-magenta: var(--magenta);
+  --color-orange: var(--orange);
+  --color-amber: var(--amber);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  /* Dark theme as default — this app lives in night mode */
+  --background: oklch(0.13 0.012 60);
+  --foreground: oklch(0.96 0.005 60);
+  --card: oklch(0.17 0.014 55);
+  --card-foreground: oklch(0.96 0.005 60);
+  --popover: oklch(0.17 0.014 55);
+  --popover-foreground: oklch(0.96 0.005 60);
+  --primary: oklch(0.68 0.2 45);
+  --primary-foreground: oklch(0.14 0.02 50);
+  --secondary: oklch(0.23 0.018 55);
+  --secondary-foreground: oklch(0.96 0.005 60);
+  --muted: oklch(0.23 0.012 55);
+  --muted-foreground: oklch(0.68 0.015 60);
+  --accent: oklch(0.75 0.16 75);
+  --accent-foreground: oklch(0.14 0.02 50);
+  --destructive: oklch(0.58 0.2 22);
+  --destructive-foreground: oklch(0.96 0.005 60);
+  --border: oklch(0.28 0.014 55 / 60%);
+  --input: oklch(0.23 0.014 55 / 80%);
+  --ring: oklch(0.68 0.2 45);
+
+  --glow: oklch(0.68 0.2 45 / 40%);
+  --glow-soft: oklch(0.68 0.2 45 / 15%);
+  --surface: oklch(0.15 0.012 55);
+  --surface-raised: oklch(0.21 0.016 55);
+  --orange: oklch(0.68 0.2 45);
+  --amber: oklch(0.78 0.16 78);
+  /* Legacy hue aliases kept so existing components stay on-palette. */
+  --violet: oklch(0.68 0.2 45);
+  --cyan: oklch(0.78 0.16 78);
+  --magenta: oklch(0.62 0.19 25);
+}
+
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.3 0.02 55);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.42 0.05 50);
+  }
+
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, var(--color-orange), var(--color-amber));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-glass {
+    background: oklch(0.17 0.014 55 / 70%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .bg-glass-strong {
+    background: oklch(0.13 0.012 55 / 88%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+
+  .glow-border {
+    box-shadow: 0 0 0 1px var(--color-border), 0 0 24px var(--color-glow-soft);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 20px var(--color-glow);
+  }
+
+  .surface-raised {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+  }
+}
