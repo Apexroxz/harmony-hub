@@ -1,29 +1,66 @@
-# Welcome to your Lovable project
+# Layam
 
-This project was built with [Lovable](https://lovable.dev).
+> Music, without boundaries.
 
-## Build with Lovable
+Layam is a modern music platform designed for both listeners and creators.
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Our goal is simple:
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- 🎵 Stream music seamlessly
+- 🎤 Upload your own tracks
+- 📂 Enjoy both online and offline libraries
+- ❤️ Put creators first
+- 🔗 Keep blockchain optional—not the core experience
 
-## Development
+---
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Vision
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+We believe music should be open, accessible, and creator-friendly.
 
-## Built with
+Layam combines the simplicity of modern streaming with powerful creator tools, while keeping ownership and Web3 features optional for those who want them.
 
-- TanStack Start
+---
+
+## Features (Current)
+
+- Music streaming
+- Artist profiles
+- Audio uploads
+- Audio quality detection
+- Waveform generation
+- Cover artwork upload
+- Wallet integration
+- Supabase backend
+
+---
+
+## Planned Features
+
+- Smart search
+- Personal library
+- Offline playback
+- Playlists
+- AI-powered music discovery
+- Creator analytics
+- Social features
+- Royalty management
+
+---
+
+## Tech Stack
+
+- React 19
 - TypeScript
-- React
+- TanStack Router
+- TanStack Query
 - Tailwind CSS
+- Supabase
+
+---
+
+## Status
+
+🚧 Under active development.
+
+Built with ❤️ by Abhishek Kumar.
