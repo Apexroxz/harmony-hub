@@ -1,12 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Disc3, Radio, Compass, UploadCloud } from "lucide-react";
+import { Disc3, House, Compass, UploadCloud, Library, Search } from "lucide-react";
 import { WalletButton } from "./WalletButton";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 const nav = [
-  { to: "/stream", label: "Stream", icon: Radio },
+  { to: "/", label: "Home", icon: House },
   { to: "/browse", label: "Browse", icon: Compass },
   { to: "/upload", label: "Upload", icon: UploadCloud },
+  { to: "/library", label: "Library", icon: Library },
 ];
 
 
@@ -16,13 +18,13 @@ export function Header() {
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-border/40 bg-glass-strong">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 md:gap-8">
           <Link to="/" className="flex items-center gap-2 text-foreground">
             <Disc3 className="h-7 w-7 text-primary" />
             <span className="text-xl font-bold tracking-tight">Layam</span>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 lg:flex">
             {nav.map((item) => {
               const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
               return (
@@ -44,7 +46,17 @@ export function Header() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex">
+            <div className="relative w-56 lg:w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search songs, artists..."
+                className="h-9 border-border/60 bg-surface-raised pl-10 text-sm text-foreground placeholder:text-muted-foreground"
+                readOnly
+              />
+            </div>
+          </div>
           <WalletButton />
         </div>
       </div>

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BrowseRouteImport } from './routes/browse'
+import { Route as LibraryRouteImport } from './routes/library'
 import { Route as StreamRouteImport } from './routes/stream'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as ArtistIdRouteImport } from './routes/artist.$id'
@@ -24,6 +25,11 @@ const IndexRoute = IndexRouteImport.update({
 const BrowseRoute = BrowseRouteImport.update({
   id: '/browse',
   path: '/browse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StreamRoute = StreamRouteImport.update({
@@ -50,6 +56,7 @@ const TrackIdRoute = TrackIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
+  '/library': typeof LibraryRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
+  '/library': typeof LibraryRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
+  '/library': typeof LibraryRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -75,13 +84,27 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/browse' | '/stream' | '/upload' | '/artist/$id' | '/track/$id'
+    | '/'
+    | '/browse'
+    | '/library'
+    | '/stream'
+    | '/upload'
+    | '/artist/$id'
+    | '/track/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/browse' | '/stream' | '/upload' | '/artist/$id' | '/track/$id'
+  to:
+    | '/'
+    | '/browse'
+    | '/library'
+    | '/stream'
+    | '/upload'
+    | '/artist/$id'
+    | '/track/$id'
   id:
     | '__root__'
     | '/'
     | '/browse'
+    | '/library'
     | '/stream'
     | '/upload'
     | '/artist/$id'
@@ -91,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BrowseRoute: typeof BrowseRoute
+  LibraryRoute: typeof LibraryRoute
   StreamRoute: typeof StreamRoute
   UploadRoute: typeof UploadRoute
   ArtistIdRoute: typeof ArtistIdRoute
@@ -111,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/browse'
       fullPath: '/browse'
       preLoaderRoute: typeof BrowseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stream': {
@@ -147,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BrowseRoute: BrowseRoute,
+  LibraryRoute: LibraryRoute,
   StreamRoute: StreamRoute,
   UploadRoute: UploadRoute,
   ArtistIdRoute: ArtistIdRoute,
