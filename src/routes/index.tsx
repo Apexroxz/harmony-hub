@@ -14,10 +14,10 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "Layam — Web3 Music Streaming" },
-      { name: "description", content: "Discover, stream, and collect music NFTs on Solana." },
-      { property: "og:title", content: "Layam — Web3 Music Streaming" },
-      { property: "og:description", content: "Discover, stream, and collect music NFTs on Solana." },
+      { title: "Layam — Music, without boundaries." },
+      { name: "description", content: "Discover music, upload your own tracks, and enjoy one seamless library across streaming and local playback." },
+      { property: "og:title", content: "Layam — Music, without boundaries." },
+      { property: "og:description", content: "Discover music, upload your own tracks, and enjoy one seamless library across streaming and local playback." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -47,16 +47,16 @@ function HomePage() {
         <div className="relative z-10 mx-auto max-w-4xl text-center">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
             <Zap className="h-4 w-4" />
-            <span>Powered by Solana</span>
+            <span>Music for everyone</span>
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-            Stream music.
+            Music,
             <br />
-            <span className="text-gradient glow-text">Own the future.</span>
+            <span className="text-gradient glow-text">without boundaries.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Discover tracks stored on IPFS & Arweave, unlock token-gated exclusives, and support
-            artists directly on-chain.
+            Discover new music, upload your own tracks, and enjoy one seamless library across
+            streaming and local playback.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Button
@@ -70,8 +70,8 @@ function HomePage() {
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="border-border/60 bg-glass">
-              <Link to="/browse">
-                Explore Drops
+              <Link to="/upload">
+                Upload Music
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -83,9 +83,9 @@ function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
-            { label: "Tracks streamed", value: "2.4M", icon: Radio },
-            { label: "Active collectors", value: "18.2K", icon: TrendingUp },
-            { label: "Artist earnings", value: "142K SOL", icon: Zap },
+            { label: "Songs", value: "2.4M", icon: Radio },
+            { label: "Artists", value: "18.2K", icon: TrendingUp },
+            { label: "Listeners", value: "142K", icon: Zap },
           ].map((stat) => (
             <div
               key={stat.label}
@@ -107,8 +107,8 @@ function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-end justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Featured Drops</h2>
-            <p className="mt-1 text-muted-foreground">Hand-picked releases from the network.</p>
+            <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Featured Music</h2>
+            <p className="mt-1 text-muted-foreground">Hand-picked tracks and releases to discover.</p>
           </div>
           <Link
             to="/browse"
@@ -134,7 +134,7 @@ function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Trending Now</h2>
-          <p className="mt-1 text-muted-foreground">What the community is collecting this week.</p>
+          <p className="mt-1 text-muted-foreground">What listeners are discovering and playing this week.</p>
         </div>
         {isPending ? (
           <TrackGridSkeleton count={3} />
