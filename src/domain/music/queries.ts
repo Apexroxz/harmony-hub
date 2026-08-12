@@ -1,6 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { signedUrls } from "@/lib/media";
+import { searchAudiusTracks } from "./audius";
+import { searchJamendoTracks } from "./jamendo";
+import { FALLBACK_TRACKS } from "./fallback";
 import type { Artist, AudioFormat, Track } from "./types";
 
 /** Keeps supabase-js from type-parsing the select string (huge tsc win). */
@@ -58,76 +61,89 @@ export interface Catalog {
 }
 
 async function fetchCatalog(): Promise<Catalog> {
-  const [artistsResult, tracksResult] = await Promise.all([
-    supabase
-      .from("artists")
-      .select(sel(ARTIST_COLUMNS))
-      .order("followers", { ascending: false })
-      .returns<ArtistRow[]>(),
-    supabase
-      .from("tracks")
-      .select(sel(TRACK_COLUMNS))
-      .order("created_at", { ascending: false })
-      .returns<TrackRow[]>(),
-  ]);
+  try {
+    const [artistsResult, tracksResult] = await Promise.all([
+      supabase
+        .from("artists")
+        .select(sel(ARTIST_COLUMNS))
+        .order("followers", { ascending: false })
+        .returns<ArtistRow[]>(),
+      supabase
+        .from("tracks")
+        .select(sel(TRACK_COLUMNS))
+        .order("created_at", { ascending: false })
+        .returns<TrackRow[]>(),
+    ]);
 
-  if (artistsResult.error) throw artistsResult.error;
-  if (tracksResult.error) throw tracksResult.error;
+    if (artistsResult.error) throw artistsResult.error;
+    if (tracksResult.error) throw tracksResult.error;
 
-  const artistRows = artistsResult.data ?? [];
-  const trackRows = tracksResult.data ?? [];
+    const artistRows = artistsResult.data ?? [];
+    const trackRows = tracksResult.data ?? [];
 
-  const [coverLinks, audioLinks] = await Promise.all([
-    signedUrls("covers", [
-      ...artistRows.flatMap((a) => (a.avatar_path ? [a.avatar_path] : [])),
-      ...trackRows.flatMap((t) => (t.cover_path ? [t.cover_path] : [])),
-    ]),
-    signedUrls(
-      "audio",
-      trackRows.flatMap((t) => (t.audio_path ? [t.audio_path] : []))
-    ),
-  ]);
+    const [coverLinks, audioLinks] = await Promise.all([
+      signedUrls("covers", [
+        ...artistRows.flatMap((a) => (a.avatar_path ? [a.avatar_path] : [])),
+        ...trackRows.flatMap((t) => (t.cover_path ? [t.cover_path] : [])),
+      ]),
+      signedUrls(
+        "audio",
+        trackRows.flatMap((t) => (t.audio_path ? [t.audio_path] : []))
+      ),
+    ]);
 
-  const artists: Artist[] = artistRows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    handle: row.handle,
-    avatar: (row.avatar_path ? coverLinks.get(row.avatar_path) : null) ?? row.avatar_url ?? "",
-    bio: row.bio,
-    followers: row.followers,
-    verified: row.verified,
-  }));
-
-  const namesById = new Map(artists.map((a) => [a.id, a.name]));
-
-  const tracks: Track[] = trackRows.map((row) => {
-    const peaks = toPeaks(row.waveform);
-    return {
+    const artists: Artist[] = artistRows.map((row) => ({
       id: row.id,
-      title: row.title,
-      artistId: row.artist_id,
-      artistName: namesById.get(row.artist_id) ?? "Unknown artist",
-      coverImage: (row.cover_path ? coverLinks.get(row.cover_path) : null) ?? row.cover_url ?? "",
-      audioUrl: (row.audio_path ? audioLinks.get(row.audio_path) : null) ?? row.audio_url ?? "",
-      duration: row.duration,
-      genre: row.genre,
-      quality: row.quality as AudioFormat,
-      bitrate: row.bitrate,
-      sampleRate: row.sample_rate,
-      ...(row.bit_depth != null ? { bitDepth: row.bit_depth } : {}),
-      playCount: row.play_count,
-      likes: row.like_count,
-      comments: row.comment_count,
-      createdAt: row.created_at,
-      ...(peaks ? { waveform: peaks } : {}),
-      uploaderId: row.uploader_id,
+      name: row.name,
+      handle: row.handle,
+      avatar: (row.avatar_path ? coverLinks.get(row.avatar_path) : null) ?? row.avatar_url ?? "",
+      bio: row.bio,
+      followers: row.followers,
+      verified: row.verified,
+    }));
+
+    const namesById = new Map(artists.map((a) => [a.id, a.name]));
+
+    const tracks: Track[] = trackRows.map((row) => {
+      const peaks = toPeaks(row.waveform);
+      return {
+        id: row.id,
+        title: row.title,
+        artistId: row.artist_id,
+        artistName: namesById.get(row.artist_id) ?? "Unknown artist",
+        coverImage: (row.cover_path ? coverLinks.get(row.cover_path) : null) ?? row.cover_url ?? "",
+        audioUrl: (row.audio_path ? audioLinks.get(row.audio_path) : null) ?? row.audio_url ?? "",
+        duration: row.duration,
+        genre: row.genre,
+        quality: row.quality as AudioFormat,
+        bitrate: row.bitrate,
+        sampleRate: row.sample_rate,
+        ...(row.bit_depth != null ? { bitDepth: row.bit_depth } : {}),
+        playCount: row.play_count,
+        likes: row.like_count,
+        comments: row.comment_count,
+        createdAt: row.created_at,
+        ...(peaks ? { waveform: peaks } : {}),
+        uploaderId: row.uploader_id,
+      };
+    });
+
+    // Always merge fallback tracks so the catalog is never empty
+    const supabaseIds = new Set(tracks.map((t) => t.id));
+    const merged = [...tracks, ...FALLBACK_TRACKS.filter((t) => !supabaseIds.has(t.id))];
+
+    const repostCounts: Record<string, number> = {};
+    for (const row of trackRows) repostCounts[row.id] = row.repost_count;
+
+    return { tracks: merged, artists, repostCounts };
+  } catch {
+    // Supabase unreachable — return fallback catalog
+    return {
+      tracks: FALLBACK_TRACKS,
+      artists: [],
+      repostCounts: {},
     };
-  });
-
-  const repostCounts: Record<string, number> = {};
-  for (const row of trackRows) repostCounts[row.id] = row.repost_count;
-
-  return { tracks, artists, repostCounts };
+  }
 }
 
 export const catalogQueryKey = ["catalog"] as const;
@@ -137,6 +153,37 @@ export function catalogQueryOptions() {
     queryKey: catalogQueryKey,
     queryFn: fetchCatalog,
     staleTime: 30_000,
+  });
+}
+
+/** Live external search combining Audius + Jamendo results. */
+async function fetchSearch(query: string): Promise<{ tracks: Track[]; artists: Artist[] }> {
+  if (!query.trim()) return { tracks: [], artists: [] };
+  const [audius, jamendo] = await Promise.all([
+    searchAudiusTracks(query, 10),
+    searchJamendoTracks(query, 15),
+  ]);
+  const seen = new Set<string>();
+  const tracks: Track[] = [];
+  const artistsMap = new Map<string, Artist>();
+  for (const t of [...audius.tracks, ...jamendo.tracks]) {
+    if (!seen.has(t.id)) {
+      seen.add(t.id);
+      tracks.push(t);
+    }
+  }
+  for (const a of [...audius.artists, ...jamendo.artists]) {
+    if (!artistsMap.has(a.id)) artistsMap.set(a.id, a);
+  }
+  return { tracks, artists: Array.from(artistsMap.values()) };
+}
+
+export function searchQueryOptions(query: string) {
+  return queryOptions({
+    queryKey: ["search", query] as const,
+    queryFn: () => fetchSearch(query),
+    enabled: query.trim().length > 0,
+    staleTime: 60_000,
   });
 }
 
