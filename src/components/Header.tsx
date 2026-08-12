@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Disc3, House, Compass, UploadCloud, Library, Search } from "lucide-react";
+import { House, Compass, UploadCloud, Library, Search } from "lucide-react";
 import { WalletButton } from "./WalletButton";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,14 @@ export function Header() {
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-border/40 bg-glass-strong">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-4 md:gap-8">
-          <Link to="/" className="flex items-center gap-2 text-foreground">
-            <Disc3 className="h-7 w-7 text-primary" />
+          <Link to="/" className="flex items-center gap-2.5 text-foreground">
+            <img
+              src="/logo.png"
+              alt="Layam"
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-md object-contain drop-shadow-[0_0_8px_var(--color-glow-soft)]"
+            />
             <span className="text-xl font-bold tracking-tight">Layam</span>
           </Link>
 
