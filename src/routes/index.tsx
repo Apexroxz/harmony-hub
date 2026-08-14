@@ -45,9 +45,9 @@ function HomePage() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background" />
         <div className="relative z-10 mx-auto max-w-4xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
-            <Zap className="h-4 w-4" />
-            <span>Music for everyone</span>
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary">
+            <Radio className="h-3.5 w-3.5" />
+            <span>Hybrid Local + Lossless Streaming Player</span>
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
             Music,
@@ -55,23 +55,22 @@ function HomePage() {
             <span className="text-gradient glow-text">without boundaries.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Discover new music, upload your own tracks, and enjoy one seamless library across
-            streaming and local playback.
+            Experience bit-perfect lossless playback, 10-band DSP equalization, DRM-free creator commerce, and offline-first listening.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Button
               asChild
               size="lg"
-              className="bg-gradient-to-r from-violet to-cyan text-primary-foreground hover:opacity-90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-lg shadow-primary/20"
             >
-              <Link to="/browse">
+              <Link to="/store">
                 <Play className="mr-2 h-5 w-5 fill-current" />
-                Start Listening
+                Explore Store
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="border-border/60 bg-glass">
+            <Button asChild variant="outline" size="lg" className="border-border/60 bg-glass text-foreground hover:text-primary">
               <Link to="/upload">
-                Upload Music
+                Upload Master
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -83,17 +82,17 @@ function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
-            { label: "Songs", value: formatNumber(tracks.length), icon: Radio },
-            { label: "Artists", value: formatNumber(artists.length), icon: TrendingUp },
+            { label: "Catalog Masters", value: formatNumber(tracks.length), icon: Radio },
+            { label: "Verified Artists", value: formatNumber(artists.length), icon: TrendingUp },
             {
-              label: "Total Plays",
+              label: "Accumulated Plays",
               value: formatNumber(tracks.reduce((sum, t) => sum + (t.playCount ?? 0), 0)),
               icon: Zap,
             },
           ].map((stat) => (
             <div
               key={stat.label}
-              className="surface-raised flex items-center gap-4 rounded-2xl p-6"
+              className="surface-raised flex items-center gap-4 rounded-2xl p-6 border border-border/40"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <stat.icon className="h-6 w-6" />
@@ -115,7 +114,7 @@ function HomePage() {
             <p className="mt-1 text-muted-foreground">Hand-picked tracks and releases to discover.</p>
           </div>
           <Link
-            to="/browse"
+            to="/store"
             className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex"
           >
             View all <ArrowRight className="h-4 w-4" />

@@ -12,6 +12,7 @@ import {
   X,
   Trash2,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlayer, PLAYBACK_RATES } from "@/lib/player";
@@ -25,6 +26,8 @@ import { cn } from "@/lib/utils";
 export function PlayerBar() {
   const {
     currentTrack,
+    status,
+    errorMessage,
     isPlaying,
     isLoading,
     progress,
@@ -202,12 +205,23 @@ export function PlayerBar() {
               >
                 {currentTrack.title}
               </Link>
-              <div className="truncate text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
                 <ArtistName
                   artistId={currentTrack.artistId}
                   name={currentTrack.artistName}
                   className="text-xs font-normal text-muted-foreground"
                 />
+                {status === "buffering" && (
+                  <span className="text-[10px] text-amber animate-pulse font-bold">· Buffering</span>
+                )}
+                {status === "loading" && (
+                  <span className="text-[10px] text-primary animate-pulse font-bold">· Loading</span>
+                )}
+                {status === "error" && (
+                  <span className="text-[10px] text-destructive font-bold flex items-center gap-0.5">
+                    <AlertCircle className="h-2.5 w-2.5" /> Error
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -227,16 +241,31 @@ export function PlayerBar() {
               <motion.div whileTap={{ scale: 0.9 }}>
                 <Button
                   size="icon"
-                  aria-label={isLoading ? "Loading" : isPlaying ? "Pause" : "Play"}
+                  aria-label={
+                    status === "loading"
+                      ? "Loading audio"
+                      : status === "buffering"
+                      ? "Buffering stream"
+                      : status === "playing"
+                      ? "Pause"
+                      : status === "error"
+                      ? "Retry playback"
+                      : "Play"
+                  }
                   onClick={togglePlay}
-                  className="h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_var(--color-glow-soft)] hover:bg-primary/90"
+                  className={cn(
+                    "h-10 w-10 rounded-full shadow-[0_0_20px_var(--color-glow-soft)] transition-all",
+                    status === "error"
+                      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  )}
                 >
-                  {isLoading ? (
+                  {status === "loading" || status === "buffering" ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : isPlaying ? (
+                  ) : status === "playing" ? (
                     <Pause className="h-5 w-5 fill-current" />
                   ) : (
-                    <Play className="h-5 w-5 fill-current" />
+                    <Play className="h-5 w-5 fill-current ml-0.5" />
                   )}
                 </Button>
               </motion.div>

@@ -27,9 +27,13 @@ export const EQ_PRESETS: Record<string, number[]> = {
 
 export const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
 
+export type PlayerStatus = "idle" | "loading" | "buffering" | "playing" | "paused" | "error";
+
 // ─── State ────────────────────────────────────────────────────────────────────
 interface PlayerState {
   currentTrack: Track | null;
+  status: PlayerStatus;
+  errorMessage?: string;
   isPlaying: boolean;
   isLoading: boolean;
   progress: number;   // 0–100
@@ -79,6 +83,7 @@ const INITIAL_EQ_GAINS = Array<number>(EQ_FREQUENCIES.length).fill(0);
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PlayerState>({
     currentTrack: null,
+    status: "idle",
     isPlaying: false,
     isLoading: false,
     progress: 0,
@@ -184,10 +189,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const p = audio.play();
     if (p !== undefined) {
       p.then(() => {
-        setState((s) => ({ ...s, isPlaying: true, isLoading: false }));
+        setState((s) => ({ ...s, isPlaying: true, isLoading: false, status: "playing", errorMessage: undefined }));
       }).catch((err: unknown) => {
         console.log("[Player] Playback notice:", err);
-        setState((s) => ({ ...s, isPlaying: false, isLoading: false }));
+        setState((s) => ({ ...s, isPlaying: false, isLoading: false, status: "paused" }));
       });
     }
   }, []);
@@ -207,11 +212,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         ...s,
         ...patch,
         currentTrack: track,
+        status: "loading",
         isPlaying: false,
         isLoading: true,
         progress: 0,
         currentTime: 0,
         duration: track.duration,
+        errorMessage: undefined,
       }));
 
       safePlay(audio);
@@ -404,30 +411,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (queue.length > 0 && queueIndex < queue.length - 1) {
         playFromQueue(queueIndex + 1);
       } else {
-        setState((s) => ({ ...s, isPlaying: false, progress: 0, currentTime: 0 }));
+        setState((s) => ({ ...s, isPlaying: false, status: "idle", progress: 0, currentTime: 0 }));
       }
     };
     const onLoadedMetadata = () => {
       setState((s) => ({ ...s, duration: audio.duration || s.currentTrack?.duration || 0 }));
     };
-    const onWaiting = () => setState((s) => ({ ...s, isLoading: true }));
-    const onPlaying = () => setState((s) => ({ ...s, isPlaying: true, isLoading: false }));
+    const onLoadStart = () => setState((s) => ({ ...s, status: "loading", isLoading: true }));
+    const onWaiting = () => setState((s) => ({ ...s, status: "buffering", isLoading: true }));
+    const onPlaying = () => setState((s) => ({ ...s, status: "playing", isPlaying: true, isLoading: false, errorMessage: undefined }));
     const onCanPlay = () => setState((s) => ({ ...s, isLoading: false }));
+    const onPause = () => setState((s) => ({ ...s, status: s.currentTrack ? "paused" : "idle", isPlaying: false, isLoading: false }));
+    const onError = () => setState((s) => ({ ...s, status: "error", isPlaying: false, isLoading: false, errorMessage: "Audio stream error or network unavailable" }));
 
     audio.addEventListener("timeupdate",    onTimeUpdate);
     audio.addEventListener("ended",         onEnded);
     audio.addEventListener("loadedmetadata",onLoadedMetadata);
+    audio.addEventListener("loadstart",     onLoadStart);
     audio.addEventListener("waiting",       onWaiting);
     audio.addEventListener("playing",       onPlaying);
     audio.addEventListener("canplay",       onCanPlay);
+    audio.addEventListener("pause",         onPause);
+    audio.addEventListener("error",         onError);
 
     return () => {
       audio.removeEventListener("timeupdate",    onTimeUpdate);
       audio.removeEventListener("ended",         onEnded);
       audio.removeEventListener("loadedmetadata",onLoadedMetadata);
+      audio.removeEventListener("loadstart",     onLoadStart);
       audio.removeEventListener("waiting",       onWaiting);
       audio.removeEventListener("playing",       onPlaying);
       audio.removeEventListener("canplay",       onCanPlay);
+      audio.removeEventListener("pause",         onPause);
+      audio.removeEventListener("error",         onError);
     };
   }, [ensureAudio, playFromQueue]);
 

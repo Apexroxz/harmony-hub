@@ -218,12 +218,11 @@ function ArtistPage() {
             </div>
 
             {/* Real-time stats computed from artist catalog */}
-            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
               {[
                 { label: "Followers", value: formatNumber(followerCount), icon: Users },
-                { label: "Releases", value: discography.length.toString(), icon: Disc3 },
+                { label: "Catalog Releases", value: discography.length.toString(), icon: Disc3 },
                 { label: "Total Streams", value: formatNumber(totalPlays), icon: Disc3 },
-                { label: "Supporters", value: formatNumber(Math.round(followerCount * 0.08)), icon: Crown },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-xl border border-border/40 bg-surface-raised p-4">
                   <div className="flex items-center justify-between">

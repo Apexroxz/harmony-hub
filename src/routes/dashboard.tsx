@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { catalogQueryOptions } from "@/domain/music/queries";
 import { RevenueSplitsModal } from "@/components/RevenueSplitsModal";
+import { WalletButton } from "@/components/WalletButton";
 import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/domain/music/types";
 import { usePlayer } from "@/lib/player";
@@ -161,12 +162,15 @@ function ArtistDashboardPage() {
           <p className="text-label text-muted-foreground mb-1">Artist Portal</p>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Analytics</h1>
         </div>
-        <Link to="/upload">
-          <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 gap-2 px-5 font-bold cursor-pointer">
-            <UploadCloud className="h-3.5 w-3.5" />
-            Upload Track
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <WalletButton />
+          <Link to="/upload">
+            <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 gap-2 px-5 font-bold cursor-pointer">
+              <UploadCloud className="h-3.5 w-3.5" />
+              Upload Track
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* ── Analytics stat cards ── */}
