@@ -1,6 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Heart, Play, Pause, Repeat2, Radio, UploadCloud, ListPlus, Share2 } from "lucide-react";
+import {
+  Heart,
+  Play,
+  Pause,
+  Repeat2,
+  Radio,
+  UploadCloud,
+  ListPlus,
+  Share2,
+  Sparkles,
+  ShoppingBag,
+  Crown,
+  Flame,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { useLibrary } from "@/lib/library";
 import { usePlayer } from "@/lib/player";
 import { formatDuration, formatNumber, type Track } from "@/domain/music/types";
@@ -10,20 +25,21 @@ import { QualityBadge } from "@/components/QualityBadge";
 import { Waveform } from "@/components/Waveform";
 import { ArtistAvatar, ArtistName } from "@/components/ArtistAvatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/stream")({
   head: () => ({
     meta: [
-      { title: "Your Stream — Layam" },
+      { title: "Community Feed — Layam" },
       {
         name: "description",
-        content: "The newest uploads and reposts from the artists you follow, in lossless quality.",
+        content: "Discover real-time drops, community fan activity, and lossless releases from creators.",
       },
-      { property: "og:title", content: "Your Stream — Layam" },
+      { property: "og:title", content: "Community Feed — Layam" },
       {
         property: "og:description",
-        content: "The newest uploads and reposts from the artists you follow, in lossless quality.",
+        content: "Discover real-time drops, community fan activity, and lossless releases from creators.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -43,6 +59,8 @@ function relativeDate(iso: string): string {
   return months <= 1 ? "1 month ago" : `${months} months ago`;
 }
 
+type FeedFilter = "all" | "releases" | "purchases" | "exclusive";
+
 function StreamPage() {
   const {
     allTracks,
@@ -56,6 +74,14 @@ function StreamPage() {
     refetch,
   } = useLibrary();
   const { playTrack } = usePlayer();
+  const [filter, setFilter] = useState<FeedFilter>("all");
+
+  const filteredTracks = allTracks.filter((track) => {
+    if (filter === "releases") return true;
+    if (filter === "purchases") return track.monetized || track.price;
+    if (filter === "exclusive") return track.quality === "FLAC" || track.quality === "WAV";
+    return true;
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-40 pt-24 sm:px-6 sm:pt-28 lg:px-8">
@@ -63,62 +89,88 @@ function StreamPage() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-10 flex flex-wrap items-end justify-between gap-6"
+        className="mb-8 flex flex-wrap items-end justify-between gap-6"
       >
         <div>
-          <div className="flex items-center gap-2 text-primary">
+          <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider mb-1">
             <Radio className="h-4 w-4" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">
-              Your stream
-            </span>
+            <span>Live Network</span>
           </div>
-          <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl">
-            Latest from
-            <br />
-            <span className="text-gradient">your feed</span>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Community Feed
           </h1>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-            New uploads and reposts, newest first — mastered audio, straight from the artists.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Real-time lossless master drops, collector sales, and independent creator updates.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              const first = allTracks[0];
-              if (first) playTrack(first, allTracks);
-            }}
-            className="rounded-full border-border/60"
-          >
-            <Play className="mr-2 h-4 w-4 fill-current" />
-            Play all
-          </Button>
-          <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+
+        <div className="flex gap-2">
+          {allTracks.length > 0 && (
+            <Button
+              onClick={() => playTrack(allTracks[0], allTracks)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold gap-2 text-xs"
+            >
+              <Play className="h-3.5 w-3.5 fill-current" />
+              Play Stream
+            </Button>
+          )}
+          <Button asChild variant="outline" className="border-border/60 text-xs">
             <Link to="/upload">
-              <UploadCloud className="mr-2 h-4 w-4" />
-              Upload
+              <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
+              Post Track
             </Link>
           </Button>
         </div>
       </motion.header>
 
+      {/* Feed Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 border-b border-border/40">
+        {[
+          { id: "all", label: "All Activity", icon: Flame },
+          { id: "releases", label: "Master Drops", icon: Sparkles },
+          { id: "purchases", label: "Store Activity", icon: ShoppingBag },
+          { id: "exclusive", label: "Lossless Only", icon: Crown },
+        ].map((tab) => (
+          <Button
+            key={tab.id}
+            variant={filter === tab.id ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilter(tab.id as FeedFilter)}
+            className={cn(
+              "text-xs font-semibold gap-1.5 rounded-full",
+              filter === tab.id
+                ? "bg-primary text-primary-foreground"
+                : "border-border/60 bg-glass text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
       {isLoading ? (
-        <FeedSkeleton />
+        <FeedSkeleton count={4} />
       ) : error ? (
-        <LoadError message="We couldn't load your stream." onRetry={refetch} />
-      ) : allTracks.length === 0 ? (
+        <LoadError
+          message="We couldn't load the community feed."
+          onRetry={() => refetch()}
+        />
+      ) : filteredTracks.length === 0 ? (
         <EmptyState
-          title="Nothing in your stream yet"
-          hint="Upload a track to get the feed moving."
+          title="No activity yet"
+          description="Follow artists or post your first track to see live updates in the feed."
+          actionLabel="Explore Store"
+          actionTo="/store"
         />
       ) : (
-        <div className="flex flex-col gap-4 sm:gap-5">
-          {allTracks.map((track, i) => (
+        <ul className="space-y-6">
+          {filteredTracks.map((track, i) => (
             <FeedItem
               key={track.id}
               track={track}
               index={i}
-              queue={allTracks}
+              queue={filteredTracks}
               liked={likedIds.includes(track.id)}
               reposted={repostedIds.includes(track.id)}
               repostCount={repostCounts[track.id] ?? 0}
@@ -126,21 +178,10 @@ function StreamPage() {
               onRepost={() => toggleRepost(track.id)}
             />
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
-}
-
-interface FeedItemProps {
-  track: Track;
-  index: number;
-  queue: Track[];
-  liked: boolean;
-  reposted: boolean;
-  repostCount: number;
-  onLike: () => void;
-  onRepost: () => void;
 }
 
 function FeedItem({
@@ -152,149 +193,153 @@ function FeedItem({
   repostCount,
   onLike,
   onRepost,
-}: FeedItemProps) {
+}: {
+  track: Track;
+  index: number;
+  queue: Track[];
+  liked: boolean;
+  reposted: boolean;
+  repostCount: number;
+  onLike: () => void;
+  onRepost: () => void;
+}) {
   const { playTrack, togglePlay, currentTrack, isPlaying, progress, seek, addToQueue } = usePlayer();
-  const { locked } = useOwnership(track.id);
+  const { isLocked } = useOwnership(track.id);
   const isCurrent = currentTrack?.id === track.id;
-  const active = isCurrent && isPlaying;
+
+  const handleShare = () => {
+    if (navigator.clipboard) {
+      void navigator.clipboard.writeText(`${window.location.origin}/track/${track.id}`);
+      toast.success("Link copied to clipboard!");
+    }
+  };
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
+    <motion.li
+      initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.45, delay: Math.min(index * 0.05, 0.3), ease: [0.22, 1, 0.36, 1] }}
-      className={cn(
-        "group relative overflow-hidden rounded-3xl border border-border/50 bg-card/70 p-4 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-card sm:p-5",
-        isCurrent && "border-primary/50 shadow-[0_0_40px_var(--color-glow-soft)]"
-      )}
+      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
+      className="group relative overflow-hidden rounded-2xl border border-border/40 bg-card p-5 transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
     >
-      <div className="flex items-center gap-3">
-        <ArtistAvatar artistId={track.artistId} name={track.artistName} size="sm" />
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-          <ArtistName artistId={track.artistId} name={track.artistName} className="text-sm" />
-          <span>
-            {track.uploaderId ? "uploaded" : "posted"} · {relativeDate(track.createdAt)}
-          </span>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-3">
+          <ArtistAvatar artistId={track.artistId} name={track.artistName} />
+          <div>
+            <ArtistName artistId={track.artistId} name={track.artistName} />
+            <p className="text-[11px] text-muted-foreground">
+              Published a {track.quality} release · {relativeDate(track.createdAt)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <QualityBadge spec={track} />
+          {track.monetized && (
+            <Badge className="bg-primary/10 text-primary text-[10px] border border-primary/30">
+              ${(track.price ?? 0).toFixed(2)} Store
+            </Badge>
+          )}
         </div>
       </div>
 
-      <div className="mt-4 flex gap-4 sm:gap-5">
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl sm:h-28 sm:w-28">
+      {/* Main Track Row */}
+      <div className="flex gap-4 items-center">
+        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-muted">
           <img
             src={track.coverImage}
-            alt={`${track.title} cover art`}
-            width={224}
-            height={224}
+            alt={track.title}
+            className="h-full w-full object-cover"
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-          <motion.div whileTap={{ scale: 0.9 }} className="absolute inset-0 flex items-center justify-center">
-            <Button
-              size="icon"
-              disabled={locked}
-              aria-label={active ? `Pause ${track.title}` : `Play ${track.title}`}
-              onClick={() => (isCurrent ? togglePlay() : playTrack(track, queue))}
-              className={cn(
-                "h-11 w-11 rounded-full bg-primary text-primary-foreground shadow-[0_0_24px_var(--color-glow)] transition-all duration-300 hover:bg-primary/90",
-                active ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-              )}
-            >
-              {active ? (
-                <Pause className="h-5 w-5 fill-current" />
-              ) : (
-                <Play className="h-5 w-5 fill-current" />
-              )}
-            </Button>
-          </motion.div>
+          <button
+            onClick={() => (isCurrent ? togglePlay() : playTrack(track, queue))}
+            className="absolute inset-0 flex items-center justify-center bg-black/40 text-white transition-opacity hover:bg-black/60"
+            aria-label={isCurrent && isPlaying ? "Pause" : "Play"}
+          >
+            {isCurrent && isPlaying ? (
+              <Pause className="h-7 w-7 fill-current" />
+            ) : (
+              <Play className="h-7 w-7 fill-current ml-0.5" />
+            )}
+          </button>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="min-w-0 flex-1">
           <Link
             to="/track/$id"
             params={{ id: track.id }}
-            className="block truncate text-lg font-semibold tracking-tight text-foreground transition-colors hover:text-primary sm:text-xl"
+            className="block truncate font-bold text-foreground hover:text-primary transition-colors text-base"
           >
             {track.title}
           </Link>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {track.genre} · {formatDuration(track.duration)} · {formatNumber(track.playCount)} streams
+          </p>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full bg-surface-raised px-2 py-0.5">{track.genre}</span>
-            <QualityBadge spec={track} withIcon />
-            <span className="font-mono">{formatDuration(track.duration)}</span>
-          </div>
-
-          {/* Waveform: static bar until hover / playing */}
-          <div className="relative mt-3 h-10">
-            <div
-              className={cn(
-                "absolute inset-0 transition-opacity duration-300",
-                isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-              )}
-            >
+          {/* Interactive Waveform / progress */}
+          <div className="mt-2">
+            {isCurrent ? (
               <Waveform
-                seed={track.id}
-                peaks={track.waveform}
-                progress={isCurrent ? progress : 0}
-                bars={56}
-                onSeek={isCurrent ? seek : undefined}
+                peaks={track.waveform ?? []}
+                progress={progress}
+                onSeek={seek}
+                className="h-8"
               />
-            </div>
-            <div
-              className={cn(
-                "absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-muted/40 transition-opacity duration-300",
-                isCurrent ? "opacity-0" : "opacity-100 group-hover:opacity-0"
-              )}
-            >
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-                style={{ width: `${isCurrent ? progress : 0}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-            <button
-              onClick={onLike}
-              aria-label="Like track"
-              className={cn(
-                "flex items-center gap-1.5 transition-colors hover:text-primary",
-                liked && "text-primary"
-              )}
-            >
-              <motion.span whileTap={{ scale: 1.3 }} className="inline-flex">
-                <Heart className={cn("h-4 w-4", liked && "fill-current")} />
-              </motion.span>
-              {formatNumber(track.likes + (liked ? 1 : 0))}
-            </button>
-            <button
-              onClick={onRepost}
-              aria-label="Repost track"
-              className={cn(
-                "flex items-center gap-1.5 transition-colors hover:text-primary",
-                reposted && "text-primary"
-              )}
-            >
-              <Repeat2 className="h-4 w-4" />
-              {formatNumber(repostCount + (reposted ? 1 : 0))}
-            </button>
-            <button
-              onClick={() => addToQueue(track)}
-              aria-label="Add to queue"
-              className="flex items-center gap-1.5 transition-colors hover:text-primary"
-            >
-              <ListPlus className="h-4 w-4" />
-              <span className="hidden sm:inline">Queue</span>
-            </button>
-            <span className="hidden items-center gap-1.5 sm:flex">
-              <Share2 className="h-3.5 w-3.5" />
-              {formatNumber(track.playCount)} plays
-            </span>
-            {active && <span className="font-medium text-primary">Now playing</span>}
+            ) : (
+              <div className="h-2 w-full rounded-full bg-surface-raised overflow-hidden">
+                <div className="h-full bg-primary/20 w-1/3" />
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </motion.article>
+
+      {/* Action Footer */}
+      <div className="mt-4 pt-3 border-t border-border/30 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onLike}
+            className={cn(
+              "flex items-center gap-1.5 transition-colors hover:text-rose-400",
+              liked && "text-rose-500 font-semibold"
+            )}
+          >
+            <Heart className={cn("h-4 w-4", liked && "fill-current")} />
+            <span>{formatNumber(track.likes + (liked ? 1 : 0))}</span>
+          </button>
+
+          <button
+            onClick={onRepost}
+            className={cn(
+              "flex items-center gap-1.5 transition-colors hover:text-emerald-400",
+              reposted && "text-emerald-400 font-semibold"
+            )}
+          >
+            <Repeat2 className="h-4 w-4" />
+            <span>{formatNumber(repostCount + (reposted ? 1 : 0))}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              addToQueue(track);
+              toast.success(`"${track.title}" added to queue`);
+            }}
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+          >
+            <ListPlus className="h-4 w-4" />
+            <span>Queue</span>
+          </button>
+        </div>
+
+        <button
+          onClick={handleShare}
+          className="flex items-center gap-1 hover:text-foreground transition-colors"
+        >
+          <Share2 className="h-3.5 w-3.5" />
+          <span>Share</span>
+        </button>
+      </div>
+    </motion.li>
   );
 }

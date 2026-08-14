@@ -8,6 +8,14 @@ export type AudioFormat = "FLAC" | "WAV" | "ALAC" | "MP3" | "AAC" | "OPUS";
 /** Formats that carry a bit-perfect master. */
 export const LOSSLESS_FORMATS: AudioFormat[] = ["FLAC", "WAV", "ALAC"];
 
+export interface CreatorTier {
+  id: string;
+  name: string;
+  priceMonthly: number;
+  perks: string[];
+  color?: string;
+}
+
 export interface Artist {
   id: string;
   name: string;
@@ -16,6 +24,7 @@ export interface Artist {
   bio: string;
   followers: number;
   verified: boolean;
+  tiers?: CreatorTier[];
 }
 
 export interface Track {
@@ -51,6 +60,12 @@ export interface Track {
   monetized?: boolean;
   /** User IDs who bought this track. */
   purchasedBy?: string[];
+  /** Audio fingerprint hash for copyright/duplicate verification. */
+  fingerprint?: string;
+  /** Exclusive subscriber-only release */
+  isExclusive?: boolean;
+  /** Minimum tier required to access if exclusive */
+  requiredTier?: string;
 }
 
 /** The audio-spec slice of a track, for components that only render specs. */

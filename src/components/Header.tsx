@@ -1,11 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { House, ShoppingBag, UploadCloud, Library, Search } from "lucide-react";
+import { House, ShoppingBag, Radio, UploadCloud, Library, Search } from "lucide-react";
 import { WalletButton } from "./WalletButton";
 import { UserMenu } from "./UserMenu";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/", label: "Home", icon: House },
+  { to: "/stream", label: "Feed", icon: Radio },
   { to: "/store", label: "Store", icon: ShoppingBag },
   { to: "/upload", label: "Upload", icon: UploadCloud },
   { to: "/library", label: "Library", icon: Library },

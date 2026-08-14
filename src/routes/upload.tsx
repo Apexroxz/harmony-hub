@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { UploadCloud, FileAudio, Sparkles, AlertTriangle, ImagePlus, Loader2 } from "lucide-react";
+import { UploadCloud, FileAudio, Sparkles, AlertTriangle, ImagePlus, Loader2, ShieldAlert, CheckCircle2, Split } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
 import { uploadMedia } from "@/lib/media";
-import { catalogQueryKey } from "@/domain/music/queries";
+import { catalogQueryKey, catalogQueryOptions } from "@/domain/music/queries";
+import { generateAudioFingerprint, checkCatalogFingerprintMatch, type MatchResult } from "@/lib/fingerprint";
 import {
   estimatedSizeMb,
   qualityDescription,
@@ -133,6 +134,9 @@ function UploadPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
+  const catalog = useQuery(catalogQueryOptions());
+  const existingTracks = catalog.data?.tracks ?? [];
+
   const [file, setFile] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -140,6 +144,9 @@ function UploadPage() {
   const [peaks, setPeaks] = useState<number[]>([]);
   const [spec, setSpec] = useState<AudioSpec | null>(null);
   const [analysing, setAnalysing] = useState(false);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
+  const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
+  const [acceptSplit, setAcceptSplit] = useState(false);
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("");
   const [storage, setStorage] = useState<StorageProvider>("ipfs");
@@ -152,6 +159,7 @@ function UploadPage() {
 
   const handleFile = async (picked: File) => {
     setError(null);
+    setMatchResult(null);
     if (
       !picked.type.startsWith("audio/") &&
       !/\.(flac|wav|aiff?|m4a|mp3|aac|ogg|opus)$/i.test(picked.name)
@@ -160,13 +168,28 @@ function UploadPage() {
       return;
     }
     setFile(picked);
-    if (!title) setTitle(picked.name.replace(/\.[^.]+$/, ""));
+    const initialTitle = title || picked.name.replace(/\.[^.]+$/, "");
+    if (!title) setTitle(initialTitle);
     setAnalysing(true);
     try {
-      const analysis = await analyseAudio(picked);
+      const [analysis, fp] = await Promise.all([
+        analyseAudio(picked),
+        generateAudioFingerprint(picked).catch(() => null),
+      ]);
       setDuration(analysis.duration);
       setPeaks(analysis.peaks);
       setSpec(deriveQuality(picked, analysis.duration, analysis.sampleRate));
+      
+      if (fp) {
+        setFingerprint(fp.hash);
+        const match = checkCatalogFingerprintMatch(fp, initialTitle, existingTracks);
+        if (match.isMatch) {
+          setMatchResult(match);
+          toast.warning("Copyright / Duplicate Match Detected", {
+            description: match.reason,
+          });
+        }
+      }
     } catch {
       setError("This browser couldn't decode that file, so its quality can't be read.");
       setSpec(null);
@@ -246,6 +269,7 @@ function UploadPage() {
         sample_rate: spec.sampleRate,
         bit_depth: spec.bitDepth ?? null,
         waveform: peaks,
+        ...(fingerprint ? { fingerprint } : {}),
         ...(monetized && price ? { price: parseFloat(price), monetized: true } : {}),
       } as any);
       if (trackInsert.error) throw trackInsert.error;
@@ -367,6 +391,41 @@ function UploadPage() {
               This is a compressed file. Upload a FLAC or WAV master for a lossless badge.
             </p>
           )}
+        </div>
+      )}
+
+      {matchResult?.isMatch && (
+        <div className="mt-6 rounded-2xl border border-amber/40 bg-amber/10 p-5 space-y-3">
+          <div className="flex items-center gap-2 text-amber font-bold text-sm">
+            <ShieldAlert className="h-4 w-4" />
+            <span>Audio Fingerprint Match Detected ({Math.round(matchResult.confidence * 100)}% Confidence)</span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {matchResult.reason}. To protect original creator rights while avoiding upload blocks, you can route a 50/50 revenue & stream credit split to the original artist.
+          </p>
+          <div className="flex items-center gap-3 pt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={acceptSplit ? "default" : "outline"}
+              onClick={() => {
+                setAcceptSplit((v) => !v);
+                toast.success(acceptSplit ? "Reverted to standard upload" : "50/50 Revenue Split Configured with original creator");
+              }}
+              className={cn(
+                "h-8 text-xs font-semibold gap-1.5",
+                acceptSplit
+                  ? "bg-amber text-black hover:bg-amber/90 font-bold"
+                  : "border-amber/40 text-amber hover:bg-amber/10"
+              )}
+            >
+              <Split className="h-3.5 w-3.5" />
+              {acceptSplit ? "50/50 Revenue Split Enabled" : "Accept 50/50 Revenue Split"}
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              {acceptSplit ? "✓ Revenue will be split automatically on payouts" : "or proceed if you hold remix/master rights"}
+            </span>
+          </div>
         </div>
       )}
 
