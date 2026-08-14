@@ -79,9 +79,8 @@ function LibraryPage() {
     addTrackToPlaylist,
     removeTrackFromPlaylist,
   } = useAppMode();
-
   const { allTracks, likedIds } = useLibrary();
-  const { playTrack } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer();
 
   const [offlineTab, setOfflineTab] = useState<"tracks" | "folders" | "albums" | "artists" | "playlists" | "tags" | "store">(
     (search.tab as any) || "tracks"
@@ -116,7 +115,7 @@ function LibraryPage() {
     }
   };
 
-  const getPurchasedTracks = () => {
+  const getPurchasedTracks = (): Track[] => {
     try {
       const stored = sessionStorage.getItem("layam_purchases");
       if (!stored) return [];
@@ -152,93 +151,135 @@ function LibraryPage() {
   };
 
   // ── Render Track Row ──────────────────────────────────────────────────────────
-  const renderTrackRow = (track: LocalTrack | Track, currentQueue: (LocalTrack | Track)[]) => (
-    <div
-      key={track.id}
-      className="group flex items-center justify-between gap-4 rounded-xl p-3 hover:bg-surface-raised/60 transition-colors border border-transparent hover:border-border/40"
-    >
-      <div className="flex items-center gap-3.5 min-w-0">
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-surface-raised">
-          {track.coverImage ? (
-            <img src={track.coverImage} alt={track.title} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
-              <Music2 className="h-5 w-5" />
+  const renderTrackRow = (track: LocalTrack | Track, currentQueue: (LocalTrack | Track)[]) => {
+    const isCurrent = currentTrack?.id === track.id;
+
+    return (
+      <div
+        key={track.id}
+        className={cn(
+          "group flex items-center justify-between gap-4 rounded-2xl p-3 transition-all border",
+          isCurrent
+            ? "bg-primary/10 border-primary/30 shadow-sm"
+            : "hover:bg-surface-raised/70 border-transparent hover:border-border/40"
+        )}
+      >
+        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-surface-raised border border-border/30">
+            {track.coverImage ? (
+              <img src={track.coverImage} alt={track.title} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+                <Music2 className="h-5 w-5" />
+              </div>
+            )}
+            <button
+              onClick={() => {
+                if (isCurrent) {
+                  togglePlay();
+                } else {
+                  playTrack(track as Track, currentQueue as Track[]);
+                }
+              }}
+              className={cn(
+                "absolute inset-0 flex items-center justify-center bg-black/60 transition-opacity cursor-pointer",
+                isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              )}
+              aria-label={`Play ${track.title}`}
+            >
+              {isCurrent && isPlaying ? (
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <span className="h-2.5 w-2.5 bg-current rounded-xs" />
+                </div>
+              ) : (
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+                </div>
+              )}
+            </button>
+          </div>
+
+          <div className="flex flex-col min-w-0 flex-1">
+            <h3
+              onClick={() => playTrack(track as Track, currentQueue as Track[])}
+              className={cn(
+                "truncate font-bold text-sm cursor-pointer transition-colors",
+                isCurrent ? "text-primary" : "text-foreground group-hover:text-primary"
+              )}
+            >
+              {track.title}
+            </h3>
+            <p className="truncate text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+              <span>{track.artistName}</span>
+              {(track as LocalTrack).album && (
+                <>
+                  <span>·</span>
+                  <span className="text-muted-foreground/80">{(track as LocalTrack).album}</span>
+                </>
+              )}
+              {(track as LocalTrack).folderPath && (
+                <>
+                  <span>·</span>
+                  <span className="font-mono text-[10px] text-muted-foreground/60">
+                    📁 {(track as LocalTrack).folderPath}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="hidden sm:flex flex-col items-end">
+            <div className="flex items-center gap-1.5">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "border text-[10px] font-mono font-bold",
+                  isOffline
+                    ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                    : "border-primary/40 text-primary bg-primary/10"
+                )}
+              >
+                {track.quality}
+              </Badge>
+              {track.sampleRate && (
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {track.sampleRate >= 96000 ? "24/96" : "16/44.1"}
+                </span>
+              )}
+            </div>
+            <span className="font-mono text-[10px] text-muted-foreground mt-0.5">
+              {formatDuration(track.duration)}
+            </span>
+          </div>
+
+          {isOffline && (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full"
+                onClick={() => handleStartEdit(track as LocalTrack)}
+                title="Edit ID3 Tags"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-full"
+                onClick={() => removeLocalTrack(track.id)}
+                title="Remove from Local Library"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
           )}
-          <button
-            onClick={() => playTrack(track as Track, currentQueue as Track[])}
-            className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100"
-            aria-label={`Play ${track.title}`}
-          >
-            <Play className="h-5 w-5 text-white fill-current ml-0.5" />
-          </button>
-        </div>
-
-        <div className="flex flex-col min-w-0">
-          <h3 className="truncate font-semibold text-sm text-foreground">{track.title}</h3>
-          <p className="truncate text-xs text-muted-foreground flex items-center gap-1.5">
-            <span>{track.artistName}</span>
-            {(track as LocalTrack).album && (
-              <>
-                <span>·</span>
-                <span className="text-muted-foreground/80">{(track as LocalTrack).album}</span>
-              </>
-            )}
-            {(track as LocalTrack).folderPath && (
-              <>
-                <span>·</span>
-                <span className="font-mono text-[10px] text-muted-foreground/60">
-                  📁 {(track as LocalTrack).folderPath}
-                </span>
-              </>
-            )}
-          </p>
         </div>
       </div>
-
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="hidden sm:flex flex-col items-end">
-          <div className="flex items-center gap-1.5">
-            <Badge variant="outline" className="border-border/60 text-[10px] font-mono text-primary font-bold">
-              {track.quality}
-            </Badge>
-            {track.sampleRate && (
-              <span className="text-[10px] font-mono text-muted-foreground">
-                {track.sampleRate >= 96000 ? "24/96" : "16/44.1"}
-              </span>
-            )}
-          </div>
-          <span className="font-mono text-[10px] text-muted-foreground mt-0.5">
-            {formatDuration(track.duration)}
-          </span>
-        </div>
-
-        {isOffline && (
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={() => handleStartEdit(track as LocalTrack)}
-              title="Edit ID3 Tags"
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-              onClick={() => removeLocalTrack(track.id)}
-              title="Remove from Local Library"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>

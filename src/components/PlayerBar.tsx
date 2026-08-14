@@ -16,11 +16,13 @@ import {
   Sliders,
   Sparkles,
   ShoppingBag,
+  Maximize2,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlayer, PLAYBACK_RATES } from "@/lib/player";
 import { formatDuration } from "@/domain/music/types";
 import { AudioConsoleModal } from "./AudioConsoleModal";
+import { FullscreenAudiophilePlayer } from "./FullscreenAudiophilePlayer";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +64,7 @@ export function PlayerBar() {
   const [speedOpen, setSpeedOpen] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [buyModalOpen, setBuyModalOpen] = useState(false);
+  const [fullscreenPlayerOpen, setFullscreenPlayerOpen] = useState(false);
 
   if (!currentTrack) return null;
 
@@ -352,6 +355,18 @@ export function PlayerBar() {
               )}
             </Button>
 
+            {/* Maximize / Fullscreen Audiophile Player Trigger */}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Expand Audiophile Player"
+              onClick={() => setFullscreenPlayerOpen(true)}
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+              title="Expand Full Audiophile Player & Console"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+
             {/* Precision Volume */}
             <div className="hidden items-center gap-2 sm:flex">
               <Button
@@ -379,6 +394,12 @@ export function PlayerBar() {
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Audiophile Poweramp-Style Player Modal */}
+      <FullscreenAudiophilePlayer
+        open={fullscreenPlayerOpen}
+        onClose={() => setFullscreenPlayerOpen(false)}
+      />
 
       {/* Audio Console Modal */}
       <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
