@@ -36,6 +36,8 @@ import {
 import { formatDuration, qualityLabel, type Track } from "@/domain/music/types";
 import { QualityBadge } from "@/components/QualityBadge";
 import { AudioConsoleModal } from "@/components/AudioConsoleModal";
+import { TrackCard } from "@/components/TrackCard";
+import { tracks as storeCatalogTracks } from "@/domain/music/catalog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -81,7 +83,7 @@ function LibraryPage() {
   const { allTracks, likedIds } = useLibrary();
   const { playTrack } = usePlayer();
 
-  const [offlineTab, setOfflineTab] = useState<"tracks" | "folders" | "albums" | "artists" | "playlists" | "tags">(
+  const [offlineTab, setOfflineTab] = useState<"tracks" | "folders" | "albums" | "artists" | "playlists" | "tags" | "store">(
     (search.tab as any) || "tracks"
   );
   const [onlineTab, setOnlineTab] = useState<"purchased" | "liked" | "local">("purchased");
@@ -102,7 +104,7 @@ function LibraryPage() {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (search.tab && ["tracks", "folders", "albums", "artists", "playlists", "tags"].includes(search.tab)) {
+    if (search.tab && ["tracks", "folders", "albums", "artists", "playlists", "tags", "store"].includes(search.tab)) {
       setOfflineTab(search.tab as any);
     }
   }, [search.tab]);
@@ -324,6 +326,7 @@ function LibraryPage() {
                 { id: "artists", label: `Artists (${localArtistGroups.length})`, icon: Users },
                 { id: "playlists", label: `Playlists (${localPlaylists.length})`, icon: ListMusic },
                 { id: "tags", label: "Tag Editor", icon: Edit3 },
+                { id: "store", label: "Buy Store Masters", icon: ShoppingBag },
               ].map((tabItem) => (
                 <button
                   key={tabItem.id}
@@ -671,6 +674,28 @@ function LibraryPage() {
                     </div>
                   </form>
                 )}
+              </div>
+            )}
+
+            {/* 7. Buy Store Masters View (Direct Offline Acquisition) */}
+            {offlineTab === "store" && (
+              <div>
+                <div className="rounded-3xl border border-border/40 bg-card p-6 sm:p-8 mb-8">
+                  <div className="flex items-center gap-2 text-primary text-xs font-bold mb-1">
+                    <ShoppingBag className="h-4 w-4" />
+                    <span>ONLINE MUSIC STORE · DIRECT OFFLINE DOWNLOAD</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground">Get New Masters for Your Offline Player</h3>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                    Buy high-resolution DRM-free master tracks directly from creators. Once purchased, tracks are instantly downloaded and added directly into your Local Offline Library under <code className="text-foreground font-mono">Downloads/Purchased</code>.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {storeCatalogTracks.map((t) => (
+                    <TrackCard key={t.id} track={t} />
+                  ))}
+                </div>
               </div>
             )}
           </div>

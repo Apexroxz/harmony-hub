@@ -20,6 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { catalogQueryOptions } from "@/domain/music/queries";
+import { tracks as storeCatalogTracks } from "@/domain/music/catalog";
 import { formatNumber, formatDuration, type Track } from "@/domain/music/types";
 import { useAppMode, type LocalTrack } from "@/lib/mode";
 import { usePlayer } from "@/lib/player";
@@ -280,7 +281,7 @@ function OfflineHiFiDashboard() {
 
       {/* ── Offline Album Shelves ── */}
       {localAlbums.length > 0 && (
-        <section>
+        <section className="mb-12">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-foreground">Local Albums</h2>
@@ -330,6 +331,28 @@ function OfflineHiFiDashboard() {
           </div>
         </section>
       )}
+
+      {/* ── Buy DRM-Free Masters Directly for Offline Player ── */}
+      <section className="rounded-3xl border border-border/40 bg-card p-6 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2 text-primary text-xs font-bold mb-1">
+              <ShoppingBag className="h-4 w-4" />
+              <span>ONLINE MUSIC STORE · DIRECT OFFLINE SYNC</span>
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">Get New Masters for Offline Player</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Buy 24-bit high-resolution masters directly from independent artists. 85% goes straight to the creator and files download instantly into your local offline library.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {storeCatalogTracks.slice(0, 3).map((t) => (
+            <TrackCard key={t.id} track={t} />
+          ))}
+        </div>
+      </section>
 
       {/* Audio Console Modal */}
       <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
