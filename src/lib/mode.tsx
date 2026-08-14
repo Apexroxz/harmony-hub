@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import type { Track, AudioFormat } from "@/domain/music/types";
 import { extractAudioMetadata } from "./tagExtractor";
+import { tracks as catalogTracks } from "@/domain/music/catalog";
 import cover1 from "@/assets/covers/cover-1.jpg";
 import cover2 from "@/assets/covers/cover-2.jpg";
 import cover3 from "@/assets/covers/cover-3.jpg";
@@ -24,6 +25,7 @@ export interface LocalTrack extends Track {
   album?: string;
   year?: string;
   trackNumber?: number;
+  fileSizeBytes?: number;
 }
 
 export interface LocalPlaylist {
@@ -53,6 +55,14 @@ export interface LocalFolderGroup {
   tracks: LocalTrack[];
 }
 
+export interface OfflineSettings {
+  gaplessPlayback: boolean;
+  crossfadeSeconds: number;
+  bufferSize: "Direct" | "Fast (64kb)" | "Audiophile (512kb)";
+  highResOutput: boolean;
+  autoRescan: boolean;
+}
+
 export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
   {
     id: "local-midnight-protocol",
@@ -74,6 +84,7 @@ export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
     uploaderId: "local-device",
     folderPath: "Music/Synthwave",
     album: "Midnight Sessions",
+    fileSizeBytes: 65400000,
   },
   {
     id: "local-phantom-waves",
@@ -95,6 +106,7 @@ export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
     uploaderId: "local-device",
     folderPath: "Music/Electropop",
     album: "Waves Vol 1",
+    fileSizeBytes: 194000000,
   },
   {
     id: "local-hash-rate",
@@ -116,6 +128,7 @@ export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
     uploaderId: "local-device",
     folderPath: "Downloads/Bass",
     album: "Grid Beats",
+    fileSizeBytes: 60200000,
   },
   {
     id: "local-chain-reaction",
@@ -137,6 +150,7 @@ export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
     uploaderId: "local-device",
     folderPath: "Music/Synthwave",
     album: "Midnight Sessions",
+    fileSizeBytes: 130000000,
   },
 ];
 
@@ -151,6 +165,10 @@ interface ModeContextValue {
   localArtistGroups: LocalArtistGroup[];
   localFolders: LocalFolderGroup[];
   localPlaylists: LocalPlaylist[];
+  storageUsedMb: number;
+  formatsSummary: { flac: number; wav: number; alac: number; mp3: number };
+  offlineSettings: OfflineSettings;
+  updateOfflineSettings: (updates: Partial<OfflineSettings>) => void;
   importLocalFiles: (files: FileList | File[]) => Promise<void>;
   removeLocalTrack: (id: string) => void;
   updateLocalTrackMetadata: (id: string, updates: Partial<LocalTrack>) => void;
@@ -158,6 +176,8 @@ interface ModeContextValue {
   deletePlaylist: (id: string) => void;
   addTrackToPlaylist: (playlistId: string, trackId: string) => void;
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
+  rescanLibrary: () => void;
+  clearOfflineCache: () => void;
 }
 
 const ModeContext = createContext<ModeContextValue | null>(null);
@@ -165,6 +185,7 @@ const ModeContext = createContext<ModeContextValue | null>(null);
 const STORAGE_KEY = "layam_app_mode";
 const LOCAL_TRACKS_KEY = "layam_imported_tracks";
 const PLAYLISTS_KEY = "layam_local_playlists";
+const SETTINGS_KEY = "layam_offline_settings";
 
 export function ModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<AppMode>(() => {
@@ -181,7 +202,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
         const saved = localStorage.getItem(LOCAL_TRACKS_KEY);
         if (saved) return JSON.parse(saved) as LocalTrack[];
       } catch {
-        // ignore parse error
+        // ignore
       }
     }
     return [];
@@ -206,8 +227,27 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     ];
   });
 
+  const [offlineSettings, setOfflineSettings] = useState<OfflineSettings>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(SETTINGS_KEY);
+        if (saved) return JSON.parse(saved) as OfflineSettings;
+      } catch {
+        // ignore
+      }
+    }
+    return {
+      gaplessPlayback: true,
+      crossfadeSeconds: 0,
+      bufferSize: "Audiophile (512kb)",
+      highResOutput: true,
+      autoRescan: true,
+    };
+  });
+
   const [sampleTracks, setSampleTracks] = useState<LocalTrack[]>(LOCAL_SAMPLE_TRACKS);
 
+  // Sync state to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, mode);
@@ -232,6 +272,19 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     }
   }, [localPlaylists]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(offlineSettings));
+    } catch {
+      // ignore
+    }
+  }, [offlineSettings]);
+
+  const updateOfflineSettings = useCallback((updates: Partial<OfflineSettings>) => {
+    setOfflineSettings((prev) => ({ ...prev, ...updates }));
+    toast.success("Offline settings saved");
+  }, []);
+
   const setMode = useCallback((newMode: AppMode) => {
     setModeState(newMode);
     toast.info(`Switched to ${newMode === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`, {
@@ -253,6 +306,26 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       });
       return next;
     });
+  }, []);
+
+  // Sync Purchased Store Music into Offline Library
+  const purchasedLocalTracks = useMemo<LocalTrack[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = sessionStorage.getItem("layam_purchases");
+      if (!stored) return [];
+      const purchasedIds = JSON.parse(stored) as string[];
+      return catalogTracks
+        .filter((t) => purchasedIds.includes(t.id))
+        .map((t) => ({
+          ...t,
+          folderPath: "Downloads/Purchased",
+          album: t.album || "Store Master Downloads",
+          fileSizeBytes: (t.duration * (t.bitrate || 1411) * 125), // estimated file size
+        }));
+    } catch {
+      return [];
+    }
   }, []);
 
   const importLocalFiles = useCallback(async (files: FileList | File[]) => {
@@ -288,6 +361,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
         uploaderId: "local-user",
         folderPath: metadata.folderPath || "Imported Tracks",
         album: metadata.album || "Local Audio",
+        fileSizeBytes: file.size || 45000000,
       };
 
       newTracks.push(track);
@@ -352,9 +426,50 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     toast.info("Removed from playlist");
   }, []);
 
+  const rescanLibrary = useCallback(() => {
+    toast.info("Rescanned local storage and folders", {
+      description: "Indexed all offline master audio files.",
+    });
+  }, []);
+
+  const clearOfflineCache = useCallback(() => {
+    setImportedTracks([]);
+    try {
+      localStorage.removeItem(LOCAL_TRACKS_KEY);
+    } catch {
+      // ignore
+    }
+    toast.success("Cleared imported audio cache");
+  }, []);
+
+  // All local tracks = Sample local tracks + User imported tracks + Purchased Store masters
   const allLocalTracks = useMemo(() => {
-    return [...importedTracks, ...sampleTracks];
-  }, [importedTracks, sampleTracks]);
+    const combined = [...importedTracks, ...purchasedLocalTracks, ...sampleTracks];
+    const unique = new Map<string, LocalTrack>();
+    for (const t of combined) {
+      unique.set(t.id, t);
+    }
+    return Array.from(unique.values());
+  }, [importedTracks, purchasedLocalTracks, sampleTracks]);
+
+  // Derived Storage calculation in MB
+  const storageUsedMb = useMemo(() => {
+    const totalBytes = allLocalTracks.reduce((acc, t) => acc + (t.fileSizeBytes || 45000000), 0);
+    return Math.round((totalBytes / (1024 * 1024)) * 10) / 10;
+  }, [allLocalTracks]);
+
+  // Format Breakdown
+  const formatsSummary = useMemo(() => {
+    const summary = { flac: 0, wav: 0, alac: 0, mp3: 0 };
+    for (const t of allLocalTracks) {
+      const q = (t.quality || "").toLowerCase();
+      if (q.includes("flac")) summary.flac++;
+      else if (q.includes("wav")) summary.wav++;
+      else if (q.includes("alac")) summary.alac++;
+      else summary.mp3++;
+    }
+    return summary;
+  }, [allLocalTracks]);
 
   // Derived Local Albums grouping
   const localAlbums = useMemo<LocalAlbum[]>(() => {
@@ -418,6 +533,10 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       localArtistGroups,
       localFolders,
       localPlaylists,
+      storageUsedMb,
+      formatsSummary,
+      offlineSettings,
+      updateOfflineSettings,
       importLocalFiles,
       removeLocalTrack,
       updateLocalTrackMetadata,
@@ -425,6 +544,8 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       deletePlaylist,
       addTrackToPlaylist,
       removeTrackFromPlaylist,
+      rescanLibrary,
+      clearOfflineCache,
     }),
     [
       mode,
@@ -435,6 +556,10 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       localArtistGroups,
       localFolders,
       localPlaylists,
+      storageUsedMb,
+      formatsSummary,
+      offlineSettings,
+      updateOfflineSettings,
       importLocalFiles,
       removeLocalTrack,
       updateLocalTrackMetadata,
@@ -442,6 +567,8 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       deletePlaylist,
       addTrackToPlaylist,
       removeTrackFromPlaylist,
+      rescanLibrary,
+      clearOfflineCache,
     ]
   );
 

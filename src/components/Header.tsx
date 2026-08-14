@@ -16,9 +16,11 @@ import {
   Disc3,
   Users,
   ListMusic,
+  Settings,
 } from "lucide-react";
 import { UserMenu } from "./UserMenu";
 import { AudioConsoleModal } from "./AudioConsoleModal";
+import { OfflineSettingsModal } from "./OfflineSettingsModal";
 import { useAppMode } from "@/lib/mode";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -45,10 +47,18 @@ export function Header() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isOffline, toggleMode } = useAppMode();
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <>
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-border/40 bg-glass-strong">
+      <header
+        className={cn(
+          "fixed left-0 right-0 top-0 z-50 border-b transition-colors",
+          isOffline
+            ? "border-emerald-500/20 bg-background/90 backdrop-blur-xl"
+            : "border-border/40 bg-glass-strong"
+        )}
+      >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4 md:gap-8">
             <Link to="/" className="flex items-center gap-2.5 text-foreground">
@@ -62,7 +72,7 @@ export function Header() {
               <span className="text-xl font-bold tracking-tight">Layam</span>
               {isOffline && (
                 <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-400 border border-emerald-500/40 tracking-wider">
-                  OFFLINE HI-FI
+                  OFFLINE HI-FI SHELL
                 </span>
               )}
             </Link>
@@ -92,7 +102,14 @@ export function Header() {
                     className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer"
                   >
                     <Sliders className="h-3.5 w-3.5" />
-                    EQ/DSP Console
+                    Audio Console
+                  </button>
+                  <button
+                    onClick={() => setSettingsOpen(true)}
+                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    Settings
                   </button>
                 </>
               ) : (
@@ -130,6 +147,18 @@ export function Header() {
               </div>
             )}
 
+            {isOffline && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSettingsOpen(true)}
+                className="h-8 w-8 text-muted-foreground hover:text-emerald-400"
+                title="Offline Hi-Fi Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
+
             {/* Mode Switcher Pill */}
             <Button
               size="sm"
@@ -150,7 +179,7 @@ export function Header() {
               {isOffline ? (
                 <>
                   <WifiOff className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>Offline Mode</span>
+                  <span>Offline Hi-Fi</span>
                 </>
               ) : (
                 <>
@@ -167,6 +196,9 @@ export function Header() {
 
       {/* Audio Console Modal */}
       <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
+
+      {/* Offline Settings Modal */}
+      <OfflineSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }
