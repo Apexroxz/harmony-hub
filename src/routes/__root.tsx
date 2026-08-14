@@ -7,7 +7,9 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, Component, type ReactNode, type ErrorInfo } from "react";
+import { toast } from "sonner";
+import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -79,6 +81,55 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+// ── React ErrorBoundary ────────────────────────────────────────────────────────
+interface EBProps {
+  children: ReactNode;
+}
+interface EBState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class AppErrorBoundary extends Component<EBProps, EBState> {
+  constructor(props: EBProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): EBState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[ErrorBoundary]", error, info.componentStack);
+    reportLovableError(error, { boundary: "react_error_boundary" });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-[60vh] items-center justify-center px-4">
+          <div className="max-w-md text-center">
+            <h2 className="text-xl font-semibold text-foreground">
+              Something went wrong
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {this.state.error?.message ?? "An unexpected error occurred."}
+            </p>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="mt-4 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
@@ -135,10 +186,19 @@ function RootComponent() {
         <WalletProvider>
           <LibraryProvider>
             <PlayerProvider>
+            <Toaster
+              position="bottom-right"
+              richColors
+              toastOptions={{
+                className: "bg-card text-foreground border-border",
+              }}
+            />
             <div className="flex min-h-screen flex-col">
               <Header />
               <main className="flex-1">
-                <Outlet />
+                <AppErrorBoundary>
+                  <Outlet />
+                </AppErrorBoundary>
               </main>
               <PlayerBar />
             </div>

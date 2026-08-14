@@ -83,9 +83,13 @@ function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
-            { label: "Songs", value: "2.4M", icon: Radio },
-            { label: "Artists", value: "18.2K", icon: TrendingUp },
-            { label: "Listeners", value: "142K", icon: Zap },
+            { label: "Songs", value: formatNumber(tracks.length), icon: Radio },
+            { label: "Artists", value: formatNumber(artists.length), icon: TrendingUp },
+            {
+              label: "Total Plays",
+              value: formatNumber(tracks.reduce((sum, t) => sum + (t.playCount ?? 0), 0)),
+              icon: Zap,
+            },
           ].map((stat) => (
             <div
               key={stat.label}

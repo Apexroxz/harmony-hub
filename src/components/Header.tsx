@@ -1,16 +1,15 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { House, Compass, UploadCloud, Library, Search } from "lucide-react";
+import { House, ShoppingBag, UploadCloud, Library, Search } from "lucide-react";
 import { WalletButton } from "./WalletButton";
+import { UserMenu } from "./UserMenu";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 
 const nav = [
   { to: "/", label: "Home", icon: House },
-  { to: "/browse", label: "Browse", icon: Compass },
+  { to: "/store", label: "Store", icon: ShoppingBag },
   { to: "/upload", label: "Upload", icon: UploadCloud },
   { to: "/library", label: "Library", icon: Library },
 ];
-
 
 export function Header() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -54,15 +53,14 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           <div className="hidden md:flex">
-            <div className="relative w-56 lg:w-72">
+            <Link to="/search" className="relative w-56 lg:w-72 block">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search songs, artists..."
-                className="h-9 border-border/60 bg-surface-raised pl-10 text-sm text-foreground placeholder:text-muted-foreground"
-                readOnly
-              />
-            </div>
+              <div className="h-9 flex items-center border border-border/60 bg-surface-raised pl-10 text-sm text-muted-foreground rounded-md">
+                Search songs, artists...
+              </div>
+            </Link>
           </div>
+          <UserMenu />
           <WalletButton />
         </div>
       </div>

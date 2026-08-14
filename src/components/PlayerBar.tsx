@@ -11,6 +11,7 @@ import {
   Gauge,
   X,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlayer, PLAYBACK_RATES } from "@/lib/player";
@@ -25,6 +26,7 @@ export function PlayerBar() {
   const {
     currentTrack,
     isPlaying,
+    isLoading,
     progress,
     volume,
     currentTime,
@@ -158,7 +160,11 @@ export function PlayerBar() {
           }}
         >
           <div
-            className="h-full bg-gradient-to-r from-primary to-accent"
+            className="h-full bg-primary/15"
+            style={{ width: `${Math.min(progress + 15, 100)}%` }}
+          />
+          <div
+            className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary to-accent"
             style={{ width: `${progress}%` }}
           />
           <div
@@ -221,11 +227,13 @@ export function PlayerBar() {
               <motion.div whileTap={{ scale: 0.9 }}>
                 <Button
                   size="icon"
-                  aria-label={isPlaying ? "Pause" : "Play"}
+                  aria-label={isLoading ? "Loading" : isPlaying ? "Pause" : "Play"}
                   onClick={togglePlay}
                   className="h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_var(--color-glow-soft)] hover:bg-primary/90"
                 >
-                  {isPlaying ? (
+                  {isLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : isPlaying ? (
                     <Pause className="h-5 w-5 fill-current" />
                   ) : (
                     <Play className="h-5 w-5 fill-current" />

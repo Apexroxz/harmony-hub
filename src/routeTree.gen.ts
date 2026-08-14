@@ -11,7 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BrowseRouteImport } from './routes/browse'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as StoreRouteImport } from './routes/store'
 import { Route as StreamRouteImport } from './routes/stream'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as ArtistIdRouteImport } from './routes/artist.$id'
@@ -27,9 +30,24 @@ const BrowseRoute = BrowseRouteImport.update({
   path: '/browse',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreRoute = StoreRouteImport.update({
+  id: '/store',
+  path: '/store',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StreamRoute = StreamRouteImport.update({
@@ -56,7 +74,10 @@ const TrackIdRoute = TrackIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
+  '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
+  '/search': typeof SearchRoute
+  '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -65,7 +86,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
+  '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
+  '/search': typeof SearchRoute
+  '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -75,7 +99,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
+  '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
+  '/search': typeof SearchRoute
+  '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -86,7 +113,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/browse'
+    | '/dashboard'
     | '/library'
+    | '/search'
+    | '/store'
     | '/stream'
     | '/upload'
     | '/artist/$id'
@@ -95,7 +125,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/browse'
+    | '/dashboard'
     | '/library'
+    | '/search'
+    | '/store'
     | '/stream'
     | '/upload'
     | '/artist/$id'
@@ -104,7 +137,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/browse'
+    | '/dashboard'
     | '/library'
+    | '/search'
+    | '/store'
     | '/stream'
     | '/upload'
     | '/artist/$id'
@@ -114,7 +150,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BrowseRoute: typeof BrowseRoute
+  DashboardRoute: typeof DashboardRoute
   LibraryRoute: typeof LibraryRoute
+  SearchRoute: typeof SearchRoute
+  StoreRoute: typeof StoreRoute
   StreamRoute: typeof StreamRoute
   UploadRoute: typeof UploadRoute
   ArtistIdRoute: typeof ArtistIdRoute
@@ -137,11 +176,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrowseRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/library': {
       id: '/library'
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store': {
+      id: '/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof StoreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stream': {
@@ -178,7 +238,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BrowseRoute: BrowseRoute,
+  DashboardRoute: DashboardRoute,
   LibraryRoute: LibraryRoute,
+  SearchRoute: SearchRoute,
+  StoreRoute: StoreRoute,
   StreamRoute: StreamRoute,
   UploadRoute: UploadRoute,
   ArtistIdRoute: ArtistIdRoute,

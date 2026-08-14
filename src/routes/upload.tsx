@@ -18,6 +18,8 @@ import {
 import type { StorageProvider } from "@/domain/ownership/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { QualityBadge } from "@/components/QualityBadge";
 import { cn } from "@/lib/utils";
 
@@ -144,6 +146,9 @@ function UploadPage() {
   const [tokenGated, setTokenGated] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [monetized, setMonetized] = useState(false);
+  const [price, setPrice] = useState("");
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
 
   const handleFile = async (picked: File) => {
     setError(null);
@@ -241,7 +246,8 @@ function UploadPage() {
         sample_rate: spec.sampleRate,
         bit_depth: spec.bitDepth ?? null,
         waveform: peaks,
-      });
+        ...(monetized && price ? { price: parseFloat(price), monetized: true } : {}),
+      } as any);
       if (trackInsert.error) throw trackInsert.error;
 
       const wallet = address ?? null;
@@ -268,7 +274,7 @@ function UploadPage() {
     },
   });
 
-  const canPublish = Boolean(file && spec && title.trim() && user && !publish.isPending);
+  const canPublish = Boolean(file && spec && title.trim() && user && rightsConfirmed && !publish.isPending);
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-32 pt-24 sm:px-6 lg:px-8">
@@ -397,6 +403,28 @@ function UploadPage() {
             {tokenGated ? "Token gated" : "Open to everyone"}
           </Button>
         </div>
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <span className="text-sm font-medium text-foreground">Pricing</span>
+          <div className="flex gap-4">
+            <div className="flex h-10 flex-1 items-center justify-between rounded-md border border-border/60 bg-surface-raised px-4">
+              <span className={cn("text-sm", !monetized ? "text-foreground font-medium" : "text-muted-foreground")}>Free Stream</span>
+              <Switch checked={monetized} onCheckedChange={setMonetized} />
+              <span className={cn("text-sm", monetized ? "text-foreground font-medium" : "text-muted-foreground")}>Monetized</span>
+            </div>
+            {monetized && (
+              <Input
+                type="number"
+                min={0.49}
+                max={99.99}
+                step={0.01}
+                placeholder="1.99"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="h-10 flex-1 border-border/60 bg-surface-raised text-foreground"
+              />
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="mt-6">
@@ -448,7 +476,18 @@ function UploadPage() {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      <div className="mt-8 flex items-center gap-3">
+        <Checkbox
+          id="rights"
+          checked={rightsConfirmed}
+          onCheckedChange={(c) => setRightsConfirmed(c === true)}
+        />
+        <label htmlFor="rights" className="text-sm font-medium cursor-pointer text-foreground">
+          I confirm I own or have the rights to distribute this audio
+        </label>
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <Button
           onClick={() => publish.mutate()}
           disabled={!canPublish}

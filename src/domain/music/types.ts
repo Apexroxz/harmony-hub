@@ -45,6 +45,12 @@ export interface Track {
   waveform?: number[];
   /** Account that published the track, when it came through the upload flow. */
   uploaderId?: string | null;
+  /** USD price. 0 or undefined = free. */
+  price?: number;
+  /** true = download gated behind purchase. */
+  monetized?: boolean;
+  /** User IDs who bought this track. */
+  purchasedBy?: string[];
 }
 
 /** The audio-spec slice of a track, for components that only render specs. */
