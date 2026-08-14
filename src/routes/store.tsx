@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { catalogQueryOptions } from "@/domain/music/queries";
 import { formatDuration, qualityLabel, isLossless, formatNumber, type Track } from "@/domain/music/types";
+import { recordTrackPurchase } from "@/domain/music/purchases";
 import { usePlayer } from "@/lib/player";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
@@ -127,30 +128,17 @@ function StorePage() {
 
   const confirmPurchase = () => {
     if (!buyingTrack) return;
-    const price = buyingTrack.price ?? 0;
-
-    if (price > 0 && !wallet.connected) {
-      toast.error("Connect your wallet", {
-        description: "You need a connected wallet to purchase tracks.",
-      });
-      return;
-    }
-
-    if (price > 0 && wallet.balance < price) {
-      toast.error("Insufficient balance", {
-        description: `You need $${price.toFixed(2)} but only have $${wallet.balance.toFixed(2)}.`,
-      });
-      return;
-    }
+    const price = buyingTrack.price ?? 1.49;
 
     setProcessing(true);
     setTimeout(() => {
       savePurchase(buyingTrack.id);
+      recordTrackPurchase(buyingTrack);
       setPurchased((prev) => [...prev, buyingTrack.id]);
       setProcessing(false);
       setBuyingTrack(null);
-      toast.success("Purchase complete!", {
-        description: `"${buyingTrack.title}" is now in your Library. Artist has been credited $${(price || 0).toFixed(2)}.`,
+      toast.success(`Purchased "${buyingTrack.title}"!`, {
+        description: `DRM-free master unlocked & synced to your Offline Hi-Fi Library (85% paid directly to ${buyingTrack.artistName}).`,
       });
     }, 800);
   };

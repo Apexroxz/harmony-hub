@@ -26,6 +26,9 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Waveform } from "@/components/Waveform";
 import { ArtistName } from "@/components/ArtistAvatar";
+import { BuyTrackModal } from "@/components/BuyTrackModal";
+import { isTrackPurchased } from "@/domain/music/purchases";
+import { useAppMode } from "@/lib/mode";
 import { cn } from "@/lib/utils";
 
 export function PlayerBar() {
@@ -54,9 +57,11 @@ export function PlayerBar() {
     setPlaybackRate,
   } = usePlayer();
 
+  const { isOnline } = useAppMode();
   const [queueOpen, setQueueOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [buyModalOpen, setBuyModalOpen] = useState(false);
 
   if (!currentTrack) return null;
 
@@ -196,6 +201,19 @@ export function PlayerBar() {
                   {currentTrack.quality}
                   {currentTrack.bitDepth ? ` ${currentTrack.bitDepth}-bit` : ""}
                 </Badge>
+
+                {/* Direct Buy pill if online & unpurchased */}
+                {isOnline &&
+                  !currentTrack.id.startsWith("local-") &&
+                  !currentTrack.id.startsWith("live-") &&
+                  !isTrackPurchased(currentTrack.id) && (
+                    <button
+                      onClick={() => setBuyModalOpen(true)}
+                      className="rounded-full bg-primary/20 hover:bg-primary hover:text-primary-foreground text-primary border border-primary/30 px-2 py-0 text-[10px] font-bold transition-colors cursor-pointer"
+                    >
+                      Buy ${currentTrack.price?.toFixed(2) ?? "1.49"}
+                    </button>
+                  )}
 
                 {status === "buffering" && (
                   <span className="text-[10px] text-amber animate-pulse font-bold">· Buffering</span>
@@ -404,6 +422,13 @@ export function PlayerBar() {
 
       {/* Audio Console Modal */}
       <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
+
+      {/* Buy Master Modal */}
+      <BuyTrackModal
+        track={currentTrack}
+        open={buyModalOpen}
+        onClose={() => setBuyModalOpen(false)}
+      />
     </>
   );
 }
