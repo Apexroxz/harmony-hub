@@ -17,6 +17,7 @@ import { AuthProvider } from "../lib/auth";
 import { WalletProvider } from "../lib/wallet";
 import { PlayerProvider } from "../lib/player";
 import { LibraryProvider } from "../lib/library";
+import { ModeProvider } from "../lib/mode";
 
 import { Header } from "../components/Header";
 import { PlayerBar } from "../components/PlayerBar";
@@ -184,26 +185,28 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WalletProvider>
-          <LibraryProvider>
-            <PlayerProvider>
-            <Toaster
-              position="bottom-right"
-              richColors
-              toastOptions={{
-                className: "bg-card text-foreground border-border",
-              }}
-            />
-            <div className="flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">
-                <AppErrorBoundary>
-                  <Outlet />
-                </AppErrorBoundary>
-              </main>
-              <PlayerBar />
-            </div>
-            </PlayerProvider>
-          </LibraryProvider>
+          <ModeProvider>
+            <LibraryProvider>
+              <PlayerProvider>
+              <Toaster
+                position="bottom-right"
+                richColors
+                toastOptions={{
+                  className: "bg-card text-foreground border-border",
+                }}
+              />
+              <div className="flex min-h-screen flex-col">
+                <Header />
+                <main className="flex-1">
+                  <AppErrorBoundary>
+                    <Outlet />
+                  </AppErrorBoundary>
+                </main>
+                <PlayerBar />
+              </div>
+              </PlayerProvider>
+            </LibraryProvider>
+          </ModeProvider>
         </WalletProvider>
       </AuthProvider>
     </QueryClientProvider>

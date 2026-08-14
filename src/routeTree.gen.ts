@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as RadioRouteImport } from './routes/radio'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as StoreRouteImport } from './routes/store'
 import { Route as StreamRouteImport } from './routes/stream'
@@ -38,6 +39,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RadioRoute = RadioRouteImport.update({
+  id: '/radio',
+  path: '/radio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SearchRoute = SearchRouteImport.update({
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/browse': typeof BrowseRoute
   '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
+  '/radio': typeof RadioRoute
   '/search': typeof SearchRoute
   '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/browse': typeof BrowseRoute
   '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
+  '/radio': typeof RadioRoute
   '/search': typeof SearchRoute
   '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/browse': typeof BrowseRoute
   '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
+  '/radio': typeof RadioRoute
   '/search': typeof SearchRoute
   '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/dashboard'
     | '/library'
+    | '/radio'
     | '/search'
     | '/store'
     | '/stream'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/dashboard'
     | '/library'
+    | '/radio'
     | '/search'
     | '/store'
     | '/stream'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/dashboard'
     | '/library'
+    | '/radio'
     | '/search'
     | '/store'
     | '/stream'
@@ -152,6 +164,7 @@ export interface RootRouteChildren {
   BrowseRoute: typeof BrowseRoute
   DashboardRoute: typeof DashboardRoute
   LibraryRoute: typeof LibraryRoute
+  RadioRoute: typeof RadioRoute
   SearchRoute: typeof SearchRoute
   StoreRoute: typeof StoreRoute
   StreamRoute: typeof StreamRoute
@@ -188,6 +201,13 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/radio': {
+      id: '/radio'
+      path: '/radio'
+      fullPath: '/radio'
+      preLoaderRoute: typeof RadioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/search': {
@@ -240,6 +260,7 @@ const rootRouteChildren: RootRouteChildren = {
   BrowseRoute: BrowseRoute,
   DashboardRoute: DashboardRoute,
   LibraryRoute: LibraryRoute,
+  RadioRoute: RadioRoute,
   SearchRoute: SearchRoute,
   StoreRoute: StoreRoute,
   StreamRoute: StreamRoute,
