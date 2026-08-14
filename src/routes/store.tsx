@@ -375,92 +375,90 @@ function StoreCard({
   onDownload: () => void;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border/40 bg-card transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+    <div className="group relative overflow-hidden rounded-3xl border border-border/40 bg-card/90 transition-all duration-300 hover:border-primary/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex flex-col justify-between">
       {/* Cover image */}
-      <div className="relative aspect-square overflow-hidden">
+      <div className="relative aspect-square overflow-hidden bg-surface">
         <img
           src={track.coverImage}
           alt={track.title}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-80" />
 
         {/* Play button overlay */}
         <button
           onClick={onPlay}
-          className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg opacity-0 transition-all group-hover:opacity-100 hover:scale-105 hover:bg-primary/90"
+          className="absolute bottom-3.5 left-3.5 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl opacity-0 transition-all duration-300 group-hover:opacity-100 hover:scale-105 hover:bg-primary/90 cursor-pointer"
           aria-label={`Play ${track.title}`}
         >
-          <Play className="h-5 w-5 fill-current" />
+          <Play className="h-5 w-5 fill-current ml-0.5" />
         </button>
 
         {/* Price badge */}
-        <div className="absolute right-3 top-3">
+        <div className="absolute right-3.5 top-3.5">
           {owned ? (
-            <span className="flex items-center gap-1 rounded-full bg-emerald-500/90 px-2.5 py-1 text-[11px] font-bold text-white shadow-md">
+            <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 backdrop-blur-md px-3 py-1 text-[10px] font-mono font-bold text-emerald-400 shadow-md">
               <CheckCircle2 className="h-3 w-3" />
-              Owned
+              OWNED
             </span>
           ) : free ? (
-            <span className="rounded-full bg-foreground/80 px-2.5 py-1 text-[11px] font-bold text-background shadow-md">
-              Free
+            <span className="rounded-full bg-black/75 border border-white/10 backdrop-blur-md px-3 py-1 text-[10px] font-mono font-bold text-foreground shadow-md">
+              FREE
             </span>
           ) : (
-            <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-primary-foreground shadow-md">
-              ${(track.price ?? 0).toFixed(2)}
+            <span className="rounded-full bg-black/75 border border-white/10 backdrop-blur-md px-3 py-1 text-[10px] font-mono font-bold text-foreground shadow-md">
+              ${(track.price ?? 1.49).toFixed(2)}
             </span>
           )}
         </div>
       </div>
 
       {/* Info */}
-      <div className="p-4">
-        <Link
-          to="/track/$id"
-          params={{ id: track.id }}
-          className="block truncate text-sm font-semibold text-foreground hover:text-primary transition-colors"
-        >
-          {track.title}
-        </Link>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {track.artistName}
-        </p>
+      <div className="p-4 flex flex-col justify-between flex-1">
+        <div>
+          <Link
+            to="/track/$id"
+            params={{ id: track.id }}
+            className="block truncate text-sm sm:text-base font-bold text-foreground hover:text-primary transition-colors"
+          >
+            {track.title}
+          </Link>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {track.artistName}
+          </p>
+        </div>
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3.5 pt-3 border-t border-border/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <QualityBadge spec={track} />
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
               {formatDuration(track.duration)}
             </span>
           </div>
-          <span className="text-[10px] text-muted-foreground">
-            {formatNumber(track.playCount)} plays
-          </span>
-        </div>
 
-        {/* Action buttons */}
-        <div className="mt-3 flex gap-2">
-          {owned || free ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 gap-1.5 border-border/60 text-xs"
-              onClick={onDownload}
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              className="flex-1 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold"
-              onClick={onBuy}
-            >
-              <ShoppingBag className="h-3.5 w-3.5" />
-              Buy ${(track.price ?? 0).toFixed(2)}
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {owned || free ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 rounded-full gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 text-[11px] font-bold px-3"
+                onClick={onDownload}
+              >
+                <Download className="h-3 w-3" />
+                Download
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="h-7 rounded-full gap-1 bg-primary text-primary-foreground hover:bg-primary/90 text-[11px] font-bold px-3 shadow-sm"
+                onClick={onBuy}
+              >
+                <ShoppingBag className="h-3 w-3" />
+                Buy ${(track.price ?? 1.49).toFixed(2)}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -38,12 +38,12 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "Layam — Hybrid Audiophile Player & Creator Platform" },
+      { title: "Layam — Luxury Audiophile Player & Creator Platform" },
       {
         name: "description",
         content: "Offline audiophile FLAC/WAV player with 10-band DSP + lossless creator streaming ecosystem.",
       },
-      { property: "og:title", content: "Layam — Hybrid Audiophile Player & Creator Platform" },
+      { property: "og:title", content: "Layam — Luxury Audiophile Player & Creator Platform" },
       {
         property: "og:description",
         content: "Offline audiophile FLAC/WAV player with 10-band DSP + lossless creator streaming ecosystem.",
@@ -108,28 +108,27 @@ function OfflineHiFiDashboard() {
       />
 
       {/* ── Offline Hardware Console Hero ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-card to-card p-8 sm:p-12 mb-10 shadow-2xl">
-        <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
+      <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-card to-card p-8 sm:p-12 mb-12 shadow-2xl">
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-1 text-xs font-bold text-emerald-400 mb-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 text-xs font-mono font-bold text-emerald-400 mb-5">
             <WifiOff className="h-3.5 w-3.5" />
-            <span>OFFLINE AUDIOPHILE CONSOLE · ZERO NETWORK ACTIVE</span>
+            <span>OFFLINE AUDIOPHILE CONSOLE · LOCAL PLAYBACK</span>
           </div>
 
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
             Hi-Fi Local Player & <br />
             <span className="text-emerald-400">DSP Audio Console</span>
           </h1>
 
-          <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-            Direct bit-perfect hardware playback from your device storage. Supports uncompressed 24-bit/96kHz FLAC, WAV, and ALAC with real-time 10-band parametric equalization.
+          <p className="mt-4 text-sm text-muted-foreground leading-relaxed max-w-xl">
+            Bit-perfect playback directly from your local hardware storage. Uncompressed 24-bit/96kHz FLAC, WAV, and ALAC decoding with 10-band studio parametric EQ.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3.5">
             <Button
               size="lg"
               onClick={() => folderInputRef.current?.click()}
-              className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold shadow-lg shadow-emerald-500/20 gap-2"
+              className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold shadow-lg shadow-emerald-500/20 gap-2 h-11 px-6"
             >
               <FolderOpen className="h-4 w-4" />
               Scan Music Folder
@@ -139,7 +138,7 @@ function OfflineHiFiDashboard() {
               size="lg"
               variant="outline"
               onClick={() => setConsoleOpen(true)}
-              className="rounded-full border-primary/40 text-primary hover:bg-primary/10 font-bold gap-2 bg-glass"
+              className="rounded-full border-primary/40 text-primary hover:bg-primary/10 font-bold gap-2 bg-surface h-11 px-6"
             >
               <Sliders className="h-4 w-4" />
               Open Audio Console
@@ -148,11 +147,11 @@ function OfflineHiFiDashboard() {
             <Button
               asChild
               size="lg"
-              variant="outline"
-              className="rounded-full border-border/60 bg-glass text-foreground hover:bg-surface-raised font-bold"
+              variant="ghost"
+              className="rounded-full text-foreground hover:bg-surface-raised font-semibold h-11 px-5"
             >
               <Link to="/library" search={{ tab: "tracks" }}>
-                Open Local Library
+                Browse Library
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -161,15 +160,15 @@ function OfflineHiFiDashboard() {
       </div>
 
       {/* ── Audiophile Hardware Stats & Metrics ── */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-12">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-14">
         {/* Track Count */}
         <div className="rounded-2xl border border-border/40 bg-card p-5">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground font-semibold">Local Tracks</p>
             <Music2 className="h-4 w-4 text-emerald-400" />
           </div>
-          <p className="mt-2 text-3xl font-extrabold text-foreground">{localTracks.length}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">Indexed in local player</p>
+          <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">{localTracks.length}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Indexed in local storage</p>
         </div>
 
         {/* Albums */}
@@ -178,17 +177,17 @@ function OfflineHiFiDashboard() {
             <p className="text-xs text-muted-foreground font-semibold">Local Albums</p>
             <Disc3 className="h-4 w-4 text-primary" />
           </div>
-          <p className="mt-2 text-3xl font-extrabold text-foreground">{localAlbums.length}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">Grouped by ID3 metadata</p>
+          <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">{localAlbums.length}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Grouped by ID3 tags</p>
         </div>
 
         {/* Storage Used */}
         <div className="rounded-2xl border border-border/40 bg-card p-5">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground font-semibold">Storage Used</p>
+            <p className="text-xs text-muted-foreground font-semibold">Storage Footprint</p>
             <HardDrive className="h-4 w-4 text-emerald-400" />
           </div>
-          <p className="mt-2 text-3xl font-extrabold text-foreground">
+          <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">
             {storageUsedMb >= 1000 ? `${(storageUsedMb / 1024).toFixed(2)} GB` : `${storageUsedMb} MB`}
           </p>
           <p className="text-[11px] text-muted-foreground mt-1">Local & downloaded masters</p>
@@ -226,7 +225,7 @@ function OfflineHiFiDashboard() {
       </div>
 
       {/* ── Recently Added Local Music ── */}
-      <section className="mb-12">
+      <section className="mb-14">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-foreground">Recently Added Music</h2>
@@ -241,25 +240,25 @@ function OfflineHiFiDashboard() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {recentTracks.map((track) => (
             <div
               key={track.id}
-              className="group flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-card p-3 hover:border-emerald-500/40 hover:bg-surface-raised transition-all"
+              className="group flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card p-3 hover:border-emerald-500/40 hover:bg-surface-raised transition-all"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted">
                   <img src={track.coverImage} alt={track.title} className="h-full w-full object-cover" />
                   <button
                     onClick={() => playTrack(track as Track, localTracks as Track[])}
-                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     aria-label={`Play ${track.title}`}
                   >
                     <Play className="h-5 w-5 text-white fill-current ml-0.5" />
                   </button>
                 </div>
                 <div className="min-w-0">
-                  <h4 className="font-bold text-sm text-foreground truncate group-hover:text-emerald-400 transition-colors">
+                  <h4 className="font-bold text-xs sm:text-sm text-foreground truncate group-hover:text-emerald-400 transition-colors">
                     {track.title}
                   </h4>
                   <p className="text-xs text-muted-foreground truncate">{track.artistName}</p>
@@ -268,7 +267,7 @@ function OfflineHiFiDashboard() {
 
               <div className="flex flex-col items-end shrink-0">
                 <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[9px] font-mono font-bold">
-                  {track.quality} {track.sampleRate && track.sampleRate >= 96000 ? "24/96" : ""}
+                  {track.quality}
                 </Badge>
                 <span className="text-[10px] font-mono text-muted-foreground mt-0.5">
                   {formatDuration(track.duration)}
@@ -281,11 +280,11 @@ function OfflineHiFiDashboard() {
 
       {/* ── Offline Album Shelves ── */}
       {localAlbums.length > 0 && (
-        <section className="mb-12">
+        <section className="mb-14">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-foreground">Local Albums</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Discography organized from local tags.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Organized from your device's ID3 metadata tags.</p>
             </div>
             <Link
               to="/library"
@@ -310,7 +309,7 @@ function OfflineHiFiDashboard() {
                   />
                   <button
                     onClick={() => playTrack(album.tracks[0], album.tracks)}
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     aria-label={`Play album ${album.name}`}
                   >
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xl hover:scale-110 transition-transform">
@@ -338,7 +337,7 @@ function OfflineHiFiDashboard() {
           <div>
             <div className="flex items-center gap-2 text-primary text-xs font-bold mb-1">
               <ShoppingBag className="h-4 w-4" />
-              <span>ONLINE MUSIC STORE · DIRECT OFFLINE SYNC</span>
+              <span>ONLINE MUSIC STORE · DIRECT OFFLINE DOWNLOAD</span>
             </div>
             <h2 className="text-2xl font-bold text-foreground">Get New Masters for Offline Player</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -365,50 +364,61 @@ function OfflineHiFiDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 function OnlineHomePage() {
   const { data, isPending, error, refetch } = useQuery(catalogQueryOptions());
+  const { playTrack } = usePlayer();
   const tracks = data?.tracks ?? [];
-  const artists = data?.artists ?? [];
   const featured = tracks.slice(0, 3);
   const trending = tracks.slice(3, 6);
 
   return (
-    <div className="pb-32">
-      {/* Hero */}
-      <section className="relative flex min-h-[520px] items-center justify-center overflow-hidden px-4 pt-16 sm:px-6 lg:px-8">
+    <div className="pb-36">
+      {/* ── Minimalist Luxury Hero Section ── */}
+      <section className="relative flex min-h-[500px] items-center justify-center overflow-hidden px-4 pt-20 sm:px-6 lg:px-8">
         <img
           src={heroBg}
           alt=""
           width={1920}
           height={1080}
-          className="absolute inset-0 h-full w-full object-cover opacity-40"
+          className="absolute inset-0 h-full w-full object-cover opacity-25"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/80 to-background" />
+
         <div className="relative z-10 mx-auto max-w-4xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1 text-xs font-bold text-primary">
             <Radio className="h-3.5 w-3.5" />
-            <span>Lossless Creator Platform & Direct DRM-Free Store</span>
+            <span>Lossless Creator Platform · Direct DRM-Free Store</span>
           </div>
+
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
             Music,
             <br />
-            <span className="text-gradient glow-text">without boundaries.</span>
+            <span className="text-gradient">without boundaries.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Experience bit-perfect lossless playback, 10-band DSP equalization, DRM-free creator commerce, and offline-first listening.
+
+          <p className="mx-auto mt-6 max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed">
+            Hybrid local Hi-Fi player + creator-first music ecosystem. Experience bit-perfect master playback, 10-band parametric EQ, and direct creator commerce.
           </p>
+
+          {/* Maximum 2 Primary Actions */}
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Button
-              asChild
               size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-lg shadow-primary/20"
+              onClick={() => {
+                if (tracks.length > 0) playTrack(tracks[0], tracks);
+              }}
+              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-8 h-12 shadow-xl shadow-primary/20 gap-2 cursor-pointer"
+            >
+              <Play className="h-4 w-4 fill-current ml-0.5" />
+              Start Listening
+            </Button>
+
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="rounded-full border-border/80 bg-surface text-foreground hover:bg-surface-raised font-bold px-8 h-12"
             >
               <Link to="/store">
-                <Play className="mr-2 h-5 w-5 fill-current" />
                 Explore Store
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="border-border/60 bg-glass text-foreground hover:text-primary">
-              <Link to="/upload">
-                Upload Master
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -416,52 +426,25 @@ function OnlineHomePage() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[
-            { label: "Catalog Masters", value: formatNumber(tracks.length), icon: Radio },
-            { label: "Verified Artists", value: formatNumber(artists.length), icon: TrendingUp },
-            {
-              label: "Accumulated Plays",
-              value: formatNumber(tracks.reduce((sum, t) => sum + (t.playCount ?? 0), 0)),
-              icon: Zap,
-            },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="surface-raised flex items-center gap-4 rounded-2xl p-6 border border-border/40"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <stat.icon className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Featured */}
+      {/* ── Featured Master Releases ── */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-end justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Featured Music</h2>
-            <p className="mt-1 text-muted-foreground">Hand-picked tracks and releases to discover.</p>
+            <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Featured Releases</h2>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Hand-curated uncompressed master recordings.</p>
           </div>
           <Link
             to="/store"
-            className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex"
+            className="hidden items-center gap-1 text-xs font-semibold text-primary hover:underline sm:flex"
           >
-            View all <ArrowRight className="h-4 w-4" />
+            Explore store <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
+
         {isPending ? (
           <TrackGridSkeleton count={3} />
         ) : error ? (
-          <LoadError message="We couldn't load the featured releases." onRetry={() => refetch()} />
+          <LoadError message="Could not load featured releases." onRetry={() => refetch()} />
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featured.map((track) => (
@@ -471,16 +454,25 @@ function OnlineHomePage() {
         )}
       </section>
 
-      {/* Trending */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Trending Now</h2>
-          <p className="mt-1 text-muted-foreground">Popular tracks on Layam right now.</p>
+      {/* ── Trending Masters ── */}
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Trending Masters</h2>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Top streamed and collected releases on Layam.</p>
+          </div>
+          <Link
+            to="/stream"
+            className="hidden items-center gap-1 text-xs font-semibold text-primary hover:underline sm:flex"
+          >
+            Discover all <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
+
         {isPending ? (
           <TrackGridSkeleton count={3} />
         ) : error ? (
-          <LoadError message="We couldn't load trending releases." onRetry={() => refetch()} />
+          <LoadError message="Could not load trending releases." onRetry={() => refetch()} />
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {trending.map((track) => (

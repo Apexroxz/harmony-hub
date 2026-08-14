@@ -5,12 +5,21 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system: Web3 music streaming — dark surfaces with a warm orange accent.
+ * LAYAM LUXURY AUDIOPHILE DESIGN SYSTEM
  *
- * Deep near-black backgrounds, orange primary, amber/magenta support hues,
- * glassmorphic surfaces. All colors use oklch.
+ * Aesthetics:
+ * - Apple Music elegance & visual hierarchy
+ * - Qobuz audiophile premium feel
+ * - Spotify frictionless usability
+ * - Poweramp professional audio hardware controls
+ * - Nothing OS minimal geometry & typography
+ *
+ * Palette:
+ * - True obsidian black background (#070707 / oklch 0.09)
+ * - Matte dark charcoal cards & surfaces (#121212 / oklch 0.13)
+ * - Warm luxury gold/orange metallic accents (#ff7a18 / oklch 0.72)
+ * - Ultra-subtle hairline borders (rgba(255,255,255,0.06))
  */
-
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -18,8 +27,8 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --radius-3xl: calc(var(--radius) + 14px);
+  --radius-4xl: calc(var(--radius) + 20px);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -42,54 +51,62 @@
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
 
-  /* Extended tokens */
+  /* Audiophile Luxury Tokens */
   --color-glow: var(--glow);
   --color-glow-soft: var(--glow-soft);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
-  --color-violet: var(--violet);
-  --color-cyan: var(--cyan);
-  --color-magenta: var(--magenta);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-gold: var(--gold);
   --color-orange: var(--orange);
   --color-amber: var(--amber);
+  --color-emerald: var(--emerald);
+  /* Compatibility aliases */
+  --color-violet: var(--orange);
+  --color-cyan: var(--amber);
+  --color-magenta: var(--orange);
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 1rem;
 
-  /* Dark theme as default — this app lives in night mode */
-  --background: oklch(0.13 0.012 60);
-  --foreground: oklch(0.96 0.005 60);
-  --card: oklch(0.17 0.014 55);
-  --card-foreground: oklch(0.96 0.005 60);
-  --popover: oklch(0.17 0.014 55);
-  --popover-foreground: oklch(0.96 0.005 60);
-  --primary: oklch(0.68 0.2 45);
-  --primary-foreground: oklch(0.14 0.02 50);
-  --secondary: oklch(0.23 0.018 55);
-  --secondary-foreground: oklch(0.96 0.005 60);
-  --muted: oklch(0.23 0.012 55);
-  --muted-foreground: oklch(0.68 0.015 60);
-  --accent: oklch(0.75 0.16 75);
-  --accent-foreground: oklch(0.14 0.02 50);
-  --destructive: oklch(0.58 0.2 22);
-  --destructive-foreground: oklch(0.96 0.005 60);
-  --border: oklch(0.28 0.014 55 / 60%);
-  --input: oklch(0.23 0.014 55 / 80%);
-  --ring: oklch(0.68 0.2 45);
+  /* True Obsidian Audiophile Night Theme */
+  --background: oklch(0.08 0.005 55);
+  --foreground: oklch(0.97 0.003 60);
+  --card: oklch(0.12 0.008 55);
+  --card-foreground: oklch(0.97 0.003 60);
+  --popover: oklch(0.12 0.008 55);
+  --popover-foreground: oklch(0.97 0.003 60);
 
-  --glow: oklch(0.68 0.2 45 / 40%);
-  --glow-soft: oklch(0.68 0.2 45 / 15%);
-  --surface: oklch(0.15 0.012 55);
-  --surface-raised: oklch(0.21 0.016 55);
-  --orange: oklch(0.68 0.2 45);
-  --amber: oklch(0.78 0.16 78);
-  /* Legacy hue aliases kept so existing components stay on-palette. */
-  --violet: oklch(0.68 0.2 45);
-  --cyan: oklch(0.78 0.16 78);
-  --magenta: oklch(0.62 0.19 25);
+  /* Warm Luxury Gold/Orange Accent */
+  --primary: oklch(0.72 0.17 52);
+  --primary-foreground: oklch(0.08 0.005 55);
+
+  --secondary: oklch(0.16 0.008 55);
+  --secondary-foreground: oklch(0.92 0.005 60);
+  --muted: oklch(0.15 0.006 55);
+  --muted-foreground: oklch(0.62 0.012 60);
+  --accent: oklch(0.78 0.14 70);
+  --accent-foreground: oklch(0.08 0.005 55);
+  --destructive: oklch(0.56 0.18 24);
+  --destructive-foreground: oklch(0.97 0.003 60);
+
+  /* Hairline precision borders */
+  --border: oklch(0.22 0.008 55 / 45%);
+  --input: oklch(0.18 0.008 55 / 60%);
+  --ring: oklch(0.72 0.17 52 / 60%);
+
+  /* Audiophile surface depth */
+  --glow: oklch(0.72 0.17 52 / 30%);
+  --glow-soft: oklch(0.72 0.17 52 / 10%);
+  --surface: oklch(0.11 0.006 55);
+  --surface-raised: oklch(0.15 0.008 55);
+  --surface-sunken: oklch(0.06 0.004 55);
+  --gold: oklch(0.76 0.15 75);
+  --orange: oklch(0.72 0.17 52);
+  --amber: oklch(0.78 0.14 70);
+  --emerald: oklch(0.72 0.16 150);
 }
-
 
 @layer base {
   * {
@@ -98,18 +115,23 @@
 
   html {
     scroll-behavior: smooth;
+    color-scheme: dark;
+    background-color: var(--color-background);
   }
 
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "rlig" 1, "calt" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
   }
 
-  /* Custom scrollbar */
+  /* Minimal audiophile scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -117,47 +139,57 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.3 0.02 55);
-    border-radius: 4px;
+    background: oklch(0.24 0.008 55);
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.42 0.05 50);
+    background: oklch(0.35 0.012 55);
   }
-
 }
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(135deg, var(--color-orange), var(--color-amber));
+    background: linear-gradient(135deg, oklch(0.98 0.002 60) 0%, oklch(0.78 0.14 70) 50%, oklch(0.72 0.17 52) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, oklch(0.85 0.12 75) 0%, oklch(0.72 0.17 52) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .bg-glass {
-    background: oklch(0.17 0.014 55 / 70%);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: oklch(0.11 0.006 55 / 75%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .bg-glass-strong {
-    background: oklch(0.13 0.012 55 / 88%);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: oklch(0.08 0.005 55 / 88%);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
   }
 
-
   .glow-border {
-    box-shadow: 0 0 0 1px var(--color-border), 0 0 24px var(--color-glow-soft);
+    box-shadow: 0 0 0 1px var(--color-border), 0 0 30px var(--color-glow-soft);
   }
 
   .glow-text {
-    text-shadow: 0 0 20px var(--color-glow);
+    text-shadow: 0 0 24px var(--color-glow);
   }
 
   .surface-raised {
     background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+  }
+
+  .surface-sunken {
+    background: var(--color-surface-sunken);
     border: 1px solid var(--color-border);
   }
 }
