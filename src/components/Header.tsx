@@ -169,7 +169,8 @@ export function Header() {
             {/* Tactile Hardware Mode Switch */}
             <ModeSwitch />
 
-            <UserMenu />
+            {/* Account / User Menu only in Online Mode */}
+            {!isOffline && <UserMenu />}
           </div>
         </div>
       </header>
