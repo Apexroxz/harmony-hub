@@ -19,6 +19,7 @@ import {
   Settings,
 } from "lucide-react";
 import { UserMenu } from "./UserMenu";
+import { ModeSwitch } from "./ModeSwitch";
 import { AudioConsoleModal } from "./AudioConsoleModal";
 import { OfflineSettingsModal } from "./OfflineSettingsModal";
 import { useAppMode } from "@/lib/mode";
@@ -159,35 +160,8 @@ export function Header() {
               </Button>
             )}
 
-            {/* Mode Switcher Pill */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={toggleMode}
-              className={cn(
-                "h-8 px-3 rounded-full text-xs font-bold gap-1.5 transition-all shadow-sm",
-                isOffline
-                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 ring-1 ring-emerald-500/30"
-                  : "border-border/60 bg-surface-raised text-muted-foreground hover:text-foreground hover:bg-card"
-              )}
-              title={
-                isOffline
-                  ? "Switch to Online Mode (Streaming, Store, & Community)"
-                  : "Switch to Offline Mode (Local Hi-Fi Player & DSP)"
-              }
-            >
-              {isOffline ? (
-                <>
-                  <WifiOff className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>Offline Hi-Fi</span>
-                </>
-              ) : (
-                <>
-                  <Wifi className="h-3.5 w-3.5 text-primary" />
-                  <span>Online Mode</span>
-                </>
-              )}
-            </Button>
+            {/* Tactile Hardware Mode Switch */}
+            <ModeSwitch />
 
             <UserMenu />
           </div>
