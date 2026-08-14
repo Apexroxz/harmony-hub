@@ -72,7 +72,7 @@ function OfflineHiFiDashboard() {
     formatsSummary,
     importLocalFiles,
   } = useAppMode();
-  const { playTrack } = usePlayer();
+  const { playTrack, expandPlayer, currentTrack } = usePlayer();
   const [consoleOpen, setConsoleOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -129,7 +129,7 @@ function OfflineHiFiDashboard() {
             <Button
               size="lg"
               onClick={() => folderInputRef.current?.click()}
-              className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold shadow-lg shadow-emerald-500/20 gap-2 h-11 px-6"
+              className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold shadow-lg shadow-emerald-500/20 gap-2 h-11 px-6 cursor-pointer"
             >
               <FolderOpen className="h-4 w-4" />
               Scan Music Folder
@@ -137,12 +137,27 @@ function OfflineHiFiDashboard() {
 
             <Button
               size="lg"
+              onClick={() => {
+                if (currentTrack) {
+                  expandPlayer();
+                } else if (localTracks.length > 0) {
+                  playTrack(localTracks[0], localTracks);
+                }
+              }}
+              className="rounded-full bg-surface-raised border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/15 font-bold gap-2 h-11 px-6 cursor-pointer"
+            >
+              <Play className="h-4 w-4 fill-current" />
+              Open Hi-Fi Player
+            </Button>
+
+            <Button
+              size="lg"
               variant="outline"
               onClick={() => setConsoleOpen(true)}
-              className="rounded-full border-primary/40 text-primary hover:bg-primary/10 font-bold gap-2 bg-surface h-11 px-6"
+              className="rounded-full border-border/60 text-foreground hover:bg-surface-raised font-bold gap-2 bg-surface h-11 px-6 cursor-pointer"
             >
-              <Sliders className="h-4 w-4" />
-              Open Audio Console
+              <Sliders className="h-4 w-4 text-primary" />
+              DSP Console
             </Button>
 
             <Button

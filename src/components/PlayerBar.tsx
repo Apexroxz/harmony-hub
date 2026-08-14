@@ -57,6 +57,9 @@ export function PlayerBar() {
     removeFromQueue,
     clearQueue,
     setPlaybackRate,
+    isExpanded,
+    expandPlayer,
+    collapsePlayer,
   } = usePlayer();
 
   const { isOnline, isOffline } = useAppMode();
@@ -64,7 +67,6 @@ export function PlayerBar() {
   const [speedOpen, setSpeedOpen] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [buyModalOpen, setBuyModalOpen] = useState(false);
-  const [fullscreenPlayerOpen, setFullscreenPlayerOpen] = useState(false);
 
   if (!currentTrack) return null;
 
@@ -176,26 +178,49 @@ export function PlayerBar() {
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* Left: Track Information & Master Quality Readout */}
           <div className="flex min-w-0 items-center gap-3.5 md:w-[28%]">
-            <Link
-              to="/track/$id"
-              params={{ id: currentTrack.id }}
-              className="relative block h-13 w-13 shrink-0 overflow-hidden rounded-xl bg-surface-raised shadow-md group border border-border/40"
-            >
-              <img
-                src={currentTrack.coverImage}
-                alt={currentTrack.title}
-                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-            </Link>
-
-            <div className="min-w-0 flex-1">
+            {isOffline || currentTrack.id.startsWith("local-") || currentTrack.source === "offline" ? (
+              <button
+                onClick={expandPlayer}
+                className="relative block h-13 w-13 shrink-0 overflow-hidden rounded-xl bg-surface-raised shadow-md group border border-border/40 text-left cursor-pointer"
+                title="Expand Full Audiophile Console"
+              >
+                <img
+                  src={currentTrack.coverImage}
+                  alt={currentTrack.title}
+                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              </button>
+            ) : (
               <Link
                 to="/track/$id"
                 params={{ id: currentTrack.id }}
-                className="block truncate text-xs sm:text-sm font-bold text-foreground hover:text-primary transition-colors"
+                className="relative block h-13 w-13 shrink-0 overflow-hidden rounded-xl bg-surface-raised shadow-md group border border-border/40"
               >
-                {currentTrack.title}
+                <img
+                  src={currentTrack.coverImage}
+                  alt={currentTrack.title}
+                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
               </Link>
+            )}
+
+            <div className="min-w-0 flex-1">
+              {isOffline || currentTrack.id.startsWith("local-") || currentTrack.source === "offline" ? (
+                <button
+                  onClick={expandPlayer}
+                  className="block truncate text-xs sm:text-sm font-bold text-foreground hover:text-primary transition-colors text-left w-full cursor-pointer"
+                >
+                  {currentTrack.title}
+                </button>
+              ) : (
+                <Link
+                  to="/track/$id"
+                  params={{ id: currentTrack.id }}
+                  className="block truncate text-xs sm:text-sm font-bold text-foreground hover:text-primary transition-colors"
+                >
+                  {currentTrack.title}
+                </Link>
+              )}
 
               <div className="flex items-center gap-2 truncate text-xs text-muted-foreground mt-0.5">
                 <ArtistName
@@ -360,7 +385,7 @@ export function PlayerBar() {
               variant="ghost"
               size="icon"
               aria-label="Expand Audiophile Player"
-              onClick={() => setFullscreenPlayerOpen(true)}
+              onClick={expandPlayer}
               className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
               title="Expand Full Audiophile Player & Console"
             >
@@ -397,8 +422,8 @@ export function PlayerBar() {
 
       {/* Fullscreen Audiophile Poweramp-Style Player Modal */}
       <FullscreenAudiophilePlayer
-        open={fullscreenPlayerOpen}
-        onClose={() => setFullscreenPlayerOpen(false)}
+        open={isExpanded}
+        onClose={collapsePlayer}
       />
 
       {/* Audio Console Modal */}

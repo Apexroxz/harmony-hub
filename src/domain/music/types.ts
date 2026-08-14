@@ -62,6 +62,14 @@ export interface Track {
   purchasedBy?: string[];
   /** Audio fingerprint hash for copyright/duplicate verification. */
   fingerprint?: string;
+  /** Source of track: "online" streaming or "offline" local master */
+  source?: "online" | "offline";
+  /** Format label e.g. "MP3", "FLAC", "WAV" */
+  format?: string;
+  /** Album name */
+  album?: string;
+  /** Artist name alias */
+  artist?: string;
   /** Exclusive subscriber-only release */
   isExclusive?: boolean;
   /** Minimum tier required to access if exclusive */

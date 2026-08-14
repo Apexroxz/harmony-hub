@@ -52,6 +52,7 @@ interface PlayerState {
   stereoWidth: number;
   normalizerEnabled: boolean;
   crossfadeDuration: number; // seconds
+  isExpanded: boolean;
 }
 
 // ─── Context value ────────────────────────────────────────────────────────────
@@ -69,6 +70,9 @@ interface PlayerContextValue extends PlayerState {
   playFromQueue: (index: number) => void;
   clearQueue: () => void;
   setPlaybackRate: (rate: number) => void;
+  expandPlayer: () => void;
+  collapsePlayer: () => void;
+  setExpanded: (expanded: boolean) => void;
   // EQ & DSP
   setEqGain: (bandIndex: number, gainDb: number) => void;
   setEqPreset: (preset: string) => void;
@@ -98,6 +102,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     queue: [],
     queueIndex: -1,
     playbackRate: 1,
+    isExpanded: false,
     eqEnabled: false,
     eqGains: [...INITIAL_EQ_GAINS],
     eqPreset: "Flat",
@@ -256,12 +261,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         currentTime: 0,
         duration: track.duration,
         errorMessage: undefined,
+        isExpanded: track.source === "offline" || track.id.startsWith("local-") ? true : s.isExpanded,
       }));
 
       safePlay(audio);
     },
     [ensureAudio, setupWebAudioDSP, safePlay]
   );
+
+  const expandPlayer = useCallback(() => setState((s) => ({ ...s, isExpanded: true })), []);
+  const collapsePlayer = useCallback(() => setState((s) => ({ ...s, isExpanded: false })), []);
+  const setExpanded = useCallback((expanded: boolean) => setState((s) => ({ ...s, isExpanded: expanded })), []);
 
   const playTrack = useCallback(
     (track: Track, queue?: Track[]) => {
@@ -525,6 +535,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     playFromQueue,
     clearQueue,
     setPlaybackRate,
+    expandPlayer,
+    collapsePlayer,
+    setExpanded,
     setEqGain,
     setEqPreset,
     toggleEq,
@@ -538,7 +551,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     state,
     playTrack, togglePlay, pause, resume, setVolume, seek,
     playNext, playPrevious, addToQueue, removeFromQueue, playFromQueue, clearQueue,
-    setPlaybackRate, setEqGain, setEqPreset, toggleEq,
+    setPlaybackRate, expandPlayer, collapsePlayer, setExpanded, setEqGain, setEqPreset, toggleEq,
     setBassBoostLevel, setTrebleLevel, setStereoWidth, toggleNormalizer, setCrossfadeDuration,
     getAnalyserNode,
   ]);

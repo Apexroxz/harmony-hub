@@ -376,8 +376,12 @@ export function ModeProvider({ children }: { children: ReactNode }) {
           title: metadata.title || file.name.replace(/\.[^/.]+$/, ""),
           artistId: "local-artist",
           artistName: metadata.artist || "Local Device",
+          artist: metadata.artist || "Local Device",
+          album: metadata.album || "Local Audio",
           coverImage: metadata.coverImage || coverFallback,
           audioUrl: objectUrl,
+          source: "offline",
+          format,
           duration: metadata.duration || 180,
           genre: "Local Audio",
           quality: format as AudioFormat,
@@ -390,7 +394,6 @@ export function ModeProvider({ children }: { children: ReactNode }) {
           createdAt: new Date().toISOString().slice(0, 10),
           uploaderId: "local-user",
           folderPath: metadata.folderPath || "Imported Tracks",
-          album: metadata.album || "Local Audio",
           fileSizeBytes: file.size || 45000000,
         };
 
