@@ -82,6 +82,7 @@ function OfflineHiFiDashboard() {
     if (files && files.length > 0) {
       await importLocalFiles(files);
     }
+    e.target.value = "";
   };
 
   const recentTracks = localTracks.slice(0, 6);
@@ -94,7 +95,7 @@ function OfflineHiFiDashboard() {
         ref={fileInputRef}
         onChange={handleFileSelect}
         multiple
-        accept="audio/*,.flac,.wav,.mp3,.alac,.m4a,.aac"
+        accept="audio/*,.mp3,.aac,.m4a,.ogg,.opus,.wav,.flac,.alac,.aiff,.aif"
         className="hidden"
       />
       <input

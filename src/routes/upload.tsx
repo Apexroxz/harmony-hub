@@ -345,6 +345,7 @@ function UploadPage() {
           onChange={(e) => {
             const picked = e.target.files?.[0];
             if (picked) void handleFile(picked);
+            e.target.value = "";
           }}
         />
       </div>

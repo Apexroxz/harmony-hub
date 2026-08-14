@@ -21,6 +21,10 @@ import {
   Folder,
   Check,
   Zap,
+  ListPlus,
+  Search,
+  MoreVertical,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLibrary } from "@/lib/library";
@@ -41,6 +45,20 @@ import { tracks as storeCatalogTracks } from "@/domain/music/catalog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 interface LibrarySearchParams {
@@ -99,6 +117,10 @@ function LibraryPage() {
   const [editAlbum, setEditAlbum] = useState("");
   const [editGenre, setEditGenre] = useState("");
 
+  // Manage Playlist Dialog state
+  const [managePlaylist, setManagePlaylist] = useState<LocalPlaylist | null>(null);
+  const [playlistTrackSearch, setPlaylistTrackSearch] = useState("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,6 +135,7 @@ function LibraryPage() {
     if (files && files.length > 0) {
       await importLocalFiles(files);
     }
+    e.target.value = "";
   };
 
   const getPurchasedTracks = (): Track[] => {
@@ -256,6 +279,49 @@ function LibraryPage() {
 
           {isOffline && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Add to Playlist Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-emerald-400 rounded-full"
+                    title="Add to Offline Playlist"
+                  >
+                    <ListPlus className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-card border-border/80 rounded-2xl p-2 shadow-2xl">
+                  <DropdownMenuLabel className="text-xs font-bold text-foreground">Add to Playlist</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-border/40" />
+                  {localPlaylists.length === 0 ? (
+                    <div className="p-2 text-xs text-muted-foreground text-center">
+                      No playlists created. Create one in the Playlists tab!
+                    </div>
+                  ) : (
+                    localPlaylists.map((pl) => {
+                      const inPl = pl.trackIds.includes(track.id);
+                      return (
+                        <DropdownMenuItem
+                          key={pl.id}
+                          onClick={() => {
+                            if (inPl) {
+                              removeTrackFromPlaylist(pl.id, track.id);
+                            } else {
+                              addTrackToPlaylist(pl.id, track.id);
+                            }
+                          }}
+                          className="flex items-center justify-between text-xs cursor-pointer rounded-xl py-2 px-2.5 hover:bg-surface-raised"
+                        >
+                          <span className="truncate">{pl.name}</span>
+                          {inPl && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                        </DropdownMenuItem>
+                      );
+                    })
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -557,15 +623,22 @@ function LibraryPage() {
             {/* 5. Playlists View */}
             {offlineTab === "playlists" && (
               <div>
-                <div className="flex items-center gap-3 mb-6">
+                <div className="flex flex-wrap items-center gap-3 mb-6">
                   <Input
                     placeholder="New offline playlist name..."
                     value={newPlaylistName}
                     onChange={(e) => setNewPlaylistName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newPlaylistName.trim()) {
+                        createPlaylist(newPlaylistName);
+                        setNewPlaylistName("");
+                      }
+                    }}
                     className="max-w-xs rounded-full text-xs"
                   />
                   <Button
                     size="sm"
+                    disabled={!newPlaylistName.trim()}
                     onClick={() => {
                       createPlaylist(newPlaylistName);
                       setNewPlaylistName("");
@@ -576,65 +649,192 @@ function LibraryPage() {
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {localPlaylists.map((pl) => {
-                    const plTracks = localTracks.filter((t) => pl.trackIds.includes(t.id));
-                    return (
-                      <div
-                        key={pl.id}
-                        className="rounded-2xl border border-border/40 bg-card p-5 flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2 text-emerald-400">
-                              <ListMusic className="h-5 w-5" />
-                              <h3 className="font-bold text-sm text-foreground">{pl.name}</h3>
+                {localPlaylists.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-border/60 p-12 text-center bg-card/40">
+                    <ListMusic className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
+                    <h3 className="text-base font-bold text-foreground">No Offline Playlists Created</h3>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                      Create custom playlists for your high-res audio tracks, albums, or workout sets. All stored locally on your device.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {localPlaylists.map((pl) => {
+                      const plTracks = localTracks.filter((t) => pl.trackIds.includes(t.id));
+                      return (
+                        <div
+                          key={pl.id}
+                          className="rounded-3xl border border-border/40 bg-card p-5 flex flex-col justify-between shadow-lg"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2 text-emerald-400">
+                                <ListMusic className="h-5 w-5" />
+                                <h3 className="font-bold text-sm text-foreground truncate">{pl.name}</h3>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setManagePlaylist(pl);
+                                    setPlaylistTrackSearch("");
+                                  }}
+                                  className="h-7 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-full px-2"
+                                >
+                                  <Plus className="h-3 w-3 mr-0.5" /> Add Songs
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deletePlaylist(pl.id)}
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-full"
+                                  title="Delete Playlist"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </div>
+                            <p className="text-xs text-muted-foreground mb-4">
+                              {plTracks.length} {plTracks.length === 1 ? "track" : "tracks"} · {formatDuration(plTracks.reduce((acc, t) => acc + (t.duration || 0), 0))}
+                            </p>
+
+                            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                              {plTracks.length === 0 && (
+                                <p className="text-[11px] text-muted-foreground italic py-3 text-center">
+                                  No songs added yet. Click &quot;Add Songs&quot; above to select local tracks.
+                                </p>
+                              )}
+                              {plTracks.map((t) => (
+                                <div
+                                  key={t.id}
+                                  className="flex items-center justify-between text-xs text-foreground/90 py-1 px-2 rounded-xl bg-surface/60 hover:bg-surface-raised transition-colors group"
+                                >
+                                  <span className="truncate flex-1 font-medium">{t.title}</span>
+                                  <span className="text-[10px] font-mono text-muted-foreground mr-2 shrink-0">{t.quality}</span>
+                                  <button
+                                    onClick={() => removeTrackFromPlaylist(pl.id, t.id)}
+                                    className="text-muted-foreground hover:text-destructive text-xs font-bold px-1"
+                                    title="Remove track"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="mt-5 pt-3 border-t border-border/30 flex gap-2">
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deletePlaylist(pl.id)}
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              size="sm"
+                              disabled={plTracks.length === 0}
+                              onClick={() => playTrack(plTracks[0], plTracks)}
+                              className="flex-1 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1.5 h-9 shadow-md shadow-emerald-500/20 disabled:opacity-50"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Play className="h-3.5 w-3.5 fill-current" /> Play Playlist
                             </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-4">
-                            {plTracks.length} {plTracks.length === 1 ? "track" : "tracks"}
-                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
-                          <div className="space-y-1 max-h-32 overflow-y-auto">
-                            {plTracks.map((t) => (
-                              <div
-                                key={t.id}
-                                className="flex items-center justify-between text-xs text-muted-foreground py-0.5"
-                              >
-                                <span className="truncate">{t.title}</span>
-                                <button
-                                  onClick={() => removeTrackFromPlaylist(pl.id, t.id)}
-                                  className="text-muted-foreground hover:text-destructive text-[10px] pl-2"
+                {/* Manage / Add Tracks to Playlist Dialog */}
+                {managePlaylist && (
+                  <Dialog open={Boolean(managePlaylist)} onOpenChange={(open) => !open && setManagePlaylist(null)}>
+                    <DialogContent className="max-w-md bg-card border-border/80 rounded-3xl p-6 shadow-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                          <ListPlus className="h-4 w-4 text-emerald-400" />
+                          Add Tracks to &quot;{managePlaylist.name}&quot;
+                        </DialogTitle>
+                      </DialogHeader>
+
+                      <div className="mt-4 space-y-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search local library songs..."
+                            value={playlistTrackSearch}
+                            onChange={(e) => setPlaylistTrackSearch(e.target.value)}
+                            className="pl-9 rounded-2xl text-xs bg-surface"
+                          />
+                        </div>
+
+                        <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+                          {localTracks
+                            .filter((t) =>
+                              playlistTrackSearch
+                                ? t.title.toLowerCase().includes(playlistTrackSearch.toLowerCase()) ||
+                                  t.artistName.toLowerCase().includes(playlistTrackSearch.toLowerCase())
+                                : true
+                            )
+                            .map((track) => {
+                              const isAdded = managePlaylist.trackIds.includes(track.id);
+                              return (
+                                <div
+                                  key={track.id}
+                                  onClick={() => {
+                                    if (isAdded) {
+                                      removeTrackFromPlaylist(managePlaylist.id, track.id);
+                                      setManagePlaylist((prev) =>
+                                        prev ? { ...prev, trackIds: prev.trackIds.filter((id) => id !== track.id) } : null
+                                      );
+                                    } else {
+                                      addTrackToPlaylist(managePlaylist.id, track.id);
+                                      setManagePlaylist((prev) =>
+                                        prev ? { ...prev, trackIds: [...prev.trackIds, track.id] } : null
+                                      );
+                                    }
+                                  }}
+                                  className={cn(
+                                    "flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer",
+                                    isAdded
+                                      ? "bg-emerald-500/10 border-emerald-500/30 text-foreground"
+                                      : "bg-surface/50 border-transparent hover:border-border/60 text-muted-foreground hover:text-foreground"
+                                  )}
                                 >
-                                  ×
-                                </button>
-                              </div>
-                            ))}
-                          </div>
+                                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                    <img
+                                      src={track.coverImage}
+                                      alt=""
+                                      className="h-8 w-8 rounded-lg object-cover shrink-0"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-bold text-xs truncate text-foreground">{track.title}</p>
+                                      <p className="text-[10px] text-muted-foreground truncate">{track.artistName}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[10px] font-mono font-bold text-emerald-400">{track.quality}</span>
+                                    <div
+                                      className={cn(
+                                        "h-6 w-6 rounded-full flex items-center justify-center border transition-colors",
+                                        isAdded
+                                          ? "bg-emerald-500 border-emerald-500 text-white"
+                                          : "border-border/80 hover:border-emerald-500"
+                                      )}
+                                    >
+                                      {isAdded ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5 text-muted-foreground" />}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                         </div>
 
-                        <div className="mt-5 pt-3 border-t border-border/30">
-                          <Button
-                            size="sm"
-                            disabled={plTracks.length === 0}
-                            onClick={() => playTrack(plTracks[0], plTracks)}
-                            className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1.5 h-8"
-                          >
-                            <Play className="h-3 w-3 fill-current" /> Play Playlist
-                          </Button>
-                        </div>
+                        <Button
+                          onClick={() => setManagePlaylist(null)}
+                          className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-xs h-10"
+                        >
+                          Done
+                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
             )}
 

@@ -333,46 +333,79 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
-    const newTracks: LocalTrack[] = [];
+    // Filter strictly for audio files (ignoring .DS_Store, artwork, directories, etc.)
+    const validAudioFiles = fileArray.filter((file) => {
+      if (!file || !file.name || file.name.startsWith(".")) return false;
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      return (
+        file.type.startsWith("audio/") ||
+        SUPPORTED_AUDIO_EXTENSIONS.includes(ext) ||
+        /\.(mp3|aac|m4a|ogg|opus|wav|flac|alac|aiff?)$/i.test(file.name)
+      );
+    });
 
-    for (const file of fileArray) {
-      const format = getAudioFormatName(file.name);
-      const isLossless = ["FLAC", "WAV", "AIFF", "ALAC"].includes(format);
-      const objectUrl = URL.createObjectURL(file);
-
-      // Extract embedded ID3 tags
-      const metadata = await extractAudioMetadata(file);
-
-      const track: LocalTrack = {
-        id: `local-custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        title: metadata.title || file.name.replace(/\.[^/.]+$/, ""),
-        artistId: "local-artist",
-        artistName: metadata.artist || "Local Device",
-        coverImage: metadata.coverImage || cover1,
-        audioUrl: objectUrl,
-        duration: metadata.duration || 180,
-        genre: "Local Audio",
-        quality: format as AudioFormat,
-        bitrate: isLossless ? (format === "WAV" ? 4608 : 1411) : 320,
-        sampleRate: format === "WAV" ? 96000 : 44100,
-        bitDepth: format === "WAV" ? 24 : isLossless ? 16 : undefined,
-        playCount: 0,
-        likes: 0,
-        comments: 0,
-        createdAt: new Date().toISOString().slice(0, 10),
-        uploaderId: "local-user",
-        folderPath: metadata.folderPath || "Imported Tracks",
-        album: metadata.album || "Local Audio",
-        fileSizeBytes: file.size || 45000000,
-      };
-
-      newTracks.push(track);
+    if (validAudioFiles.length === 0) {
+      toast.warning("No audio files detected in selection", {
+        description: "Please select .mp3, .wav, .flac, .m4a, .aac, or .ogg audio files.",
+      });
+      return;
     }
 
-    setImportedTracks((prev) => [...newTracks, ...prev]);
-    toast.success(`Imported ${newTracks.length} local master(s)`, {
-      description: "Parsed ID3 tags & added to Local Hi-Fi Library",
-    });
+    const newTracks: LocalTrack[] = [];
+    const fallbackCovers = [cover1, cover2, cover3, cover4, cover5, cover6];
+
+    for (let i = 0; i < validAudioFiles.length; i++) {
+      const file = validAudioFiles[i];
+      try {
+        const format = getAudioFormatName(file.name);
+        const isLossless = ["FLAC", "WAV", "AIFF", "ALAC"].includes(format);
+        const objectUrl = URL.createObjectURL(file);
+
+        // Extract embedded ID3 tags
+        const metadata = await extractAudioMetadata(file).catch(() => ({
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          artist: "Local Device",
+          album: "Local Audio",
+          folderPath: "Imported Tracks",
+        }));
+
+        const coverFallback = fallbackCovers[i % fallbackCovers.length];
+
+        const track: LocalTrack = {
+          id: `local-custom-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+          title: metadata.title || file.name.replace(/\.[^/.]+$/, ""),
+          artistId: "local-artist",
+          artistName: metadata.artist || "Local Device",
+          coverImage: metadata.coverImage || coverFallback,
+          audioUrl: objectUrl,
+          duration: metadata.duration || 180,
+          genre: "Local Audio",
+          quality: format as AudioFormat,
+          bitrate: isLossless ? (format === "WAV" ? 4608 : 1411) : 320,
+          sampleRate: format === "WAV" ? 96000 : 44100,
+          bitDepth: format === "WAV" ? 24 : isLossless ? 16 : undefined,
+          playCount: 0,
+          likes: 0,
+          comments: 0,
+          createdAt: new Date().toISOString().slice(0, 10),
+          uploaderId: "local-user",
+          folderPath: metadata.folderPath || "Imported Tracks",
+          album: metadata.album || "Local Audio",
+          fileSizeBytes: file.size || 45000000,
+        };
+
+        newTracks.push(track);
+      } catch (err) {
+        console.warn("Failed to import single file:", file.name, err);
+      }
+    }
+
+    if (newTracks.length > 0) {
+      setImportedTracks((prev) => [...newTracks, ...prev]);
+      toast.success(`Imported ${newTracks.length} local master(s)`, {
+        description: "Parsed ID3 tags & ready in Local Hi-Fi Library",
+      });
+    }
   }, []);
 
   const removeLocalTrack = useCallback((id: string) => {
