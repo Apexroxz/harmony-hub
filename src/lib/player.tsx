@@ -223,25 +223,54 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [ensureAudio]);
 
   // ── Safe play helper ────────────────────────────────────────────────────────
-  const safePlay = useCallback((audio: HTMLAudioElement) => {
-    // Resume suspended AudioContext (browser autoplay policy)
-    if (audioCtxRef.current?.state === "suspended") {
-      void audioCtxRef.current.resume();
+  const safePlay = useCallback(async (audio: HTMLAudioElement) => {
+    console.log("[UniversalPlayer:Trace:3/4] safePlay called. Current audio.src:", audio.src);
+    try {
+      if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
+        console.log("[UniversalPlayer:WebAudio] AudioContext is suspended. Attempting resume...");
+        await audioCtxRef.current.resume();
+        console.log("[UniversalPlayer:WebAudio] AudioContext resumed successfully. State:", audioCtxRef.current.state);
+      }
+    } catch (e) {
+      console.warn("[UniversalPlayer:WebAudio] AudioContext resume warning:", e);
     }
-    const p = audio.play();
-    if (p !== undefined) {
-      p.then(() => {
+
+    try {
+      console.log("[UniversalPlayer:Trace:4/4] Invoking audio.play() on HTMLAudioElement...");
+      const p = audio.play();
+      if (p !== undefined) {
+        await p;
+        console.log("[UniversalPlayer:Trace:SUCCESS] audio.play() promise resolved! Playback is actively running.");
         setState((s) => ({ ...s, isPlaying: true, isLoading: false, status: "playing", errorMessage: undefined }));
-      }).catch((err: unknown) => {
-        console.log("[Player] Playback notice:", err);
-        setState((s) => ({ ...s, isPlaying: false, isLoading: false, status: "paused" }));
-      });
+      }
+    } catch (err: unknown) {
+      const mediaErr = audio.error;
+      console.error(
+        "[UniversalPlayer:Trace:ERROR] audio.play() was rejected or blocked:",
+        err,
+        "MediaError code:",
+        mediaErr?.code,
+        "MediaError message:",
+        mediaErr?.message,
+        "Current src:",
+        audio.src
+      );
+      setState((s) => ({
+        ...s,
+        isPlaying: false,
+        isLoading: false,
+        status: "error",
+        errorMessage: mediaErr?.message || "Playback blocked by browser autoplay policy or invalid audio source",
+      }));
     }
   }, []);
 
   // ── Load & play a track ─────────────────────────────────────────────────────
   const load = useCallback(
     (track: Track, patch: Partial<PlayerState> = {}) => {
+      console.log("[UniversalPlayer:Trace:1/4] currentTrack load requested:", track.id, track.title);
+      console.log("[UniversalPlayer:Trace:2/4] audio source URL:", track.audioUrl, "source:", track.source || "online");
+
       const audio = ensureAudio();
       setupWebAudioDSP();
 
@@ -264,7 +293,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isExpanded: track.source === "offline" || track.id.startsWith("local-") ? true : s.isExpanded,
       }));
 
-      safePlay(audio);
+      void safePlay(audio);
     },
     [ensureAudio, setupWebAudioDSP, safePlay]
   );
@@ -479,6 +508,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }));
     };
     const onEnded = () => {
+      console.log("[UniversalPlayer:Event:ended] Audio track completed");
       const { queue, queueIndex } = stateRef.current;
       if (queue.length > 0 && queueIndex < queue.length - 1) {
         playFromQueue(queueIndex + 1);
@@ -487,20 +517,55 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
     const onLoadedMetadata = () => {
+      console.log("[UniversalPlayer:Event:loadedmetadata] Metadata loaded. Duration:", audio.duration, "ReadyState:", audio.readyState);
       setState((s) => ({ ...s, duration: audio.duration || s.currentTrack?.duration || 0 }));
     };
-    const onLoadStart = () => setState((s) => ({ ...s, status: "loading", isLoading: true }));
-    const onWaiting = () => setState((s) => ({ ...s, status: "buffering", isLoading: true }));
-    const onPlaying = () => setState((s) => ({ ...s, status: "playing", isPlaying: true, isLoading: false, errorMessage: undefined }));
-    const onCanPlay = () => setState((s) => ({ ...s, isLoading: false }));
-    const onPause = () => setState((s) => ({ ...s, status: s.currentTrack ? "paused" : "idle", isPlaying: false, isLoading: false }));
-    const onError = () => setState((s) => ({ ...s, status: "error", isPlaying: false, isLoading: false, errorMessage: "Audio stream error or network unavailable" }));
+    const onLoadStart = () => {
+      console.log("[UniversalPlayer:Event:loadstart] Audio load started for src:", audio.src);
+      setState((s) => ({ ...s, status: "loading", isLoading: true }));
+    };
+    const onWaiting = () => {
+      console.log("[UniversalPlayer:Event:waiting] Audio stream is buffering data");
+      setState((s) => ({ ...s, status: "buffering", isLoading: true }));
+    };
+    const onPlay = () => {
+      console.log("[UniversalPlayer:Event:play] Audio element triggered 'play' event");
+    };
+    const onPlaying = () => {
+      console.log("[UniversalPlayer:Event:playing] Audio is actively rendering audible sound");
+      setState((s) => ({ ...s, status: "playing", isPlaying: true, isLoading: false, errorMessage: undefined }));
+    };
+    const onCanPlay = () => {
+      console.log("[UniversalPlayer:Event:canplay] Audio can now start playback. readyState:", audio.readyState);
+      setState((s) => ({ ...s, isLoading: false }));
+    };
+    const onPause = () => {
+      console.log("[UniversalPlayer:Event:pause] Audio playback paused");
+      setState((s) => ({ ...s, status: s.currentTrack ? "paused" : "idle", isPlaying: false, isLoading: false }));
+    };
+    const onError = () => {
+      const mediaErr = audio.error;
+      console.error(
+        "[UniversalPlayer:Event:onerror] HTMLAudioElement encountered error:",
+        "Code:", mediaErr?.code,
+        "Message:", mediaErr?.message,
+        "Current src:", audio.src
+      );
+      setState((s) => ({
+        ...s,
+        status: "error",
+        isPlaying: false,
+        isLoading: false,
+        errorMessage: mediaErr?.message || "Audio file decoding error or network stream unavailable",
+      }));
+    };
 
     audio.addEventListener("timeupdate",    onTimeUpdate);
     audio.addEventListener("ended",         onEnded);
     audio.addEventListener("loadedmetadata",onLoadedMetadata);
     audio.addEventListener("loadstart",     onLoadStart);
     audio.addEventListener("waiting",       onWaiting);
+    audio.addEventListener("play",          onPlay);
     audio.addEventListener("playing",       onPlaying);
     audio.addEventListener("canplay",       onCanPlay);
     audio.addEventListener("pause",         onPause);
@@ -512,6 +577,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener("loadedmetadata",onLoadedMetadata);
       audio.removeEventListener("loadstart",     onLoadStart);
       audio.removeEventListener("waiting",       onWaiting);
+      audio.removeEventListener("play",          onPlay);
       audio.removeEventListener("playing",       onPlaying);
       audio.removeEventListener("canplay",       onCanPlay);
       audio.removeEventListener("pause",         onPause);
