@@ -11,7 +11,7 @@ interface FolderBrowserProps {
 }
 
 export function FolderBrowser({ localTracks }: FolderBrowserProps) {
-  const { playTrack, addToUpNext, addToQueue } = usePlayer();
+  const { playTrack, addToQueue } = usePlayer();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
   const folderMap = useMemo(() => {
