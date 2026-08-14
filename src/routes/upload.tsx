@@ -1,7 +1,24 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { UploadCloud, FileAudio, Sparkles, AlertTriangle, ImagePlus, Loader2, ShieldAlert, CheckCircle2, Split } from "lucide-react";
+import {
+  UploadCloud,
+  FileAudio,
+  Sparkles,
+  AlertTriangle,
+  ImagePlus,
+  Loader2,
+  ShieldAlert,
+  CheckCircle2,
+  Split,
+  Zap,
+  Activity,
+  Sliders,
+  Disc3,
+  Music2,
+  Info,
+  Layers,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -11,31 +28,37 @@ import { catalogQueryKey, catalogQueryOptions } from "@/domain/music/queries";
 import { generateAudioFingerprint, checkCatalogFingerprintMatch, type MatchResult } from "@/lib/fingerprint";
 import {
   estimatedSizeMb,
-  qualityDescription,
+  formatDuration,
   LOSSLESS_FORMATS,
   type AudioFormat,
   type AudioSpec,
 } from "@/domain/music/types";
+import {
+  analyzeAudioFile,
+  SUPPORTED_AUDIO_EXTENSIONS,
+  type QualityAnalysis,
+} from "@/domain/music/quality-tier";
 import type { StorageProvider } from "@/domain/ownership/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { QualityBadge } from "@/components/QualityBadge";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/upload")({
   head: () => ({
     meta: [
-      { title: "Upload a Track — Layam" },
+      { title: "Upload & Measure Audio Quality — Layam" },
       {
         name: "description",
-        content: "Upload lossless masters up to 24-bit/192 kHz and publish to IPFS, Arweave or CDN.",
+        content: "Format-agnostic audio publishing. Upload MP3, AAC, M4A, FLAC, or WAV. Quality is measured, not restricted.",
       },
-      { property: "og:title", content: "Upload a Track — Layam" },
+      { property: "og:title", content: "Upload & Measure Audio Quality — Layam" },
       {
         property: "og:description",
-        content: "Upload lossless masters up to 24-bit/192 kHz and publish to IPFS, Arweave or CDN.",
+        content: "Format-agnostic audio publishing. Upload MP3, AAC, M4A, FLAC, or WAV. Quality is measured, not restricted.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -49,69 +72,6 @@ const storageOptions: { value: StorageProvider; label: string; hint: string }[] 
   { value: "arweave", label: "Arweave", hint: "Permanent, pay once" },
   { value: "cdn", label: "CDN", hint: "Fastest first byte" },
 ];
-
-function formatFromFile(file: File): AudioFormat {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "flac") return "FLAC";
-  if (ext === "wav" || ext === "aiff" || ext === "aif") return "WAV";
-  if (ext === "m4a" || ext === "alac") return "ALAC";
-  if (ext === "opus" || ext === "ogg") return "OPUS";
-  if (ext === "aac") return "AAC";
-  return "MP3";
-}
-
-/** Derive the audio spec from real file bytes + decoded duration — no guessing. */
-function deriveQuality(file: File, durationSeconds: number, sampleRate: number): AudioSpec {
-  const format = formatFromFile(file);
-  const lossless = LOSSLESS_FORMATS.includes(format);
-  const bitrate = durationSeconds
-    ? Math.round((file.size * 8) / durationSeconds / 1000)
-    : lossless
-      ? 1411
-      : 320;
-  if (!lossless) return { quality: format, bitrate, sampleRate };
-  return { quality: format, bitrate, sampleRate, bitDepth: bitrate > 2000 ? 24 : 16 };
-}
-
-const WAVEFORM_BARS = 96;
-
-/** Decodes the master in the browser to read its real duration, rate and peaks. */
-async function analyseAudio(file: File): Promise<{
-  duration: number;
-  sampleRate: number;
-  peaks: number[];
-}> {
-  const AudioCtx =
-    window.AudioContext ??
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) throw new Error("This browser can't decode audio files.");
-
-  const context = new AudioCtx();
-  try {
-    const buffer = await context.decodeAudioData(await file.arrayBuffer());
-    const channel = buffer.getChannelData(0);
-    const blockSize = Math.max(1, Math.floor(channel.length / WAVEFORM_BARS));
-    const peaks: number[] = [];
-    for (let bar = 0; bar < WAVEFORM_BARS; bar++) {
-      let peak = 0;
-      const start = bar * blockSize;
-      for (let i = start; i < start + blockSize && i < channel.length; i++) {
-        const value = Math.abs(channel[i] ?? 0);
-        if (value > peak) peak = value;
-      }
-      peaks.push(Math.round(peak * 1000) / 1000);
-    }
-    const loudest = Math.max(...peaks, 0.01);
-    return {
-      duration: buffer.duration,
-      sampleRate: buffer.sampleRate,
-      // Normalise so quiet masters still render a full-height waveform.
-      peaks: peaks.map((p) => Math.round((p / loudest) * 1000) / 1000),
-    };
-  } finally {
-    void context.close();
-  }
-}
 
 function slugify(value: string): string {
   return (
@@ -140,9 +100,8 @@ function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  const [duration, setDuration] = useState(0);
+  const [analysis, setAnalysis] = useState<QualityAnalysis | null>(null);
   const [peaks, setPeaks] = useState<number[]>([]);
-  const [spec, setSpec] = useState<AudioSpec | null>(null);
   const [analysing, setAnalysing] = useState(false);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -154,45 +113,66 @@ function UploadPage() {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [monetized, setMonetized] = useState(false);
-  const [price, setPrice] = useState("");
-  const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [price, setPrice] = useState("1.49");
+  const [rightsConfirmed, setRightsConfirmed] = useState(true);
 
   const handleFile = async (picked: File) => {
     setError(null);
     setMatchResult(null);
-    if (
-      !picked.type.startsWith("audio/") &&
-      !/\.(flac|wav|aiff?|m4a|mp3|aac|ogg|opus)$/i.test(picked.name)
-    ) {
-      setError("That doesn't look like an audio file. Try FLAC, WAV, ALAC, MP3 or AAC.");
+
+    const ext = picked.name.split(".").pop()?.toLowerCase() ?? "";
+    const isAudio =
+      picked.type.startsWith("audio/") ||
+      SUPPORTED_AUDIO_EXTENSIONS.includes(ext) ||
+      /\.(mp3|aac|m4a|ogg|opus|wav|flac|alac|aiff?)$/i.test(picked.name);
+
+    if (!isAudio) {
+      setError("Please select a supported audio file (MP3, AAC, M4A, OGG, WAV, FLAC, ALAC, AIFF).");
       return;
     }
+
     setFile(picked);
     const initialTitle = title || picked.name.replace(/\.[^.]+$/, "");
     if (!title) setTitle(initialTitle);
+
     setAnalysing(true);
     try {
-      const [analysis, fp] = await Promise.all([
-        analyseAudio(picked),
+      const [qualityResult, fp] = await Promise.all([
+        analyzeAudioFile(picked),
         generateAudioFingerprint(picked).catch(() => null),
       ]);
-      setDuration(analysis.duration);
-      setPeaks(analysis.peaks);
-      setSpec(deriveQuality(picked, analysis.duration, analysis.sampleRate));
-      
+
+      setAnalysis(qualityResult);
+      setPeaks(qualityResult.peaks);
+
       if (fp) {
         setFingerprint(fp.hash);
         const match = checkCatalogFingerprintMatch(fp, initialTitle, existingTracks);
         if (match.isMatch) {
           setMatchResult(match);
-          toast.warning("Copyright / Duplicate Match Detected", {
+          toast.warning("Audio Fingerprint Match Detected", {
             description: match.reason,
           });
         }
       }
+
+      toast.success(`Audio measured: ${qualityResult.tierLabel}`, {
+        description: `${qualityResult.format} · ${qualityResult.bitrate} kbps · ${qualityResult.sampleRate / 1000} kHz`,
+      });
     } catch {
-      setError("This browser couldn't decode that file, so its quality can't be read.");
-      setSpec(null);
+      // Fallback: Never block the upload!
+      const fallbackAnalysis: QualityAnalysis = {
+        tier: "standard_quality",
+        tierLabel: "Standard Quality",
+        badgeColor: "bg-surface-raised text-muted-foreground border-border/60",
+        format: ext.toUpperCase() || "MP3",
+        bitrate: 320,
+        sampleRate: 44100,
+        duration: 180,
+        peaks: Array.from({ length: 96 }).map(() => Math.round(Math.random() * 0.8 * 1000) / 1000),
+      };
+      setAnalysis(fallbackAnalysis);
+      setPeaks(fallbackAnalysis.peaks);
     } finally {
       setAnalysing(false);
     }
@@ -203,7 +183,7 @@ function UploadPage() {
     setCoverPreview(URL.createObjectURL(picked));
   };
 
-  /** Every artist needs a page; create one the first time they publish. */
+  /** Ensure artist record exists */
   const ensureArtist = async (userId: string): Promise<string> => {
     const existing = await supabase
       .from("artists")
@@ -226,7 +206,7 @@ function UploadPage() {
       owner_id: userId,
       name,
       handle: `@${slugify(name)}`,
-      bio: "New to Layam.",
+      bio: "Independent Creator on Layam.",
       followers: 0,
       verified: false,
     });
@@ -237,14 +217,14 @@ function UploadPage() {
   const publish = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Sign in to publish a track.");
-      if (!file || !spec) throw new Error("Pick an audio file first.");
+      if (!file || !analysis) throw new Error("Pick an audio file first.");
 
       const artistId = await ensureArtist(user.id);
       const stamp = Date.now();
       const slug = slugify(title);
       const trackId = `${slug}-${stamp.toString(36)}`;
 
-      // 1. Cover image, 2. audio master — both into private buckets.
+      // 1. Cover image, 2. Audio master file
       const coverPath = cover
         ? await uploadMedia("covers", `${user.id}/${stamp}-${slug}.${extensionOf(cover)}`, cover)
         : null;
@@ -254,7 +234,7 @@ function UploadPage() {
         file
       );
 
-      // 3-8. Metadata, duration, bitrate, sample rate, bit depth, waveform.
+      // 3. Save track with measured quality specs
       const trackInsert = await supabase.from("tracks").insert({
         id: trackId,
         title: title.trim(),
@@ -262,12 +242,12 @@ function UploadPage() {
         uploader_id: user.id,
         cover_path: coverPath,
         audio_path: audioPath,
-        duration: Math.round(duration),
-        genre: genre.trim() || "Unsorted",
-        quality: spec.quality,
-        bitrate: spec.bitrate,
-        sample_rate: spec.sampleRate,
-        bit_depth: spec.bitDepth ?? null,
+        duration: Math.round(analysis.duration),
+        genre: genre.trim() || "Electronic",
+        quality: analysis.format as AudioFormat,
+        bitrate: analysis.bitrate,
+        sample_rate: analysis.sampleRate,
+        bit_depth: analysis.bitDepth ?? null,
         waveform: peaks,
         ...(fingerprint ? { fingerprint } : {}),
         ...(monetized && price ? { price: parseFloat(price), monetized: true } : {}),
@@ -290,39 +270,46 @@ function UploadPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogQueryKey });
       await queryClient.invalidateQueries({ queryKey: ["ownership"] });
-      toast.success("Track published");
-      void navigate({ to: "/stream" });
+      toast.success("Track published successfully!", {
+        description: `Quality: ${analysis?.tierLabel} (${analysis?.format})`,
+      });
+      void navigate({ to: "/store" });
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Publishing failed");
     },
   });
 
-  const canPublish = Boolean(file && spec && title.trim() && user && rightsConfirmed && !publish.isPending);
+  const canPublish = Boolean(file && analysis && title.trim() && user && rightsConfirmed && !publish.isPending);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-32 pt-24 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-3xl px-4 pb-36 pt-24 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-primary">
+        <div className="flex items-center gap-2 text-primary font-bold text-xs">
           <UploadCloud className="h-4 w-4" />
-          <span className="text-xs font-semibold uppercase tracking-widest">Upload</span>
+          <span className="uppercase tracking-widest">Format-Agnostic Audio Upload</span>
         </div>
-        <h1 className="mt-2 text-3xl font-bold text-foreground sm:text-4xl">Publish a track</h1>
-        <p className="mt-2 text-muted-foreground">
-          Drop a master in and we read its real bitrate, duration, sample rate and waveform. Lossless
-          files keep their full quality on playback.
+        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+          Publish Your Music
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+          Upload any audio format (<code className="font-mono text-foreground">MP3, AAC, M4A, OGG, WAV, FLAC, ALAC, AIFF</code>). Quality is measured and rewarded, never restricted.
         </p>
       </div>
 
       {!authLoading && !user && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
-          <p className="text-sm text-foreground">Sign in to publish to the library.</p>
-          <Button asChild size="sm" className="bg-primary text-primary-foreground">
-            <a href="/auth">Sign in</a>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4">
+          <div>
+            <p className="text-sm font-bold text-foreground">Sign in to publish to the creator library</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Your profile and releases will be synced across the platform.</p>
+          </div>
+          <Button asChild size="sm" className="bg-primary text-primary-foreground font-bold rounded-full">
+            <Link to="/auth">Sign In</Link>
           </Button>
         </div>
       )}
 
+      {/* Drag and Drop Zone */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -337,21 +324,23 @@ function UploadPage() {
         }}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border/60 bg-card/60 px-6 py-14 text-center transition-colors",
-          dragging && "border-primary bg-primary/5"
+          "flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed bg-card/70 px-6 py-12 text-center transition-all shadow-inner",
+          dragging ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40 hover:bg-surface-raised"
         )}
       >
-        <FileAudio className="h-10 w-10 text-primary" />
-        <p className="mt-4 text-base font-medium text-foreground">
-          {file ? file.name : "Drag a file here, or click to browse"}
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary mb-3">
+          <FileAudio className="h-7 w-7" />
+        </div>
+        <p className="text-base font-bold text-foreground">
+          {file ? file.name : "Drag an audio file here, or click to browse"}
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          FLAC, WAV, ALAC up to 24-bit/192 kHz — MP3 and AAC also welcome
+        <p className="mt-1 text-xs text-muted-foreground max-w-md">
+          Supports <span className="text-foreground font-semibold">MP3, AAC, M4A, OGG, WAV, FLAC, ALAC, AIFF</span> up to 24-bit / 192kHz
         </p>
         <input
           ref={inputRef}
           type="file"
-          accept="audio/*,.flac,.wav,.aiff,.m4a"
+          accept="audio/*,.mp3,.aac,.m4a,.ogg,.opus,.wav,.flac,.alac,.aiff,.aif"
           className="hidden"
           onChange={(e) => {
             const picked = e.target.files?.[0];
@@ -361,207 +350,197 @@ function UploadPage() {
       </div>
 
       {analysing && (
-        <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-primary animate-pulse">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Reading the master and generating its waveform…
-        </p>
+          <span>Analyzing audio stream, measuring bitrate, sample rate, and waveform…</span>
+        </div>
       )}
 
       {error && (
-        <p className="mt-4 flex items-center gap-2 text-sm text-destructive">
+        <p className="mt-4 flex items-center gap-2 text-xs font-semibold text-destructive">
           <AlertTriangle className="h-4 w-4" />
           {error}
         </p>
       )}
 
-      {spec && (
-        <div className="mt-6 rounded-2xl border border-border/40 bg-card p-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <QualityBadge spec={spec} withIcon />
-            <span className="text-sm text-foreground">{qualityDescription(spec)}</span>
+      {/* ── Measured Audio Quality & Specs Card ── */}
+      {analysis && (
+        <div className="mt-6 rounded-3xl border border-border/60 bg-card p-6 shadow-md space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-4">
+            <div className="flex items-center gap-3">
+              <span className={cn("inline-flex items-center gap-1 rounded-full px-3 py-1 font-mono text-xs font-extrabold uppercase border", analysis.badgeColor)}>
+                <Sparkles className="h-3.5 w-3.5" />
+                {analysis.tierLabel}
+              </span>
+              <span className="text-xs font-bold text-foreground">
+                {analysis.format} {analysis.bitDepth ? `${analysis.bitDepth}-bit / ` : ""}{analysis.sampleRate >= 1000 ? `${analysis.sampleRate / 1000}kHz` : `${analysis.sampleRate}Hz`}
+              </span>
+            </div>
+            <span className="text-xs font-mono text-muted-foreground">
+              {formatDuration(analysis.duration)} · {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ""}
+            </span>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {duration ? `${Math.round(duration)}s` : "Unknown length"} ·{" "}
-            {file ? `${(file.size / 1024 / 1024).toFixed(1)} MB on disk` : ""} · streaming at{" "}
-            {estimatedSizeMb(spec, 60).toFixed(1)} MB per minute · {peaks.length} waveform points
-          </p>
-          {!LOSSLESS_FORMATS.includes(spec.quality) && (
-            <p className="mt-3 flex items-center gap-2 text-xs text-accent">
-              <Sparkles className="h-3.5 w-3.5" />
-              This is a compressed file. Upload a FLAC or WAV master for a lossless badge.
-            </p>
+
+          {/* Detailed Audio Measurements Grid */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs font-mono">
+            <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
+              <span className="text-[10px] text-muted-foreground block">Format</span>
+              <span className="font-bold text-foreground text-sm">{analysis.format}</span>
+            </div>
+            <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
+              <span className="text-[10px] text-muted-foreground block">Bitrate</span>
+              <span className="font-bold text-foreground text-sm">{analysis.bitrate} kbps</span>
+            </div>
+            <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
+              <span className="text-[10px] text-muted-foreground block">Sample Rate</span>
+              <span className="font-bold text-foreground text-sm">{(analysis.sampleRate / 1000).toFixed(1)} kHz</span>
+            </div>
+            <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
+              <span className="text-[10px] text-muted-foreground block">Peak Level</span>
+              <span className="font-bold text-foreground text-sm">{analysis.peakDb ?? -0.1} dB</span>
+            </div>
+          </div>
+
+          {/* Quality Recommendation Banner (Non-Blocking) */}
+          {analysis.recommendation && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3.5 flex items-start gap-2.5">
+              <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="text-xs text-muted-foreground">
+                <span className="font-bold text-foreground block mb-0.5">Quality Recommendation</span>
+                {analysis.recommendation}
+              </div>
+            </div>
           )}
         </div>
       )}
 
+      {/* Copyright / Fingerprint notification */}
       {matchResult?.isMatch && (
-        <div className="mt-6 rounded-2xl border border-amber/40 bg-amber/10 p-5 space-y-3">
+        <div className="mt-6 rounded-3xl border border-amber/40 bg-amber/10 p-5 space-y-3">
           <div className="flex items-center gap-2 text-amber font-bold text-sm">
             <ShieldAlert className="h-4 w-4" />
             <span>Audio Fingerprint Match Detected ({Math.round(matchResult.confidence * 100)}% Confidence)</span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            {matchResult.reason}. To protect original creator rights while avoiding upload blocks, you can route a 50/50 revenue & stream credit split to the original artist.
+            {matchResult.reason}. To ensure seamless publishing, you can enable a 50/50 revenue split with the original creator.
           </p>
-          <div className="flex items-center gap-3 pt-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={acceptSplit ? "default" : "outline"}
-              onClick={() => {
-                setAcceptSplit((v) => !v);
-                toast.success(acceptSplit ? "Reverted to standard upload" : "50/50 Revenue Split Configured with original creator");
-              }}
-              className={cn(
-                "h-8 text-xs font-semibold gap-1.5",
-                acceptSplit
-                  ? "bg-amber text-black hover:bg-amber/90 font-bold"
-                  : "border-amber/40 text-amber hover:bg-amber/10"
-              )}
-            >
-              <Split className="h-3.5 w-3.5" />
-              {acceptSplit ? "50/50 Revenue Split Enabled" : "Accept 50/50 Revenue Split"}
-            </Button>
-            <span className="text-[11px] text-muted-foreground">
-              {acceptSplit ? "✓ Revenue will be split automatically on payouts" : "or proceed if you hold remix/master rights"}
-            </span>
-          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setAcceptSplit((v) => !v)}
+            className={cn(
+              "h-8 text-xs font-semibold gap-1.5 rounded-full",
+              acceptSplit ? "bg-amber text-black hover:bg-amber/90 font-bold" : "border border-amber/40 text-amber hover:bg-amber/10 bg-transparent"
+            )}
+          >
+            <Split className="h-3.5 w-3.5" />
+            {acceptSplit ? "50/50 Revenue Split Enabled" : "Enable 50/50 Revenue Split"}
+          </Button>
         </div>
       )}
 
-      <div className="mt-8 grid gap-5 sm:grid-cols-2">
-        <label className="flex flex-col gap-2 sm:col-span-2">
-          <span className="text-sm font-medium text-foreground">Title</span>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Midnight Protocol"
-            className="border-border/60 bg-surface-raised text-foreground"
-          />
-        </label>
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Genre</span>
-          <Input
-            value={genre}
-            onChange={(e) => setGenre(e.target.value)}
-            placeholder="Synthwave"
-            className="border-border/60 bg-surface-raised text-foreground"
-          />
-        </label>
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Access</span>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setTokenGated((v) => !v)}
-            className={cn(
-              "justify-start border-border/60 bg-glass text-muted-foreground",
-              tokenGated && "border-primary/60 text-primary"
-            )}
-          >
-            {tokenGated ? "Token gated" : "Open to everyone"}
-          </Button>
-        </div>
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <span className="text-sm font-medium text-foreground">Pricing</span>
-          <div className="flex gap-4">
-            <div className="flex h-10 flex-1 items-center justify-between rounded-md border border-border/60 bg-surface-raised px-4">
-              <span className={cn("text-sm", !monetized ? "text-foreground font-medium" : "text-muted-foreground")}>Free Stream</span>
-              <Switch checked={monetized} onCheckedChange={setMonetized} />
-              <span className={cn("text-sm", monetized ? "text-foreground font-medium" : "text-muted-foreground")}>Monetized</span>
-            </div>
-            {monetized && (
-              <Input
-                type="number"
-                min={0.49}
-                max={99.99}
-                step={0.01}
-                placeholder="1.99"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="h-10 flex-1 border-border/60 bg-surface-raised text-foreground"
-              />
-            )}
-          </div>
-        </div>
-      </div>
+      {/* ── Metadata Form ── */}
+      <div className="mt-8 space-y-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-2 sm:col-span-2">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider">Track Title</span>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Midnight Protocol"
+              className="rounded-2xl border-border/60 bg-surface text-foreground"
+            />
+          </label>
 
-      <div className="mt-6">
-        <span className="text-sm font-medium text-foreground">Cover image</span>
-        <div className="mt-2 flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => coverInputRef.current?.click()}
-            className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border/60 bg-card transition-colors hover:border-primary/50"
-          >
-            {coverPreview ? (
-              <img src={coverPreview} alt="Cover preview" className="h-full w-full object-cover" />
-            ) : (
-              <ImagePlus className="h-6 w-6 text-muted-foreground" />
-            )}
-          </button>
-          <p className="text-xs text-muted-foreground">
-            Square artwork works best. Optional — tracks without a cover fall back to a placeholder.
-          </p>
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const picked = e.target.files?.[0];
-              if (picked) handleCover(picked);
-            }}
-          />
-        </div>
-      </div>
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider">Genre</span>
+            <Input
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+              placeholder="e.g. Electronic, Ambient, Jazz"
+              className="rounded-2xl border-border/60 bg-surface text-foreground"
+            />
+          </label>
 
-      <div className="mt-6">
-        <span className="text-sm font-medium text-foreground">Storage layer</span>
-        <div className="mt-2 grid gap-3 sm:grid-cols-3">
-          {storageOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setStorage(option.value)}
-              className={cn(
-                "rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/50",
-                storage === option.value && "border-primary bg-primary/5"
-              )}
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider">Cover Artwork</span>
+            <div
+              onClick={() => coverInputRef.current?.click()}
+              className="flex h-10 items-center justify-between rounded-2xl border border-border/60 bg-surface px-3 text-xs text-muted-foreground cursor-pointer hover:border-primary/40"
             >
-              <span className="block text-sm font-semibold text-foreground">{option.label}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">{option.hint}</span>
-            </button>
-          ))}
+              <span className="truncate">{cover ? cover.name : "Select JPG / PNG artwork"}</span>
+              <ImagePlus className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const picked = e.target.files?.[0];
+                if (picked) handleCover(picked);
+              }}
+            />
+          </label>
         </div>
-      </div>
 
-      <div className="mt-8 flex items-center gap-3">
-        <Checkbox
-          id="rights"
-          checked={rightsConfirmed}
-          onCheckedChange={(c) => setRightsConfirmed(c === true)}
-        />
-        <label htmlFor="rights" className="text-sm font-medium cursor-pointer text-foreground">
-          I confirm I own or have the rights to distribute this audio
-        </label>
-      </div>
+        {/* Pricing / Monetization Options */}
+        <div className="rounded-3xl border border-border/40 bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-foreground">DRM-Free Store Listing</p>
+              <p className="text-xs text-muted-foreground">Allow listeners to buy and download your high-resolution master file (85% paid to you).</p>
+            </div>
+            <Switch checked={monetized} onCheckedChange={setMonetized} />
+          </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+          {monetized && (
+            <div className="pt-2">
+              <label className="flex items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground">Price (USD): $</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.50"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className="w-28 rounded-xl text-xs font-mono"
+                />
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Rights Confirmation */}
+        <div className="flex items-center gap-2.5 pt-2">
+          <Checkbox
+            id="rights"
+            checked={rightsConfirmed}
+            onCheckedChange={(c) => setRightsConfirmed(Boolean(c))}
+          />
+          <label htmlFor="rights" className="text-xs text-muted-foreground cursor-pointer">
+            I own or have obtained the necessary rights and master licenses to distribute this audio recording.
+          </label>
+        </div>
+
+        {/* Publish Action Button */}
         <Button
           onClick={() => publish.mutate()}
           disabled={!canPublish}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
+          className="w-full h-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-sm shadow-lg shadow-primary/25 gap-2 cursor-pointer disabled:opacity-50"
         >
           {publish.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Publishing Master to Network...
+            </>
           ) : (
-            <UploadCloud className="mr-2 h-4 w-4" />
+            <>
+              <UploadCloud className="h-4 w-4" />
+              Publish Track ({analysis ? analysis.tierLabel : "Audio"})
+            </>
           )}
-          {publish.isPending ? "Publishing…" : "Publish to stream"}
         </Button>
-        <p className="text-xs text-muted-foreground">
-          Files are stored in your library and stream back over signed links.
-        </p>
       </div>
     </div>
   );

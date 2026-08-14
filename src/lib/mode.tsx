@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import type { Track, AudioFormat } from "@/domain/music/types";
 import { extractAudioMetadata } from "./tagExtractor";
+import { getAudioFormatName } from "@/domain/music/quality-tier";
 import { tracks as catalogTracks } from "@/domain/music/catalog";
 import cover1 from "@/assets/covers/cover-1.jpg";
 import cover2 from "@/assets/covers/cover-2.jpg";
@@ -335,7 +336,8 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     const newTracks: LocalTrack[] = [];
 
     for (const file of fileArray) {
-      const ext = file.name.split(".").pop()?.toUpperCase() ?? "MP3";
+      const format = getAudioFormatName(file.name);
+      const isLossless = ["FLAC", "WAV", "AIFF", "ALAC"].includes(format);
       const objectUrl = URL.createObjectURL(file);
 
       // Extract embedded ID3 tags
@@ -350,10 +352,10 @@ export function ModeProvider({ children }: { children: ReactNode }) {
         audioUrl: objectUrl,
         duration: metadata.duration || 180,
         genre: "Local Audio",
-        quality: (ext === "FLAC" || ext === "WAV" || ext === "ALAC" ? ext : "MP3") as AudioFormat,
-        bitrate: ext === "FLAC" ? 1411 : ext === "WAV" ? 4608 : 320,
-        sampleRate: ext === "WAV" ? 96000 : 44100,
-        bitDepth: ext === "WAV" ? 24 : 16,
+        quality: format as AudioFormat,
+        bitrate: isLossless ? (format === "WAV" ? 4608 : 1411) : 320,
+        sampleRate: format === "WAV" ? 96000 : 44100,
+        bitDepth: format === "WAV" ? 24 : isLossless ? 16 : undefined,
         playCount: 0,
         likes: 0,
         comments: 0,
