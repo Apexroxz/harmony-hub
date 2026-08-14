@@ -326,6 +326,8 @@ export function PlayerBar() {
 
               <div className="relative flex-1">
                 <Waveform
+                  seed={currentTrack.id}
+                  peaks={currentTrack.waveform}
                   progress={progress}
                   onSeek={seek}
                   className="h-3 w-full"

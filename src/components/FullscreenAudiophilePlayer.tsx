@@ -214,7 +214,13 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
 
           {/* Precision Waveform & Seek Timeline */}
           <div className="w-full space-y-2 mb-8">
-            <Waveform progress={progress} onSeek={seek} className="h-6 w-full" />
+            <Waveform
+              seed={currentTrack.id}
+              peaks={currentTrack.waveform}
+              progress={progress}
+              onSeek={seek}
+              className="h-6 w-full"
+            />
             <div className="flex justify-between text-xs font-mono text-muted-foreground tabular-nums px-1">
               <span>{formatDuration(currentTime)}</span>
               <span>{formatDuration(duration)}</span>

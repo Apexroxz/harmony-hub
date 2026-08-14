@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 interface WaveformProps {
   /** Stable seed so each track keeps the same silhouette when no peaks exist. */
-  seed: string;
+  seed?: string;
   /** Real normalised 0-1 peaks generated from the master at upload time. */
   peaks?: number[] | undefined;
   /** 0-100 played portion. */
@@ -15,10 +15,11 @@ interface WaveformProps {
   revealOnHover?: boolean;
 }
 
-function hash(str: string): number {
+function hash(str: string = "layam-waveform"): number {
   let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
+  const safeStr = typeof str === "string" && str.length > 0 ? str : "layam-waveform";
+  for (let i = 0; i < safeStr.length; i++) {
+    h ^= safeStr.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
@@ -34,7 +35,7 @@ function resample(peaks: number[], bars: number): number[] {
 }
 
 export function Waveform({
-  seed,
+  seed = "layam-audio",
   peaks,
   progress = 0,
   bars = 64,
@@ -43,8 +44,10 @@ export function Waveform({
   revealOnHover = false,
 }: WaveformProps) {
   const heights = useMemo(() => {
-    if (peaks && peaks.length > 0) return resample(peaks, bars);
-    let s = hash(seed) || 1;
+    if (peaks && Array.isArray(peaks) && peaks.length > 0) {
+      return resample(peaks, bars);
+    }
+    let s = hash(seed || "layam-audio") || 1;
     const rand = () => {
       s = (s * 1103515245 + 12345) & 0x7fffffff;
       return s / 0x7fffffff;
@@ -52,8 +55,6 @@ export function Waveform({
     return Array.from({ length: bars }, (_, i) => {
       const envelope = Math.sin((i / bars) * Math.PI) * 0.55 + 0.45;
       const raw = Math.max(0.14, Math.min(1, (0.35 + rand() * 0.65) * envelope));
-      // Quantize to 2 decimals of percent so SSR and client emit identical
-      // style strings (float precision differs between renderers).
       return Math.round(raw * 10000) / 100;
     });
   }, [seed, peaks, bars]);
@@ -67,7 +68,10 @@ export function Waveform({
         onSeek
           ? (e) => {
               const rect = e.currentTarget.getBoundingClientRect();
-              onSeek(((e.clientX - rect.left) / rect.width) * 100);
+              if (rect.width > 0) {
+                const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+                onSeek(percent);
+              }
             }
           : undefined
       }
