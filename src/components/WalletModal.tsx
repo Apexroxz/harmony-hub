@@ -45,7 +45,8 @@ export function WalletModal() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const currentProvider = WALLET_PROVIDERS.find((p) => p.name === providerName) ?? WALLET_PROVIDERS[0]!;
+  const currentProvider =
+    WALLET_PROVIDERS.find((p) => p.name === providerName) ?? WALLET_PROVIDERS[0]!;
 
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => !open && closeModal()}>
@@ -91,7 +92,7 @@ export function WalletModal() {
                   <div
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r text-white font-bold shadow-md",
-                      currentProvider.gradient
+                      currentProvider.gradient,
                     )}
                   >
                     {currentProvider.name[0]}
@@ -183,7 +184,7 @@ export function WalletModal() {
                   <div
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r text-white font-bold shadow-md transition-transform group-hover:scale-105",
-                      provider.gradient
+                      provider.gradient,
                     )}
                   >
                     {provider.id === "demo" ? (

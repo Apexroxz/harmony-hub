@@ -49,24 +49,27 @@ const JAMENDO_HOST = "https://api.jamendo.com/v3.0";
 
 // Map our genre filter names → Jamendo tag names
 export const JAMENDO_GENRE_TAGS: Record<string, string> = {
-  Electronic:  "electronic",
-  Ambient:     "ambient",
-  "Hip-Hop":   "hiphop",
-  Rock:        "rock",
-  Jazz:        "jazz",
-  Classical:   "classical",
-  Indie:       "indie",
-  Pop:         "pop",
-  Folk:        "folk",
-  Acoustic:    "acoustic",
+  Electronic: "electronic",
+  Ambient: "ambient",
+  "Hip-Hop": "hiphop",
+  Rock: "rock",
+  Jazz: "jazz",
+  Classical: "classical",
+  Indie: "indie",
+  Pop: "pop",
+  Folk: "folk",
+  Acoustic: "acoustic",
 };
 
-function buildJamendoUrl(clientId: string, opts: {
-  search?: string;
-  genre?: string;
-  limit?: number;
-  offset?: number;
-}): string {
+function buildJamendoUrl(
+  clientId: string,
+  opts: {
+    search?: string;
+    genre?: string;
+    limit?: number;
+    offset?: number;
+  },
+): string {
   const params = new URLSearchParams({
     client_id: clientId,
     format: "json",
@@ -90,41 +93,44 @@ function buildJamendoUrl(clientId: string, opts: {
 }
 
 function itemToTrack(item: JamendoTrackItem): { track: Track; artist: Artist } {
-  const artistId  = item.artist_id ? `jamendo-artist-${item.artist_id}` : "jamendo-artist-unknown";
+  const artistId = item.artist_id ? `jamendo-artist-${item.artist_id}` : "jamendo-artist-unknown";
   const artistName = item.artist_name || "Jamendo Artist";
-  const coverUrl   = item.album_image || item.image || `https://usercontent.jamendo.com?type=album&id=${item.id}&width=500`;
+  const coverUrl =
+    item.album_image ||
+    item.image ||
+    `https://usercontent.jamendo.com?type=album&id=${item.id}&width=500`;
 
-  const rawGenre   = item.musicinfo?.tags?.genres?.[0] ?? "";
-  const genre      = rawGenre
+  const rawGenre = item.musicinfo?.tags?.genres?.[0] ?? "";
+  const genre = rawGenre
     ? rawGenre.charAt(0).toUpperCase() + rawGenre.slice(1)
     : "Creative Commons";
 
   const track: Track = {
-    id:         `jamendo-${item.id}`,
-    title:      item.name,
+    id: `jamendo-${item.id}`,
+    title: item.name,
     artistId,
     artistName,
     coverImage: coverUrl,
-    audioUrl:   item.audio,
-    duration:   item.duration || 180,
+    audioUrl: item.audio,
+    duration: item.duration || 180,
     genre,
-    quality:    "MP3" as AudioFormat,
-    bitrate:    320,
+    quality: "MP3" as AudioFormat,
+    bitrate: 320,
     sampleRate: 44100,
-    playCount:  Math.floor(Math.random() * 8000) + 500,
-    likes:      Math.floor(Math.random() * 800) + 50,
-    comments:   Math.floor(Math.random() * 80) + 5,
-    createdAt:  new Date().toISOString().split("T")[0] ?? "2026-01-01",
+    playCount: Math.floor(Math.random() * 8000) + 500,
+    likes: Math.floor(Math.random() * 800) + 50,
+    comments: Math.floor(Math.random() * 80) + 5,
+    createdAt: new Date().toISOString().split("T")[0] ?? "2026-01-01",
   };
 
   const artist: Artist = {
-    id:        artistId,
-    name:      artistName,
-    handle:    `@${artistName.toLowerCase().replace(/[^a-z0-9]/g, "") || "jamendo"}`,
-    avatar:    coverUrl,
-    bio:       `Creative Commons Artist on Jamendo${item.album_name ? ` · ${item.album_name}` : ""}`,
+    id: artistId,
+    name: artistName,
+    handle: `@${artistName.toLowerCase().replace(/[^a-z0-9]/g, "") || "jamendo"}`,
+    avatar: coverUrl,
+    bio: `Creative Commons Artist on Jamendo${item.album_name ? ` · ${item.album_name}` : ""}`,
     followers: Math.floor(Math.random() * 5000) + 200,
-    verified:  true,
+    verified: true,
   };
 
   return { track, artist };
@@ -145,7 +151,7 @@ async function fetchJamendoRaw(opts: {
       const url = buildJamendoUrl(clientId, opts);
 
       const controller = new AbortController();
-      const timeoutId  = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const res = await fetch(url, {
         headers: { Accept: "application/json" },
@@ -170,7 +176,7 @@ async function fetchJamendoRaw(opts: {
       const items = json.results ?? [];
       if (items.length === 0) continue;
 
-      const tracks: Track[]    = [];
+      const tracks: Track[] = [];
       const artistsMap = new Map<string, Artist>();
 
       for (const item of items) {
@@ -192,7 +198,9 @@ async function fetchJamendoRaw(opts: {
 }
 
 /** Fetch popular tracks — for the home/catalog view. */
-export function fetchJamendoTracks(searchQuery?: string): Promise<{ tracks: Track[]; artists: Artist[] }> {
+export function fetchJamendoTracks(
+  searchQuery?: string,
+): Promise<{ tracks: Track[]; artists: Artist[] }> {
   return fetchJamendoRaw(searchQuery ? { search: searchQuery } : {});
 }
 
@@ -202,7 +210,7 @@ export function fetchJamendoTracks(searchQuery?: string): Promise<{ tracks: Trac
  */
 export function fetchJamendoByGenre(
   genre: string,
-  limit = 20
+  limit = 20,
 ): Promise<{ tracks: Track[]; artists: Artist[] }> {
   const tag = JAMENDO_GENRE_TAGS[genre];
   if (!tag) return fetchJamendoRaw({ limit });
@@ -215,7 +223,7 @@ export function fetchJamendoByGenre(
  */
 export function searchJamendoTracks(
   query: string,
-  limit = 15
+  limit = 15,
 ): Promise<{ tracks: Track[]; artists: Artist[] }> {
   if (!query.trim()) return Promise.resolve({ tracks: [], artists: [] });
   return fetchJamendoRaw({ search: query.trim(), limit });

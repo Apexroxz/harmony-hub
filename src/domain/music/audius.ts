@@ -30,27 +30,27 @@ interface AudiusTrackItem {
 }
 
 const AUDIUS_APP_NAME = "LAYAM_MUSIC_PLAYER";
-const AUDIUS_HOST     = "https://api.audius.co";
+const AUDIUS_HOST = "https://api.audius.co";
 
 // Genre map — Audius uses these exact strings in the genre field
 export const AUDIUS_GENRE_MAP: Record<string, string> = {
-  Electronic:  "Electronic",
-  Ambient:     "Electronic",
-  "Hip-Hop":   "Hip-Hop/Rap",
-  Rock:        "Rock",
-  Pop:         "Pop",
-  Jazz:        "Jazz",
-  Classical:   "Classical",
-  Indie:       "Alternative",
-  Folk:        "Folk",
-  Acoustic:    "Acoustic",
+  Electronic: "Electronic",
+  Ambient: "Electronic",
+  "Hip-Hop": "Hip-Hop/Rap",
+  Rock: "Rock",
+  Pop: "Pop",
+  Jazz: "Jazz",
+  Classical: "Classical",
+  Indie: "Alternative",
+  Folk: "Folk",
+  Acoustic: "Acoustic",
 };
 
 function itemToTrack(item: AudiusTrackItem): { track: Track; artist: Artist } {
-  const artistId   = item.user?.id ? `audius-artist-${item.user.id}` : "audius-artist-unknown";
+  const artistId = item.user?.id ? `audius-artist-${item.user.id}` : "audius-artist-unknown";
   const artistName = item.user?.name || "Audius Artist";
-  const handle     = item.user?.handle ? `@${item.user.handle}` : "@audius";
-  const avatarUrl  =
+  const handle = item.user?.handle ? `@${item.user.handle}` : "@audius";
+  const avatarUrl =
     item.user?.profile_picture?.["480x480"] ||
     item.user?.profile_picture?.["150x150"] ||
     item.artwork?.["480x480"] ||
@@ -67,32 +67,33 @@ function itemToTrack(item: AudiusTrackItem): { track: Track; artist: Artist } {
   const streamUrl = `${AUDIUS_HOST}/v1/tracks/${item.id}/stream?app_name=${AUDIUS_APP_NAME}`;
 
   const track: Track = {
-    id:          `audius-${item.id}`,
-    title:       item.title,
+    id: `audius-${item.id}`,
+    title: item.title,
     artistId,
     artistName,
-    coverImage:  coverUrl,
-    audioUrl:    streamUrl,
-    duration:    item.duration || 180,
-    genre:       item.genre || "Electronic",
-    quality:     "FLAC" as AudioFormat,
-    bitrate:     1411,
-    sampleRate:  44100,
-    bitDepth:    16,
-    playCount:   item.play_count || 1000,
-    likes:       item.favorite_count || 100,
-    comments:    item.repost_count || 20,
-    createdAt:   item.release_date?.split("T")[0] ?? new Date().toISOString().split("T")[0] ?? "2026-01-01",
+    coverImage: coverUrl,
+    audioUrl: streamUrl,
+    duration: item.duration || 180,
+    genre: item.genre || "Electronic",
+    quality: "FLAC" as AudioFormat,
+    bitrate: 1411,
+    sampleRate: 44100,
+    bitDepth: 16,
+    playCount: item.play_count || 1000,
+    likes: item.favorite_count || 100,
+    comments: item.repost_count || 20,
+    createdAt:
+      item.release_date?.split("T")[0] ?? new Date().toISOString().split("T")[0] ?? "2026-01-01",
   };
 
   const artist: Artist = {
-    id:        artistId,
-    name:      artistName,
+    id: artistId,
+    name: artistName,
     handle,
-    avatar:    avatarUrl,
-    bio:       item.user?.bio || "Web3 Artist on Audius",
+    avatar: avatarUrl,
+    bio: item.user?.bio || "Web3 Artist on Audius",
     followers: 1200,
-    verified:  true,
+    verified: true,
   };
 
   return { track, artist };
@@ -137,7 +138,7 @@ async function fetchAudiusRaw(params: {
     const json = (await res.json()) as { data?: AudiusTrackItem[] };
     const items = json.data ?? [];
 
-    const tracks: Track[]       = [];
+    const tracks: Track[] = [];
     const artistsMap = new Map<string, Artist>();
 
     for (const item of items) {
@@ -163,7 +164,7 @@ export function fetchAudiusTrendingTracks(): Promise<{ tracks: Track[]; artists:
 /** Fetch trending tracks for a specific genre. */
 export function fetchAudiusByGenre(
   genre: string,
-  limit = 12
+  limit = 12,
 ): Promise<{ tracks: Track[]; artists: Artist[] }> {
   const audiusGenre = AUDIUS_GENRE_MAP[genre];
   if (!audiusGenre) return fetchAudiusRaw({ limit });
@@ -173,7 +174,7 @@ export function fetchAudiusByGenre(
 /** Full-text search across Audius tracks. */
 export function searchAudiusTracks(
   query: string,
-  limit = 10
+  limit = 10,
 ): Promise<{ tracks: Track[]; artists: Artist[] }> {
   if (!query.trim()) return Promise.resolve({ tracks: [], artists: [] });
   return fetchAudiusRaw({ query: query.trim(), limit });

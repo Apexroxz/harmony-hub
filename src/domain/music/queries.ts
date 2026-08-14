@@ -88,7 +88,7 @@ async function fetchCatalog(): Promise<Catalog> {
       ]),
       signedUrls(
         "audio",
-        trackRows.flatMap((t) => (t.audio_path ? [t.audio_path] : []))
+        trackRows.flatMap((t) => (t.audio_path ? [t.audio_path] : [])),
       ),
     ]);
 

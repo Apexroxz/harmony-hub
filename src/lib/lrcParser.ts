@@ -37,7 +37,7 @@ export function parseLrc(lrcText: string): LrcLine[] {
 export function generateSampleLrc(
   trackTitle: string,
   artistName: string,
-  duration: number = 180
+  duration: number = 180,
 ): LrcLine[] {
   const step = Math.max(8, Math.floor(duration / 8));
   return [

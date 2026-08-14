@@ -1,7 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  TrendingUp, Users, Wallet,
-  Music2, Globe2, ShieldCheck, Play, UploadCloud
+  TrendingUp,
+  Users,
+  Wallet,
+  Music2,
+  Globe2,
+  ShieldCheck,
+  Play,
+  UploadCloud,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -20,9 +26,17 @@ export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Artist Portal & Royalty Analytics — Layam" },
-      { name: "description", content: "Real-time stream metrics, collaborator revenue splits, and instant royalty cashout." },
+      {
+        name: "description",
+        content:
+          "Real-time stream metrics, collaborator revenue splits, and instant royalty cashout.",
+      },
       { property: "og:title", content: "Artist Portal & Royalty Analytics — Layam" },
-      { property: "og:description", content: "Real-time stream metrics, collaborator revenue splits, and instant royalty cashout." },
+      {
+        property: "og:description",
+        content:
+          "Real-time stream metrics, collaborator revenue splits, and instant royalty cashout.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -50,17 +64,22 @@ function StatCard({
   action?: React.ReactNode;
 }) {
   return (
-    <div className={cn(
-      "rounded-2xl border p-5 space-y-3",
-      accent
-        ? "border-primary/25 bg-primary/6"
-        : "border-border/30 bg-card"
-    )}>
+    <div
+      className={cn(
+        "rounded-2xl border p-5 space-y-3",
+        accent ? "border-primary/25 bg-primary/6" : "border-border/30 bg-card",
+      )}
+    >
       <div className="flex items-center justify-between">
         <span className="text-label text-muted-foreground">{label}</span>
         <Icon className={cn("h-3.5 w-3.5", iconColor)} />
       </div>
-      <p className={cn("text-3xl font-extrabold tracking-tight font-mono", accent ? "text-primary" : "text-foreground")}>
+      <p
+        className={cn(
+          "text-3xl font-extrabold tracking-tight font-mono",
+          accent ? "text-primary" : "text-foreground",
+        )}
+      >
         {value}
       </p>
       {sub && <p className={cn("text-xs font-medium flex items-center gap-1", subColor)}>{sub}</p>}
@@ -75,20 +94,9 @@ function ArtistDashboardPage() {
   const { user, isArtist } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!isArtist) {
-      toast.error("Artist Account Required", {
-        description: "Upgrade to an Artist Creator account to access the Artist Portal.",
-      });
-      void navigate({ to: "/" });
-    }
-  }, [isArtist, navigate]);
-
-  if (!isArtist) return null;
-
   const allTracks = catalog?.tracks || [];
   const artistTracks = allTracks.filter(
-    (t) => t.uploaderId === user?.id || t.artistId === user?.id
+    (t) => t.uploaderId === user?.id || t.artistId === user?.id,
   );
 
   const totalStreams = artistTracks.reduce((acc, t) => acc + (t.playCount || 0), 0);
@@ -101,9 +109,22 @@ function ArtistDashboardPage() {
     setRoyaltyBalance(initialRoyalty);
   }, [initialRoyalty]);
 
+  useEffect(() => {
+    if (!isArtist) {
+      toast.error("Artist Account Required", {
+        description: "Upgrade to an Artist Creator account to access the Artist Portal.",
+      });
+      void navigate({ to: "/" });
+    }
+  }, [isArtist, navigate]);
+
+  if (!isArtist) return null;
+
   const handleCashout = () => {
     if (royaltyBalance <= 0) {
-      toast.info("No Royalty Balance", { description: "You have no unpaid royalties to cash out." });
+      toast.info("No Royalty Balance", {
+        description: "You have no unpaid royalties to cash out.",
+      });
       return;
     }
     setIsWithdrawing(true);
@@ -140,7 +161,8 @@ function ArtistDashboardPage() {
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">No tracks uploaded yet</h2>
           <p className="text-xs text-muted-foreground max-w-sm mb-6 leading-relaxed">
-            Upload your first FLAC/MP3 track to view real-time analytics, stream counts, and royalty splits.
+            Upload your first FLAC/MP3 track to view real-time analytics, stream counts, and royalty
+            splits.
           </p>
           <Link to="/upload">
             <Button className="rounded-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 gap-2 px-6 h-10 shadow-lg cursor-pointer">
@@ -155,7 +177,6 @@ function ArtistDashboardPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-7xl px-4 pb-36 pt-20 sm:px-6 lg:px-8">
-
       {/* ── Page header ── */}
       <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -212,9 +233,7 @@ function ArtistDashboardPage() {
           value={(() => {
             try {
               const p = JSON.parse(sessionStorage.getItem("layam_purchases") ?? "[]") as string[];
-              const artistSales = p.filter((id) =>
-                artistTracks.some((t) => t.id === id)
-              );
+              const artistSales = p.filter((id) => artistTracks.some((t) => t.id === id));
               return artistSales.length.toString();
             } catch {
               return "0";
@@ -225,7 +244,7 @@ function ArtistDashboardPage() {
               const p = JSON.parse(sessionStorage.getItem("layam_purchases") ?? "[]") as string[];
               const rev = artistTracks
                 .filter((t) => p.includes(t.id))
-                .reduce((sum, t) => sum + ((t.price ?? 0) * 0.85), 0);
+                .reduce((sum, t) => sum + (t.price ?? 0) * 0.85, 0);
               return rev > 0 ? `$${rev.toFixed(2)} revenue` : "No sales yet";
             } catch {
               return "No sales yet";
@@ -234,7 +253,9 @@ function ArtistDashboardPage() {
           subColor={(() => {
             try {
               const p = JSON.parse(sessionStorage.getItem("layam_purchases") ?? "[]") as string[];
-              return artistTracks.some((t) => p.includes(t.id)) ? "text-emerald-400" : "text-muted-foreground";
+              return artistTracks.some((t) => p.includes(t.id))
+                ? "text-emerald-400"
+                : "text-muted-foreground";
             } catch {
               return "text-muted-foreground";
             }
@@ -260,7 +281,7 @@ function ArtistDashboardPage() {
               key={track.id}
               className={cn(
                 "flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors hover:bg-surface-raised",
-                i !== artistTracks.length - 1 && "border-b border-border/20"
+                i !== artistTracks.length - 1 && "border-b border-border/20",
               )}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -286,7 +307,8 @@ function ArtistDashboardPage() {
                 </div>
 
                 <Button
-                  size="icon" variant="ghost"
+                  size="icon"
+                  variant="ghost"
                   onClick={() => playTrack(track, artistTracks)}
                   className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/8 cursor-pointer"
                 >

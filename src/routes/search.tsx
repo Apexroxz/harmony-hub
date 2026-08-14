@@ -17,7 +17,11 @@ export const Route = createFileRoute("/search")({
   head: () => ({
     meta: [
       { title: "Search — Layam" },
-      { name: "description", content: "Search songs and artists across Audius, Jamendo, and your Layam catalog in real-time." },
+      {
+        name: "description",
+        content:
+          "Search songs and artists across Audius, Jamendo, and your Layam catalog in real-time.",
+      },
       { property: "og:title", content: "Search — Layam" },
       { property: "og:description", content: "Search songs and artists across the Layam catalog." },
       { property: "og:type", content: "website" },
@@ -58,28 +62,28 @@ function SourceBadge({ source }: { source: "audius" | "jamendo" | "local" }) {
 }
 
 function getTrackSource(track: Track): "audius" | "jamendo" | "local" {
-  if (track.id.startsWith("audius-"))  return "audius";
+  if (track.id.startsWith("audius-")) return "audius";
   if (track.id.startsWith("jamendo-")) return "jamendo";
   return "local";
 }
 
 function SearchPage() {
-  const navigate  = useNavigate();
-  const { q }     = Route.useSearch();
-  const [query,   setQuery]   = useState(q ?? "");
-  const [tab,     setTab]     = useState<SearchTab>("all");
+  const navigate = useNavigate();
+  const { q } = Route.useSearch();
+  const [query, setQuery] = useState(q ?? "");
+  const [tab, setTab] = useState<SearchTab>("all");
 
   const debounced = useDebounced(query, 400);
 
-  useEffect(() => { setQuery(q ?? ""); }, [q]);
+  useEffect(() => {
+    setQuery(q ?? "");
+  }, [q]);
 
   // In-memory catalog search (already loaded)
   const { data: catalog } = useQuery(catalogQueryOptions());
 
   // External live search (Audius + Jamendo)
-  const { data: external, isFetching: isSearching } = useQuery(
-    searchQueryOptions(debounced)
-  );
+  const { data: external, isFetching: isSearching } = useQuery(searchQueryOptions(debounced));
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -94,9 +98,9 @@ function SearchPage() {
 
     // From cached catalog
     const catalogHits = (catalog?.tracks ?? []).filter((t) => {
-      const title  = t.title.toLowerCase();
+      const title = t.title.toLowerCase();
       const artist = t.artistName.toLowerCase();
-      const genre  = t.genre.toLowerCase();
+      const genre = t.genre.toLowerCase();
       return (
         title.includes(normalizedQuery) ||
         artist.includes(normalizedQuery) ||
@@ -121,10 +125,7 @@ function SearchPage() {
 
   const allArtists = useMemo(() => {
     if (!normalizedQuery) return [];
-    const sources = [
-      ...(catalog?.artists ?? []),
-      ...(external?.artists ?? []),
-    ];
+    const sources = [...(catalog?.artists ?? []), ...(external?.artists ?? [])];
     const seen = new Set<string>();
     return sources.filter((a) => {
       if (seen.has(a.id)) return false;
@@ -137,15 +138,15 @@ function SearchPage() {
   }, [normalizedQuery, catalog, external]);
 
   const tabTracks = useMemo<Track[]>(() => {
-    if (tab === "audius")  return allTracks.filter((t) => t.id.startsWith("audius-"));
+    if (tab === "audius") return allTracks.filter((t) => t.id.startsWith("audius-"));
     if (tab === "jamendo") return allTracks.filter((t) => t.id.startsWith("jamendo-"));
     return allTracks;
   }, [allTracks, tab]);
 
   const hasResults = allTracks.length > 0 || allArtists.length > 0;
-  const audiusCount  = allTracks.filter((t) => t.id.startsWith("audius-")).length;
+  const audiusCount = allTracks.filter((t) => t.id.startsWith("audius-")).length;
   const jamendoCount = allTracks.filter((t) => t.id.startsWith("jamendo-")).length;
-  const otherCount   = allTracks.length - audiusCount - jamendoCount;
+  const otherCount = allTracks.length - audiusCount - jamendoCount;
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-32 pt-20 sm:px-6 lg:px-8">
@@ -177,9 +178,9 @@ function SearchPage() {
         <div className="mb-6 flex items-center gap-1 border-b border-border/30 pb-px">
           {(
             [
-              { key: "all",     label: `All (${allTracks.length})` },
-              { key: "audius",  label: `Audius (${audiusCount})`,  icon: Globe   },
-              { key: "jamendo", label: `Jamendo (${jamendoCount})`,icon: Disc3   },
+              { key: "all", label: `All (${allTracks.length})` },
+              { key: "audius", label: `Audius (${audiusCount})`, icon: Globe },
+              { key: "jamendo", label: `Jamendo (${jamendoCount})`, icon: Disc3 },
             ] as Array<{ key: SearchTab; label: string; icon?: React.ElementType }>
           ).map(({ key, label, icon: Icon }) => (
             <button
@@ -189,7 +190,7 @@ function SearchPage() {
                 "flex items-center gap-1.5 rounded-t-md border-b-2 px-4 py-2 text-xs font-semibold transition-colors",
                 tab === key
                   ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {Icon && <Icon className="h-3 w-3" />}
@@ -208,7 +209,9 @@ function SearchPage() {
 
       {normalizedQuery && !hasResults && !isSearching && (
         <div className="rounded-2xl border border-dashed border-border/30 py-16 text-center">
-          <p className="text-base font-semibold text-foreground">No results for &ldquo;{debounced}&rdquo;</p>
+          <p className="text-base font-semibold text-foreground">
+            No results for &ldquo;{debounced}&rdquo;
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">Try a different search term.</p>
         </div>
       )}
@@ -231,7 +234,9 @@ function SearchPage() {
                 <h2 className="text-lg font-bold text-foreground">Songs</h2>
                 <span className="text-xs text-muted-foreground">({tabTracks.length})</span>
                 {otherCount > 0 && tab === "all" && (
-                  <span className="text-[10px] text-muted-foreground">· {otherCount} from your library</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    · {otherCount} from your library
+                  </span>
                 )}
               </div>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -273,7 +278,7 @@ function SearchPage() {
                       <p className="truncate font-semibold text-foreground">{artist.name}</p>
                       <p className="truncate text-sm text-muted-foreground">{artist.handle}</p>
                     </div>
-                    {artist.id.startsWith("audius-")  && <SourceBadge source="audius"  />}
+                    {artist.id.startsWith("audius-") && <SourceBadge source="audius" />}
                     {artist.id.startsWith("jamendo-") && <SourceBadge source="jamendo" />}
                   </Link>
                 ))}

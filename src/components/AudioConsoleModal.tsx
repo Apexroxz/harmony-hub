@@ -14,11 +14,7 @@ import {
   Layers,
   Radio,
 } from "lucide-react";
-import {
-  usePlayer,
-  EQ_FREQUENCIES,
-  EQ_PRESETS,
-} from "@/lib/player";
+import { usePlayer, EQ_FREQUENCIES, EQ_PRESETS } from "@/lib/player";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +86,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
           analyser.getByteFrequencyData(dataArray);
 
           const barCount = 32;
-          const barWidth = (width / barCount) - 2;
+          const barWidth = width / barCount - 2;
           const step = Math.floor(bufferLength / barCount);
 
           for (let i = 0; i < barCount; i++) {
@@ -148,7 +144,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
         ctx.fillText(
           isPlaying ? "CONNECTING DSP ENGINE..." : "PLAYBACK PAUSED — DSP READY",
           width / 2,
-          height / 2 + 4
+          height / 2 + 4,
         );
       }
     };
@@ -198,7 +194,8 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Real-time WebAudio parametric equalization, dynamics compression, and harmonic acoustics.
+                  Real-time WebAudio parametric equalization, dynamics compression, and harmonic
+                  acoustics.
                 </p>
               </div>
             </div>
@@ -212,7 +209,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                   "h-8 rounded-full text-xs font-bold gap-1.5 transition-all",
                   eqEnabled
                     ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                    : "border-border/60 text-muted-foreground hover:text-foreground"
+                    : "border-border/60 text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Zap className="h-3.5 w-3.5 fill-current" />
@@ -240,7 +237,8 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                 </span>
                 {currentTrack && (
                   <span className="text-[10px] text-muted-foreground font-mono">
-                    ({currentTrack.quality} {currentTrack.sampleRate ? `${currentTrack.sampleRate / 1000}kHz` : "44.1kHz"})
+                    ({currentTrack.quality}{" "}
+                    {currentTrack.sampleRate ? `${currentTrack.sampleRate / 1000}kHz` : "44.1kHz"})
                   </span>
                 )}
               </div>
@@ -249,7 +247,9 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                   onClick={() => setVisualizerMode("bars")}
                   className={cn(
                     "px-2 py-0.5 rounded text-[10px] font-mono transition-colors",
-                    visualizerMode === "bars" ? "bg-primary/20 text-primary font-bold" : "text-muted-foreground hover:text-white"
+                    visualizerMode === "bars"
+                      ? "bg-primary/20 text-primary font-bold"
+                      : "text-muted-foreground hover:text-white",
                   )}
                 >
                   Bars
@@ -258,7 +258,9 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                   onClick={() => setVisualizerMode("wave")}
                   className={cn(
                     "px-2 py-0.5 rounded text-[10px] font-mono transition-colors",
-                    visualizerMode === "wave" ? "bg-primary/20 text-primary font-bold" : "text-muted-foreground hover:text-white"
+                    visualizerMode === "wave"
+                      ? "bg-primary/20 text-primary font-bold"
+                      : "text-muted-foreground hover:text-white",
                   )}
                 >
                   Oscilloscope
@@ -300,7 +302,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                     "rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all",
                     eqPreset === preset
                       ? "border-primary bg-primary/20 text-primary shadow-sm"
-                      : "border-border/40 bg-surface-raised text-muted-foreground hover:bg-card hover:text-foreground"
+                      : "border-border/40 bg-surface-raised text-muted-foreground hover:bg-card hover:text-foreground",
                   )}
                 >
                   {preset}
@@ -315,7 +317,9 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
               <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                 10-Band Graphic Frequencies
               </span>
-              <span className="text-[11px] font-mono text-muted-foreground">Range: -12dB to +12dB</span>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                Range: -12dB to +12dB
+              </span>
             </div>
 
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 sm:gap-2">

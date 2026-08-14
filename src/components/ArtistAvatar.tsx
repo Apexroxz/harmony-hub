@@ -43,7 +43,7 @@ export function ArtistAvatar({
       className={cn(
         "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-raised ring-1 ring-border/60",
         sizes[size],
-        className
+        className,
       )}
     >
       {artist?.avatar ? (

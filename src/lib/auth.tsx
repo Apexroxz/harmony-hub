@@ -54,21 +54,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sync Supabase real session on mount
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) {
-        const su = data.session.user;
-        setUser({
-          id: su.id,
-          name: su.user_metadata?.["full_name"] ?? su.email?.split("@")[0] ?? "User",
-          email: su.email ?? "",
-          role: (su.user_metadata?.["role"] as UserRole) ?? "listener",
-          avatarUrl: su.user_metadata?.["avatar_url"] as string | undefined,
-        });
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (data.session?.user) {
+          const su = data.session.user;
+          setUser({
+            id: su.id,
+            name: su.user_metadata?.["full_name"] ?? su.email?.split("@")[0] ?? "User",
+            email: su.email ?? "",
+            role: (su.user_metadata?.["role"] as UserRole) ?? "listener",
+            avatarUrl: su.user_metadata?.["avatar_url"] as string | undefined,
+          });
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const su = session.user;
         const authUser: AuthUser = {
@@ -109,68 +114,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(guestUser);
   }, []);
 
-  const loginWithGoogle = useCallback(async (role: UserRole) => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-          queryParams: { role },
-        },
-      });
-      if (error) throw error;
-    } catch (err: unknown) {
-      console.warn("Google OAuth notice:", err);
-      toast.info("OAuth Notice", {
-        description: "OAuth unconfigured. Logging in as Guest.",
-      });
-      loginAsGuest(role);
-    }
-  }, [loginAsGuest]);
-
-  const loginWithFacebook = useCallback(async (role: UserRole) => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "facebook",
-        options: {
-          redirectTo: window.location.origin,
-          queryParams: { role },
-        },
-      });
-      if (error) throw error;
-    } catch (err: unknown) {
-      console.warn("Facebook OAuth notice:", err);
-      toast.info("OAuth Notice", {
-        description: "OAuth unconfigured. Logging in as Guest.",
-      });
-      loginAsGuest(role);
-    }
-  }, [loginAsGuest]);
-
-  const signUpWithEmail = useCallback(async (email: string, pass: string, role: UserRole, name?: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: pass,
-        options: { data: { full_name: name ?? email.split("@")[0], role } },
-      });
-      if (error) throw error;
-      if (data.user) {
-        const authUser: AuthUser = {
-          id: data.user.id,
-          name: name ?? email.split("@")[0] ?? "User",
-          email,
-          role,
-        };
-        setUser(authUser);
-        toast.success("Account created! Welcome to Layam.");
+  const loginWithGoogle = useCallback(
+    async (role: UserRole) => {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: window.location.origin,
+            queryParams: { role },
+          },
+        });
+        if (error) throw error;
+      } catch (err: unknown) {
+        console.warn("Google OAuth notice:", err);
+        toast.info("OAuth Notice", {
+          description: "OAuth unconfigured. Logging in as Guest.",
+        });
+        loginAsGuest(role);
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Sign up failed.";
-      toast.error(msg);
-      throw err;
-    }
-  }, []);
+    },
+    [loginAsGuest],
+  );
+
+  const loginWithFacebook = useCallback(
+    async (role: UserRole) => {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "facebook",
+          options: {
+            redirectTo: window.location.origin,
+            queryParams: { role },
+          },
+        });
+        if (error) throw error;
+      } catch (err: unknown) {
+        console.warn("Facebook OAuth notice:", err);
+        toast.info("OAuth Notice", {
+          description: "OAuth unconfigured. Logging in as Guest.",
+        });
+        loginAsGuest(role);
+      }
+    },
+    [loginAsGuest],
+  );
+
+  const signUpWithEmail = useCallback(
+    async (email: string, pass: string, role: UserRole, name?: string) => {
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password: pass,
+          options: { data: { full_name: name ?? email.split("@")[0], role } },
+        });
+        if (error) throw error;
+        if (data.user) {
+          const authUser: AuthUser = {
+            id: data.user.id,
+            name: name ?? email.split("@")[0] ?? "User",
+            email,
+            role,
+          };
+          setUser(authUser);
+          toast.success("Account created! Welcome to Layam.");
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Sign up failed.";
+        toast.error(msg);
+        throw err;
+      }
+    },
+    [],
+  );
 
   const signInWithEmail = useCallback(async (email: string, pass: string) => {
     try {
@@ -268,7 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       demoLogin,
       logout,
       upgradeToArtist,
-    ]
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

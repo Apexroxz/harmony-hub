@@ -69,7 +69,10 @@ export function Waveform({
           ? (e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               if (rect.width > 0) {
-                const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+                const percent = Math.max(
+                  0,
+                  Math.min(100, ((e.clientX - rect.left) / rect.width) * 100),
+                );
                 onSeek(percent);
               }
             }
@@ -78,9 +81,8 @@ export function Waveform({
       className={cn(
         "flex h-full w-full items-end gap-[2px]",
         onSeek && "cursor-pointer",
-        revealOnHover &&
-          "opacity-0 transition-opacity duration-500 group-hover:opacity-100",
-        className
+        revealOnHover && "opacity-0 transition-opacity duration-500 group-hover:opacity-100",
+        className,
       )}
     >
       {heights.map((h, i) => {
@@ -91,7 +93,7 @@ export function Waveform({
             style={{ height: `${h}%` }}
             className={cn(
               "flex-1 rounded-full transition-colors duration-200",
-              played ? "bg-primary" : "bg-muted-foreground/30"
+              played ? "bg-primary" : "bg-muted-foreground/30",
             )}
           />
         );

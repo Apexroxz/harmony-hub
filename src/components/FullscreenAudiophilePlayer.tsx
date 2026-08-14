@@ -180,7 +180,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                   "font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-sm",
                   isOffline
                     ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-                    : "border-primary/40 text-primary bg-primary/10"
+                    : "border-primary/40 text-primary bg-primary/10",
                 )}
               >
                 {formatLabel} · {bitDepthLabel} / {sampleRateKhz} · {bitrateLabel}
@@ -213,7 +213,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               alt={currentTrack.title}
               className={cn(
                 "h-full w-full object-cover transition-transform duration-700 ease-out",
-                isPlaying ? "scale-100" : "scale-[0.98] opacity-90"
+                isPlaying ? "scale-100" : "scale-[0.98] opacity-90",
               )}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-50 pointer-events-none" />
@@ -238,7 +238,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               {currentTrack.title}
             </h1>
             <p className="text-base sm:text-lg font-medium text-muted-foreground mt-1 truncate">
-              {currentTrack.artistName || (currentTrack as any).artist || "Artist"}
+              {currentTrack.artistName || currentTrack.artist || "Artist"}
             </p>
             {localMeta.album && (
               <p className="text-xs font-mono text-muted-foreground/70 mt-1 truncate">
@@ -272,7 +272,9 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               onClick={() => setIsShuffle((s) => !s)}
               className={cn(
                 "h-10 w-10 rounded-full transition-colors",
-                isShuffle ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground"
+                isShuffle
+                  ? "text-primary bg-primary/15"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               aria-label="Shuffle"
             >
@@ -297,7 +299,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                   "h-18 w-18 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.8)] border border-white/20 transition-all cursor-pointer",
                   isOffline
                     ? "bg-emerald-500 text-white hover:bg-emerald-400 shadow-emerald-500/30"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/30"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/30",
                 )}
                 aria-label={isPlaying ? "Pause" : "Play"}
               >
@@ -327,7 +329,9 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               onClick={() => setIsRepeat((r) => !r)}
               className={cn(
                 "h-10 w-10 rounded-full transition-colors",
-                isRepeat ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground"
+                isRepeat
+                  ? "text-primary bg-primary/15"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               aria-label="Repeat"
             >
@@ -346,10 +350,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                   ? isOffline
                     ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400 font-bold"
                     : "border-primary/50 bg-primary/15 text-primary font-bold"
-                  : "border-transparent text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:bg-surface-raised hover:text-foreground",
               )}
             >
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">EQUALIZER</span>
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">
+                EQUALIZER
+              </span>
               <div className="flex items-center gap-1.5 mt-0.5 font-bold text-xs">
                 <Sliders className="h-3.5 w-3.5" />
                 <span>{eqEnabled ? eqPreset : "BYPASS"}</span>
@@ -363,10 +369,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 "flex flex-col items-center justify-center py-2 px-3 rounded-xl border transition-all cursor-pointer border-x border-border/30",
                 bassBoostLevel > 0 || normalizerEnabled
                   ? "border-primary/50 bg-primary/15 text-primary font-bold"
-                  : "border-transparent text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:bg-surface-raised hover:text-foreground",
               )}
             >
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">DSP AUDIO</span>
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">
+                DSP AUDIO
+              </span>
               <div className="flex items-center gap-1.5 mt-0.5 font-bold text-xs">
                 <Layers className="h-3.5 w-3.5" />
                 <span>{bassBoostLevel > 0 ? `+${bassBoostLevel}dB BASS` : "STUDIO"}</span>
@@ -378,7 +386,9 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               onClick={() => setQueueDrawerOpen(true)}
               className="flex flex-col items-center justify-center py-2 px-3 rounded-xl border border-transparent text-muted-foreground hover:bg-surface-raised hover:text-foreground transition-all cursor-pointer"
             >
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">UP NEXT</span>
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">
+                UP NEXT
+              </span>
               <div className="flex items-center gap-1.5 mt-0.5 font-bold text-xs">
                 <ListMusic className="h-3.5 w-3.5" />
                 <span>{queue.length} TRACKS</span>
@@ -455,7 +465,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                     key={`${track.id}-${i}`}
                     className={cn(
                       "flex items-center justify-between gap-3 p-3 rounded-xl transition-colors cursor-pointer group",
-                      i === queueIndex ? "bg-primary/10 text-primary" : "hover:bg-surface-raised"
+                      i === queueIndex ? "bg-primary/10 text-primary" : "hover:bg-surface-raised",
                     )}
                     onClick={() => playFromQueue(i)}
                   >
@@ -466,7 +476,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                         className="h-10 w-10 rounded-lg object-cover border border-border/40"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className={cn("text-xs font-bold truncate", i === queueIndex && "text-primary")}>
+                        <p
+                          className={cn(
+                            "text-xs font-bold truncate",
+                            i === queueIndex && "text-primary",
+                          )}
+                        >
                           {track.title}
                         </p>
                         <p className="text-[11px] text-muted-foreground truncate">

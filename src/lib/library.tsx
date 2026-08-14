@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,7 +101,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       const previous = queryClient.getQueryData<string[]>(key) ?? [];
       queryClient.setQueryData<string[]>(
         key,
-        remove ? previous.filter((id) => id !== trackId) : [trackId, ...previous]
+        remove ? previous.filter((id) => id !== trackId) : [trackId, ...previous],
       );
       return { key, previous };
     },
@@ -134,7 +128,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       if (!requireAuth()) return;
       engagementMutation.mutate({ table: "likes", trackId: id, remove: likedIds.includes(id) });
     },
-    [engagementMutation, likedIds, requireAuth]
+    [engagementMutation, likedIds, requireAuth],
   );
 
   const toggleRepost = useCallback(
@@ -146,7 +140,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         remove: repostedIds.includes(id),
       });
     },
-    [engagementMutation, repostedIds, requireAuth]
+    [engagementMutation, repostedIds, requireAuth],
   );
 
   const value = useMemo<LibraryContextValue>(
@@ -162,7 +156,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       toggleRepost,
       canEngage: userId != null,
     }),
-    [catalog, likedIds, repostedIds, toggleLike, toggleRepost, userId]
+    [catalog, likedIds, repostedIds, toggleLike, toggleRepost, userId],
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

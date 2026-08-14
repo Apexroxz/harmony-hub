@@ -44,7 +44,7 @@ export function QualityBadge({
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold tracking-wider border uppercase select-none",
         badgeStyle,
-        className
+        className,
       )}
     >
       {withIcon && <Icon className="h-3 w-3" />}

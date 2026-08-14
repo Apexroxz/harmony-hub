@@ -17,12 +17,7 @@ import { recordTrackPurchase } from "@/domain/music/purchases";
 import { QualityBadge } from "@/components/QualityBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 interface BuyTrackModalProps {
@@ -89,19 +84,21 @@ export function BuyTrackModal({ track, open, onClose, onSuccess }: BuyTrackModal
               <CheckCircle2 className="h-8 w-8" />
             </div>
 
-            <h3 className="text-lg font-bold text-foreground mb-1">
-              You own "{track.title}"
-            </h3>
+            <h3 className="text-lg font-bold text-foreground mb-1">You own "{track.title}"</h3>
             <p className="text-xs text-muted-foreground mb-6">
-              Full DRM-free rights. 85% of payment transferred directly to <span className="font-semibold text-foreground">{track.artistName}</span>.
+              Full DRM-free rights. 85% of payment transferred directly to{" "}
+              <span className="font-semibold text-foreground">{track.artistName}</span>.
             </p>
 
             {/* Offline sync note */}
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 mb-6 text-left flex items-center gap-3">
               <WifiOff className="h-5 w-5 text-emerald-400 shrink-0" />
               <div className="text-[11px] text-muted-foreground">
-                <span className="font-bold text-emerald-400 block">Available in Offline Hi-Fi Mode</span>
-                This master is automatically synced into your Offline Library under <code className="text-foreground font-mono">Downloads/Purchased</code>.
+                <span className="font-bold text-emerald-400 block">
+                  Available in Offline Hi-Fi Mode
+                </span>
+                This master is automatically synced into your Offline Library under{" "}
+                <code className="text-foreground font-mono">Downloads/Purchased</code>.
               </div>
             </div>
 
@@ -134,7 +131,10 @@ export function BuyTrackModal({ track, open, onClose, onSuccess }: BuyTrackModal
                 <h4 className="font-bold text-sm text-foreground truncate">{track.title}</h4>
                 <p className="text-xs text-muted-foreground truncate">{track.artistName}</p>
                 <div className="mt-1.5 flex items-center gap-1.5">
-                  <Badge variant="outline" className="border-primary/40 text-primary text-[10px] font-mono font-bold">
+                  <Badge
+                    variant="outline"
+                    className="border-primary/40 text-primary text-[10px] font-mono font-bold"
+                  >
                     {track.quality}
                   </Badge>
                   {track.sampleRate && (

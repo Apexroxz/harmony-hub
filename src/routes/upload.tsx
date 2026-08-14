@@ -25,7 +25,11 @@ import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
 import { uploadMedia } from "@/lib/media";
 import { catalogQueryKey, catalogQueryOptions } from "@/domain/music/queries";
-import { generateAudioFingerprint, checkCatalogFingerprintMatch, type MatchResult } from "@/lib/fingerprint";
+import {
+  generateAudioFingerprint,
+  checkCatalogFingerprintMatch,
+  type MatchResult,
+} from "@/lib/fingerprint";
 import {
   estimatedSizeMb,
   formatDuration,
@@ -53,12 +57,14 @@ export const Route = createFileRoute("/upload")({
       { title: "Upload & Measure Audio Quality — Layam" },
       {
         name: "description",
-        content: "Format-agnostic audio publishing. Upload MP3, AAC, M4A, FLAC, or WAV. Quality is measured, not restricted.",
+        content:
+          "Format-agnostic audio publishing. Upload MP3, AAC, M4A, FLAC, or WAV. Quality is measured, not restricted.",
       },
       { property: "og:title", content: "Upload & Measure Audio Quality — Layam" },
       {
         property: "og:description",
-        content: "Format-agnostic audio publishing. Upload MP3, AAC, M4A, FLAC, or WAV. Quality is measured, not restricted.",
+        content:
+          "Format-agnostic audio publishing. Upload MP3, AAC, M4A, FLAC, or WAV. Quality is measured, not restricted.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -231,7 +237,7 @@ function UploadPage() {
       const audioPath = await uploadMedia(
         "audio",
         `${user.id}/${stamp}-${slug}.${extensionOf(file)}`,
-        file
+        file,
       );
 
       // 3. Save track with measured quality specs
@@ -251,7 +257,7 @@ function UploadPage() {
         waveform: peaks,
         ...(fingerprint ? { fingerprint } : {}),
         ...(monetized && price ? { price: parseFloat(price), monetized: true } : {}),
-      } as any);
+      } as unknown as Record<string, unknown>);
       if (trackInsert.error) throw trackInsert.error;
 
       const wallet = address ?? null;
@@ -280,7 +286,9 @@ function UploadPage() {
     },
   });
 
-  const canPublish = Boolean(file && analysis && title.trim() && user && rightsConfirmed && !publish.isPending);
+  const canPublish = Boolean(
+    file && analysis && title.trim() && user && rightsConfirmed && !publish.isPending,
+  );
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-36 pt-24 sm:px-6 lg:px-8">
@@ -293,17 +301,29 @@ function UploadPage() {
           Publish Your Music
         </h1>
         <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-          Upload any audio format (<code className="font-mono text-foreground">MP3, AAC, M4A, OGG, WAV, FLAC, ALAC, AIFF</code>). Quality is measured and rewarded, never restricted.
+          Upload any audio format (
+          <code className="font-mono text-foreground">
+            MP3, AAC, M4A, OGG, WAV, FLAC, ALAC, AIFF
+          </code>
+          ). Quality is measured and rewarded, never restricted.
         </p>
       </div>
 
       {!authLoading && !user && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4">
           <div>
-            <p className="text-sm font-bold text-foreground">Sign in to publish to the creator library</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Your profile and releases will be synced across the platform.</p>
+            <p className="text-sm font-bold text-foreground">
+              Sign in to publish to the creator library
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Your profile and releases will be synced across the platform.
+            </p>
           </div>
-          <Button asChild size="sm" className="bg-primary text-primary-foreground font-bold rounded-full">
+          <Button
+            asChild
+            size="sm"
+            className="bg-primary text-primary-foreground font-bold rounded-full"
+          >
             <Link to="/auth">Sign In</Link>
           </Button>
         </div>
@@ -325,7 +345,9 @@ function UploadPage() {
         onClick={() => inputRef.current?.click()}
         className={cn(
           "flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed bg-card/70 px-6 py-12 text-center transition-all shadow-inner",
-          dragging ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/40 hover:bg-surface-raised"
+          dragging
+            ? "border-primary bg-primary/10"
+            : "border-border/60 hover:border-primary/40 hover:bg-surface-raised",
         )}
       >
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary mb-3">
@@ -335,7 +357,11 @@ function UploadPage() {
           {file ? file.name : "Drag an audio file here, or click to browse"}
         </p>
         <p className="mt-1 text-xs text-muted-foreground max-w-md">
-          Supports <span className="text-foreground font-semibold">MP3, AAC, M4A, OGG, WAV, FLAC, ALAC, AIFF</span> up to 24-bit / 192kHz
+          Supports{" "}
+          <span className="text-foreground font-semibold">
+            MP3, AAC, M4A, OGG, WAV, FLAC, ALAC, AIFF
+          </span>{" "}
+          up to 24-bit / 192kHz
         </p>
         <input
           ref={inputRef}
@@ -369,16 +395,25 @@ function UploadPage() {
         <div className="mt-6 rounded-3xl border border-border/60 bg-card p-6 shadow-md space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-4">
             <div className="flex items-center gap-3">
-              <span className={cn("inline-flex items-center gap-1 rounded-full px-3 py-1 font-mono text-xs font-extrabold uppercase border", analysis.badgeColor)}>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-3 py-1 font-mono text-xs font-extrabold uppercase border",
+                  analysis.badgeColor,
+                )}
+              >
                 <Sparkles className="h-3.5 w-3.5" />
                 {analysis.tierLabel}
               </span>
               <span className="text-xs font-bold text-foreground">
-                {analysis.format} {analysis.bitDepth ? `${analysis.bitDepth}-bit / ` : ""}{analysis.sampleRate >= 1000 ? `${analysis.sampleRate / 1000}kHz` : `${analysis.sampleRate}Hz`}
+                {analysis.format} {analysis.bitDepth ? `${analysis.bitDepth}-bit / ` : ""}
+                {analysis.sampleRate >= 1000
+                  ? `${analysis.sampleRate / 1000}kHz`
+                  : `${analysis.sampleRate}Hz`}
               </span>
             </div>
             <span className="text-xs font-mono text-muted-foreground">
-              {formatDuration(analysis.duration)} · {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ""}
+              {formatDuration(analysis.duration)} ·{" "}
+              {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ""}
             </span>
           </div>
 
@@ -394,11 +429,15 @@ function UploadPage() {
             </div>
             <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
               <span className="text-[10px] text-muted-foreground block">Sample Rate</span>
-              <span className="font-bold text-foreground text-sm">{(analysis.sampleRate / 1000).toFixed(1)} kHz</span>
+              <span className="font-bold text-foreground text-sm">
+                {(analysis.sampleRate / 1000).toFixed(1)} kHz
+              </span>
             </div>
             <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
               <span className="text-[10px] text-muted-foreground block">Peak Level</span>
-              <span className="font-bold text-foreground text-sm">{analysis.peakDb ?? -0.1} dB</span>
+              <span className="font-bold text-foreground text-sm">
+                {analysis.peakDb ?? -0.1} dB
+              </span>
             </div>
           </div>
 
@@ -407,7 +446,9 @@ function UploadPage() {
             <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3.5 flex items-start gap-2.5">
               <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <div className="text-xs text-muted-foreground">
-                <span className="font-bold text-foreground block mb-0.5">Quality Recommendation</span>
+                <span className="font-bold text-foreground block mb-0.5">
+                  Quality Recommendation
+                </span>
                 {analysis.recommendation}
               </div>
             </div>
@@ -420,10 +461,14 @@ function UploadPage() {
         <div className="mt-6 rounded-3xl border border-amber/40 bg-amber/10 p-5 space-y-3">
           <div className="flex items-center gap-2 text-amber font-bold text-sm">
             <ShieldAlert className="h-4 w-4" />
-            <span>Audio Fingerprint Match Detected ({Math.round(matchResult.confidence * 100)}% Confidence)</span>
+            <span>
+              Audio Fingerprint Match Detected ({Math.round(matchResult.confidence * 100)}%
+              Confidence)
+            </span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            {matchResult.reason}. To ensure seamless publishing, you can enable a 50/50 revenue split with the original creator.
+            {matchResult.reason}. To ensure seamless publishing, you can enable a 50/50 revenue
+            split with the original creator.
           </p>
           <Button
             type="button"
@@ -431,7 +476,9 @@ function UploadPage() {
             onClick={() => setAcceptSplit((v) => !v)}
             className={cn(
               "h-8 text-xs font-semibold gap-1.5 rounded-full",
-              acceptSplit ? "bg-amber text-black hover:bg-amber/90 font-bold" : "border border-amber/40 text-amber hover:bg-amber/10 bg-transparent"
+              acceptSplit
+                ? "bg-amber text-black hover:bg-amber/90 font-bold"
+                : "border border-amber/40 text-amber hover:bg-amber/10 bg-transparent",
             )}
           >
             <Split className="h-3.5 w-3.5" />
@@ -444,7 +491,9 @@ function UploadPage() {
       <div className="mt-8 space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-2 sm:col-span-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider">Track Title</span>
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+              Track Title
+            </span>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -454,7 +503,9 @@ function UploadPage() {
           </label>
 
           <label className="flex flex-col gap-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider">Genre</span>
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+              Genre
+            </span>
             <Input
               value={genre}
               onChange={(e) => setGenre(e.target.value)}
@@ -464,7 +515,9 @@ function UploadPage() {
           </label>
 
           <label className="flex flex-col gap-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider">Cover Artwork</span>
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+              Cover Artwork
+            </span>
             <div
               onClick={() => coverInputRef.current?.click()}
               className="flex h-10 items-center justify-between rounded-2xl border border-border/60 bg-surface px-3 text-xs text-muted-foreground cursor-pointer hover:border-primary/40"
@@ -490,7 +543,10 @@ function UploadPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-foreground">DRM-Free Store Listing</p>
-              <p className="text-xs text-muted-foreground">Allow listeners to buy and download your high-resolution master file (85% paid to you).</p>
+              <p className="text-xs text-muted-foreground">
+                Allow listeners to buy and download your high-resolution master file (85% paid to
+                you).
+              </p>
             </div>
             <Switch checked={monetized} onCheckedChange={setMonetized} />
           </div>
@@ -520,7 +576,8 @@ function UploadPage() {
             onCheckedChange={(c) => setRightsConfirmed(Boolean(c))}
           />
           <label htmlFor="rights" className="text-xs text-muted-foreground cursor-pointer">
-            I own or have obtained the necessary rights and master licenses to distribute this audio recording.
+            I own or have obtained the necessary rights and master licenses to distribute this audio
+            recording.
           </label>
         </div>
 

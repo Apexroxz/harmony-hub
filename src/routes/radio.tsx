@@ -77,7 +77,8 @@ const REAL_RADIO_STATIONS: RadioStation[] = [
     bitrateLabel: "128 kbps MP3 · Live Stream",
     coverImage: cover4,
     color: "from-emerald-500/30 to-teal-500/20",
-    description: "A nicely chilled plate of ambient/downtempo beats and grooves. Commercial-free broadcast.",
+    description:
+      "A nicely chilled plate of ambient/downtempo beats and grooves. Commercial-free broadcast.",
   },
   {
     id: "live-defcon",
@@ -89,7 +90,8 @@ const REAL_RADIO_STATIONS: RadioStation[] = [
     bitrateLabel: "128 kbps MP3 · Live Stream",
     coverImage: cover2,
     color: "from-orange/30 to-rose-500/30",
-    description: "Music for hacking and high-tech electronic underground. Streaming direct from DEF CON.",
+    description:
+      "Music for hacking and high-tech electronic underground. Streaming direct from DEF CON.",
   },
   {
     id: "live-drone-zone",
@@ -101,7 +103,8 @@ const REAL_RADIO_STATIONS: RadioStation[] = [
     bitrateLabel: "128 kbps MP3 · Atmospheric",
     coverImage: cover1,
     color: "from-violet/40 to-primary/30",
-    description: "Served best chilled, safe with most medications. Atmospheric textures and space ambient.",
+    description:
+      "Served best chilled, safe with most medications. Atmospheric textures and space ambient.",
   },
   {
     id: "live-secret-agent",
@@ -113,7 +116,8 @@ const REAL_RADIO_STATIONS: RadioStation[] = [
     bitrateLabel: "128 kbps MP3 · Trip-Hop / Spy",
     coverImage: cover3,
     color: "from-amber/30 to-primary/20",
-    description: "The soundtrack for your stylish, mysterious life. An eclectic blend of spy, lounge, and trip-hop.",
+    description:
+      "The soundtrack for your stylish, mysterious life. An eclectic blend of spy, lounge, and trip-hop.",
   },
 
   // ── 2. Genre Radio Frequencies (Catalog Stream) ──
@@ -127,7 +131,8 @@ const REAL_RADIO_STATIONS: RadioStation[] = [
     coverImage: cover1,
     genreFilter: "Synthwave",
     color: "from-orange/30 to-amber/30",
-    description: "Continuous retro-future analog synths, arpeggios, and driving basslines from verified indie creators.",
+    description:
+      "Continuous retro-future analog synths, arpeggios, and driving basslines from verified indie creators.",
   },
   {
     id: "genre-cyberpunk-continuous",
@@ -165,7 +170,8 @@ const REAL_RADIO_STATIONS: RadioStation[] = [
     coverImage: cover1,
     artistFilter: "neon-drifter",
     color: "from-primary/40 to-amber/30",
-    description: "Endless queue inspired by Neon Drifter's midnight synth tracks and related underground producers.",
+    description:
+      "Endless queue inspired by Neon Drifter's midnight synth tracks and related underground producers.",
   },
   {
     id: "artist-radio-siren",
@@ -195,11 +201,14 @@ const REAL_RADIO_STATIONS: RadioStation[] = [
 
 function RadioPage() {
   const { data } = useQuery(catalogQueryOptions());
-  const allTracks: Track[] = data?.tracks && data.tracks.length > 0 ? data.tracks : fallbackCatalogTracks;
+  const allTracks: Track[] =
+    data?.tracks && data.tracks.length > 0 ? data.tracks : fallbackCatalogTracks;
   const { playTrack, currentTrack, isPlaying } = usePlayer();
 
   const [activeStationId, setActiveStationId] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<"all" | "live_web" | "genre" | "artist">("all");
+  const [selectedCategory, setSelectedCategory] = useState<"all" | "live_web" | "genre" | "artist">(
+    "all",
+  );
 
   const handleTuneIn = (station: RadioStation) => {
     setActiveStationId(station.id);
@@ -237,7 +246,10 @@ function RadioPage() {
         return t.genre.toLowerCase() === station.genreFilter.toLowerCase();
       }
       if (station.artistFilter) {
-        return t.artistId === station.artistFilter || t.artistName.toLowerCase().includes(station.artistFilter);
+        return (
+          t.artistId === station.artistFilter ||
+          t.artistName.toLowerCase().includes(station.artistFilter)
+        );
       }
       return true;
     });
@@ -255,7 +267,7 @@ function RadioPage() {
   };
 
   const filteredStations = REAL_RADIO_STATIONS.filter(
-    (s) => selectedCategory === "all" || s.category === selectedCategory
+    (s) => selectedCategory === "all" || s.category === selectedCategory,
   );
 
   return (
@@ -275,26 +287,27 @@ function RadioPage() {
           </h1>
 
           <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-            Tune into live internet FM/web radio stations, continuous genre frequencies, or artist-seeded queues in bit-perfect lossless quality.
+            Tune into live internet FM/web radio stations, continuous genre frequencies, or
+            artist-seeded queues in bit-perfect lossless quality.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2.5">
             {[
-              { id: "all", label: "All Stations" },
-              { id: "live_web", label: "🌐 Live FM & Web Radio" },
-              { id: "genre", label: "⚡ Genre Radio" },
-              { id: "artist", label: "🎨 Artist Radios" },
+              { id: "all" as const, label: "All Stations" },
+              { id: "live_web" as const, label: "🌐 Live FM & Web Radio" },
+              { id: "genre" as const, label: "⚡ Genre Radio" },
+              { id: "artist" as const, label: "🎨 Artist Radios" },
             ].map((cat) => (
               <Button
                 key={cat.id}
                 variant={selectedCategory === cat.id ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedCategory(cat.id as any)}
+                onClick={() => setSelectedCategory(cat.id)}
                 className={cn(
                   "rounded-full text-xs font-bold transition-all",
                   selectedCategory === cat.id
                     ? "bg-primary text-primary-foreground shadow-md"
-                    : "border-border/60 bg-glass text-muted-foreground hover:text-foreground"
+                    : "border-border/60 bg-glass text-muted-foreground hover:text-foreground",
                 )}
               >
                 {cat.label}
@@ -315,7 +328,7 @@ function RadioPage() {
                 "group relative overflow-hidden rounded-2xl border p-5 transition-all flex flex-col justify-between",
                 isTunedIn
                   ? "border-primary bg-primary/5 shadow-xl shadow-primary/5"
-                  : "border-border/40 bg-card hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+                  : "border-border/40 bg-card hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5",
               )}
             >
               <div>
@@ -326,11 +339,15 @@ function RadioPage() {
                     alt={station.title}
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className={cn("absolute inset-0 bg-gradient-to-t opacity-70", station.color)} />
+                  <div
+                    className={cn("absolute inset-0 bg-gradient-to-t opacity-70", station.color)}
+                  />
 
                   <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold text-white">
                     <Signal className="h-3 w-3 text-primary animate-pulse" />
-                    <span>{station.category === "live_web" ? "LIVE BROADCAST" : "CONTINUOUS STREAM"}</span>
+                    <span>
+                      {station.category === "live_web" ? "LIVE BROADCAST" : "CONTINUOUS STREAM"}
+                    </span>
                   </div>
 
                   <button
@@ -357,8 +374,8 @@ function RadioPage() {
                     {station.category === "live_web"
                       ? "Internet Web Broadcast"
                       : station.category === "genre"
-                      ? "Genre Frequency"
-                      : "Artist Discography"}
+                        ? "Genre Frequency"
+                        : "Artist Discography"}
                   </span>
                 </div>
 
@@ -375,7 +392,10 @@ function RadioPage() {
 
               {/* Action Bar */}
               <div className="mt-5 pt-3 border-t border-border/30 flex items-center justify-between">
-                <Badge variant="outline" className="border-border/60 text-[10px] text-muted-foreground font-mono">
+                <Badge
+                  variant="outline"
+                  className="border-border/60 text-[10px] text-muted-foreground font-mono"
+                >
                   {station.bitrateLabel}
                 </Badge>
 
@@ -386,7 +406,7 @@ function RadioPage() {
                     "h-8 text-xs font-bold gap-1.5 rounded-full",
                     isTunedIn
                       ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90",
                   )}
                 >
                   {isTunedIn ? (

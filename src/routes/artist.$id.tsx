@@ -21,12 +21,7 @@ import { useAuth } from "@/lib/auth";
 import { TrackCard } from "@/components/TrackCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/artist/$id")({
@@ -39,9 +34,15 @@ export const Route = createFileRoute("/artist/$id")({
     meta: loaderData
       ? [
           { title: `${loaderData.artist.name} — Layam` },
-          { name: "description", content: `Listen to ${loaderData.artist.name} and join the fan club on Layam.` },
+          {
+            name: "description",
+            content: `Listen to ${loaderData.artist.name} and join the fan club on Layam.`,
+          },
           { property: "og:title", content: `${loaderData.artist.name} — Layam` },
-          { property: "og:description", content: `Listen to ${loaderData.artist.name} and join the fan club on Layam.` },
+          {
+            property: "og:description",
+            content: `Listen to ${loaderData.artist.name} and join the fan club on Layam.`,
+          },
           { property: "og:type", content: "profile" },
           { name: "twitter:card", content: "summary" },
         ]
@@ -192,7 +193,9 @@ function ArtistPage() {
                   variant={following ? "outline" : "default"}
                   className={cn(
                     "font-bold transition-all",
-                    following ? "border-border/60 text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    following
+                      ? "border-border/60 text-muted-foreground"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90",
                   )}
                 >
                   {following ? "Following" : "Follow"}
@@ -224,7 +227,10 @@ function ArtistPage() {
                 { label: "Catalog Releases", value: discography.length.toString(), icon: Disc3 },
                 { label: "Total Streams", value: formatNumber(totalPlays), icon: Disc3 },
               ].map((stat) => (
-                <div key={stat.label} className="rounded-xl border border-border/40 bg-surface-raised p-4">
+                <div
+                  key={stat.label}
+                  className="rounded-xl border border-border/40 bg-surface-raised p-4"
+                >
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">{stat.label}</p>
                     <stat.icon className="h-3.5 w-3.5 text-primary/70" />
@@ -235,14 +241,22 @@ function ArtistPage() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-2">
-              {["Lossless 24-bit", "Direct Creator", "Fan Club Enabled", "Hi-Res FLAC"].map((tag) => (
-                <Badge key={tag} variant="outline" className="border-border/60 text-muted-foreground text-xs">
-                  {tag}
-                </Badge>
-              ))}
+              {["Lossless 24-bit", "Direct Creator", "Fan Club Enabled", "Hi-Res FLAC"].map(
+                (tag) => (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="border-border/60 text-muted-foreground text-xs"
+                  >
+                    {tag}
+                  </Badge>
+                ),
+              )}
             </div>
 
-            <p className="mt-6 max-w-3xl text-sm text-muted-foreground leading-relaxed">{artist.bio}</p>
+            <p className="mt-6 max-w-3xl text-sm text-muted-foreground leading-relaxed">
+              {artist.bio}
+            </p>
           </div>
         </div>
 
@@ -267,7 +281,7 @@ function ArtistPage() {
                     "rounded-2xl border p-6 flex flex-col justify-between transition-all",
                     isCurrent
                       ? "border-amber bg-amber/5 shadow-lg shadow-amber/5"
-                      : "border-border/60 bg-card hover:border-primary/40"
+                      : "border-border/60 bg-card hover:border-primary/40",
                   )}
                 >
                   <div>
@@ -277,14 +291,19 @@ function ArtistPage() {
                         {tier.color === "amber" && <Sparkles className="h-4 w-4 text-amber" />}
                       </h3>
                       <div className="text-right">
-                        <span className="text-xl font-extrabold text-foreground">${tier.priceMonthly.toFixed(2)}</span>
+                        <span className="text-xl font-extrabold text-foreground">
+                          ${tier.priceMonthly.toFixed(2)}
+                        </span>
                         <span className="text-xs text-muted-foreground"> / mo</span>
                       </div>
                     </div>
 
                     <ul className="space-y-2.5 my-4">
                       {tier.perks.map((perk, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <li
+                          key={i}
+                          className="flex items-start gap-2 text-xs text-muted-foreground"
+                        >
                           <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                           <span>{perk}</span>
                         </li>
@@ -302,11 +321,13 @@ function ArtistPage() {
                       isCurrent
                         ? "bg-emerald-500 hover:bg-emerald-600 text-white"
                         : tier.color === "amber"
-                        ? "bg-amber hover:bg-amber/90 text-black"
-                        : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                          ? "bg-amber hover:bg-amber/90 text-black"
+                          : "bg-primary hover:bg-primary/90 text-primary-foreground",
                     )}
                   >
-                    {isCurrent ? "✓ Active Membership" : `Join for $${tier.priceMonthly.toFixed(2)}/mo`}
+                    {isCurrent
+                      ? "✓ Active Membership"
+                      : `Join for $${tier.priceMonthly.toFixed(2)}/mo`}
                   </Button>
                 </div>
               );
@@ -346,7 +367,9 @@ function ArtistPage() {
                   <p className="font-bold text-foreground text-sm">{selectedTier.name}</p>
                   <p className="text-xs text-muted-foreground">Monthly subscription</p>
                 </div>
-                <p className="text-xl font-bold text-primary">${selectedTier.priceMonthly.toFixed(2)}/mo</p>
+                <p className="text-xl font-bold text-primary">
+                  ${selectedTier.priceMonthly.toFixed(2)}/mo
+                </p>
               </div>
 
               <div className="mt-3 border-t border-border/30 pt-3 space-y-1.5">
@@ -411,7 +434,7 @@ function ArtistPage() {
                   onClick={() => setTipAmount(amt)}
                   className={cn(
                     "text-xs font-bold",
-                    tipAmount === amt ? "bg-primary text-primary-foreground" : "border-border/60"
+                    tipAmount === amt ? "bg-primary text-primary-foreground" : "border-border/60",
                   )}
                 >
                   ${amt}

@@ -22,11 +22,7 @@ export async function extractAudioMetadata(file: File): Promise<ExtractedMetadat
     const view = new DataView(buffer);
 
     // Check ID3 header magic bytes: "ID3"
-    if (
-      view.getUint8(0) === 0x49 &&
-      view.getUint8(1) === 0x44 &&
-      view.getUint8(2) === 0x33
-    ) {
+    if (view.getUint8(0) === 0x49 && view.getUint8(1) === 0x44 && view.getUint8(2) === 0x33) {
       const majorVersion = view.getUint8(3);
       const tagSize =
         ((view.getUint8(6) & 0x7f) << 21) |

@@ -3,7 +3,13 @@ import { User, Sparkles, LogOut, ShieldCheck, Music2, ArrowUpRight, Check } from
 import { useAuth, type UserRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export function UserMenu() {
@@ -23,7 +29,7 @@ export function UserMenu() {
           size="sm"
           className={cn(
             "h-9 gap-2 rounded-full border border-border/60 bg-surface-raised px-3 text-xs font-semibold cursor-pointer shadow-sm transition-all hover:bg-card",
-            isArtist && "border-primary/40 text-primary bg-primary/10"
+            isArtist && "border-primary/40 text-primary bg-primary/10",
           )}
         >
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-primary font-bold text-[10px]">
@@ -37,7 +43,7 @@ export function UserMenu() {
               "text-[9px] px-1.5 py-0 font-bold",
               mounted && isArtist
                 ? "bg-primary text-primary-foreground"
-                : "bg-surface-raised text-muted-foreground border border-border/60"
+                : "bg-surface-raised text-muted-foreground border border-border/60",
             )}
           >
             {mounted && isArtist ? "ARTIST" : "LISTENER"}
@@ -64,8 +70,12 @@ export function UserMenu() {
                 {user?.name ? user.name[0]?.toUpperCase() : "U"}
               </div>
               <div>
-                <p className="font-bold text-foreground text-sm">{user?.name || "Guest Listener"}</p>
-                <p className="text-xs text-muted-foreground">{user?.email || "listener@layam.app"}</p>
+                <p className="font-bold text-foreground text-sm">
+                  {user?.name || "Guest Listener"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {user?.email || "listener@layam.app"}
+                </p>
               </div>
             </div>
 
@@ -89,7 +99,8 @@ export function UserMenu() {
               <span>Become an Artist Creator</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Upgrade your account to upload high-fidelity FLAC audio files, configure collaborator splits, and access real-time stream analytics.
+              Upgrade your account to upload high-fidelity FLAC audio files, configure collaborator
+              splits, and access real-time stream analytics.
             </p>
             <Button
               onClick={() => {
@@ -119,14 +130,16 @@ export function UserMenu() {
                 "p-3 rounded-xl border text-left transition-all cursor-pointer",
                 isListener
                   ? "border-primary bg-primary/10 text-primary font-bold"
-                  : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+                  : "border-border/60 bg-card text-muted-foreground hover:text-foreground",
               )}
             >
               <div className="text-xs font-bold flex items-center justify-between">
                 <span>🎧 Listener</span>
                 {isListener && <Check className="h-3.5 w-3.5" />}
               </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">Stream & download music</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                Stream & download music
+              </div>
             </button>
 
             <button
@@ -138,7 +151,7 @@ export function UserMenu() {
                 "p-3 rounded-xl border text-left transition-all cursor-pointer",
                 isArtist
                   ? "border-primary bg-primary/10 text-primary font-bold"
-                  : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+                  : "border-border/60 bg-card text-muted-foreground hover:text-foreground",
               )}
             >
               <div className="text-xs font-bold flex items-center justify-between">

@@ -75,7 +75,8 @@ export function classifyQualityTier(spec: {
     return {
       tier: "lossless",
       tierLabel: "Lossless",
-      recommendation: "Master uploaded in CD quality. Upload a 24-bit / 96kHz master for the Studio Master badge.",
+      recommendation:
+        "Master uploaded in CD quality. Upload a 24-bit / 96kHz master for the Studio Master badge.",
     };
   }
 
@@ -84,7 +85,8 @@ export function classifyQualityTier(spec: {
     return {
       tier: "high_quality",
       tierLabel: "High Quality",
-      recommendation: "High quality compressed audio. Upload a WAV or FLAC master for bit-perfect Lossless playback.",
+      recommendation:
+        "High quality compressed audio. Upload a WAV or FLAC master for bit-perfect Lossless playback.",
     };
   }
 
@@ -92,7 +94,8 @@ export function classifyQualityTier(spec: {
   return {
     tier: "standard_quality",
     tierLabel: "Standard Quality",
-    recommendation: "Standard compressed file. We recommend uploading a 320kbps MP3 or lossless WAV/FLAC master for optimal audio fidelity.",
+    recommendation:
+      "Standard compressed file. We recommend uploading a 320kbps MP3 or lossless WAV/FLAC master for optimal audio fidelity.",
   };
 }
 
@@ -147,15 +150,16 @@ export async function analyzeAudioFile(file: File): Promise<QualityAnalysis & { 
       void context.close();
     } catch {
       // Fallback for MP3s or browser decoding hiccups - NEVER block the upload
-      duration = Math.max(30, Math.round(file.size / (192 * 1024 / 8)));
-      peaks = Array.from({ length: 96 }).map(() => Math.round((Math.random() * 0.6 + 0.4) * 1000) / 1000);
+      duration = Math.max(30, Math.round(file.size / ((192 * 1024) / 8)));
+      peaks = Array.from({ length: 96 }).map(
+        () => Math.round((Math.random() * 0.6 + 0.4) * 1000) / 1000,
+      );
     }
   }
 
   // Calculate bitrate
-  const bitrate = duration > 0
-    ? Math.round((file.size * 8) / duration / 1000)
-    : isUncompressed ? 1411 : 320;
+  const bitrate =
+    duration > 0 ? Math.round((file.size * 8) / duration / 1000) : isUncompressed ? 1411 : 320;
 
   const bitDepth = isUncompressed ? (bitrate > 2000 || sampleRate >= 88200 ? 24 : 16) : undefined;
 
@@ -186,7 +190,7 @@ export async function analyzeAudioFile(file: File): Promise<QualityAnalysis & { 
     duration,
     peakDb,
     rms: Math.round(rms * 100) / 100,
-    loudnessLu: Math.round((20 * Math.log10(rms || 0.01)) * 10) / 10,
+    loudnessLu: Math.round(20 * Math.log10(rms || 0.01) * 10) / 10,
     recommendation: classification.recommendation,
     peaks,
   };

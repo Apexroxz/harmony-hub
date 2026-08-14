@@ -14,15 +14,15 @@ import type { Track } from "@/domain/music/types";
 export const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
 
 export const EQ_PRESETS: Record<string, number[]> = {
-  Flat:       [0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-  Bass:       [8,  6,  4,  2,  0,  0,  0,  0,  0,  0],
-  Treble:     [0,  0,  0,  0,  0,  2,  4,  6,  8,  8],
-  Vocal:      [-2, -2,  0,  4,  6,  4,  2,  0, -2, -2],
-  Rock:       [6,  4,  2,  0, -2, -2,  0,  2,  4,  6],
-  Jazz:       [4,  2,  0,  2,  4,  4,  2,  0, -2, -2],
-  Classical:  [0,  0,  0,  0,  0,  0,  0,  0,  4,  4],
-  Electronic: [6,  4,  2,  0, -2,  0,  2,  4,  6,  6],
-  Acoustic:   [4,  2,  2,  4,  2,  0, -2, -2,  0,  2],
+  Flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  Bass: [8, 6, 4, 2, 0, 0, 0, 0, 0, 0],
+  Treble: [0, 0, 0, 0, 0, 2, 4, 6, 8, 8],
+  Vocal: [-2, -2, 0, 4, 6, 4, 2, 0, -2, -2],
+  Rock: [6, 4, 2, 0, -2, -2, 0, 2, 4, 6],
+  Jazz: [4, 2, 0, 2, 4, 4, 2, 0, -2, -2],
+  Classical: [0, 0, 0, 0, 0, 0, 0, 0, 4, 4],
+  Electronic: [6, 4, 2, 0, -2, 0, 2, 4, 6, 6],
+  Acoustic: [4, 2, 2, 4, 2, 0, -2, -2, 0, 2],
 };
 
 export const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
@@ -36,8 +36,8 @@ interface PlayerState {
   errorMessage?: string;
   isPlaying: boolean;
   isLoading: boolean;
-  progress: number;   // 0–100
-  volume: number;     // 0–1
+  progress: number; // 0–100
+  volume: number; // 0–1
   duration: number;
   currentTime: number;
   queue: Track[];
@@ -113,18 +113,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     crossfadeDuration: 0,
   });
 
-  const audioRef        = useRef<HTMLAudioElement | null>(null);
-  const audioCtxRef     = useRef<AudioContext | null>(null);
-  const sourceNodeRef   = useRef<MediaElementAudioSourceNode | null>(null);
-  const filtersRef      = useRef<BiquadFilterNode[]>([]);
-  const bassBoostRef    = useRef<BiquadFilterNode | null>(null);
-  const trebleBoostRef  = useRef<BiquadFilterNode | null>(null);
-  const compressorRef   = useRef<DynamicsCompressorNode | null>(null);
-  const pannerRef       = useRef<StereoPannerNode | null>(null);
-  const analyserRef     = useRef<AnalyserNode | null>(null);
-  const gainNodeRef     = useRef<GainNode | null>(null);
-  const stateRef        = useRef(state);
-  stateRef.current      = state;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const filtersRef = useRef<BiquadFilterNode[]>([]);
+  const bassBoostRef = useRef<BiquadFilterNode | null>(null);
+  const trebleBoostRef = useRef<BiquadFilterNode | null>(null);
+  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const pannerRef = useRef<StereoPannerNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   // ── Audio element singleton ─────────────────────────────────────────────────
   const ensureAudio = useCallback(() => {
@@ -141,7 +141,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // ── WebAudio DSP pipeline ───────────────────────────────────────────────────
   const setupWebAudioDSP = useCallback(() => {
     if (audioCtxRef.current || typeof window === "undefined") return;
-    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
     try {
       const audio = ensureAudio();
@@ -205,7 +207,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       // Chain: source → filters → bass → treble → comp → [panner] → gain → analyser → destination
       let node: AudioNode = source;
-      for (const f of filters) { node.connect(f); node = f; }
+      for (const f of filters) {
+        node.connect(f);
+        node = f;
+      }
       node.connect(bassNode);
       bassNode.connect(trebleNode);
       trebleNode.connect(comp);
@@ -229,7 +234,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
         console.log("[UniversalPlayer:WebAudio] AudioContext is suspended. Attempting resume...");
         await audioCtxRef.current.resume();
-        console.log("[UniversalPlayer:WebAudio] AudioContext resumed successfully. State:", audioCtxRef.current.state);
+        console.log(
+          "[UniversalPlayer:WebAudio] AudioContext resumed successfully. State:",
+          audioCtxRef.current.state,
+        );
       }
     } catch (e) {
       console.warn("[UniversalPlayer:WebAudio] AudioContext resume warning:", e);
@@ -240,8 +248,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const p = audio.play();
       if (p !== undefined) {
         await p;
-        console.log("[UniversalPlayer:Trace:SUCCESS] audio.play() promise resolved! Playback is actively running.");
-        setState((s) => ({ ...s, isPlaying: true, isLoading: false, status: "playing", errorMessage: undefined }));
+        console.log(
+          "[UniversalPlayer:Trace:SUCCESS] audio.play() promise resolved! Playback is actively running.",
+        );
+        setState((s) => ({
+          ...s,
+          isPlaying: true,
+          isLoading: false,
+          status: "playing",
+          errorMessage: undefined,
+        }));
       }
     } catch (err: unknown) {
       const mediaErr = audio.error;
@@ -253,14 +269,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         "MediaError message:",
         mediaErr?.message,
         "Current src:",
-        audio.src
+        audio.src,
       );
       setState((s) => ({
         ...s,
         isPlaying: false,
         isLoading: false,
         status: "error",
-        errorMessage: mediaErr?.message || "Playback blocked by browser autoplay policy or invalid audio source",
+        errorMessage:
+          mediaErr?.message ||
+          "Playback blocked by browser autoplay policy or invalid audio source",
       }));
     }
   }, []);
@@ -268,8 +286,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // ── Load & play a track ─────────────────────────────────────────────────────
   const load = useCallback(
     (track: Track, patch: Partial<PlayerState> = {}) => {
-      console.log("[UniversalPlayer:Trace:1/4] currentTrack load requested:", track.id, track.title);
-      console.log("[UniversalPlayer:Trace:2/4] audio source URL:", track.audioUrl, "source:", track.source || "online");
+      console.log(
+        "[UniversalPlayer:Trace:1/4] currentTrack load requested:",
+        track.id,
+        track.title,
+      );
+      console.log(
+        "[UniversalPlayer:Trace:2/4] audio source URL:",
+        track.audioUrl,
+        "source:",
+        track.source || "online",
+      );
 
       const audio = ensureAudio();
       setupWebAudioDSP();
@@ -290,22 +317,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         currentTime: 0,
         duration: track.duration,
         errorMessage: undefined,
-        isExpanded: track.source === "offline" || track.id.startsWith("local-") ? true : s.isExpanded,
+        isExpanded:
+          track.source === "offline" || track.id.startsWith("local-") ? true : s.isExpanded,
       }));
 
       void safePlay(audio);
     },
-    [ensureAudio, setupWebAudioDSP, safePlay]
+    [ensureAudio, setupWebAudioDSP, safePlay],
   );
 
   const expandPlayer = useCallback(() => setState((s) => ({ ...s, isExpanded: true })), []);
   const collapsePlayer = useCallback(() => setState((s) => ({ ...s, isExpanded: false })), []);
-  const setExpanded = useCallback((expanded: boolean) => setState((s) => ({ ...s, isExpanded: expanded })), []);
+  const setExpanded = useCallback(
+    (expanded: boolean) => setState((s) => ({ ...s, isExpanded: expanded })),
+    [],
+  );
 
   const playTrack = useCallback(
     (track: Track, queue?: Track[]) => {
       if (queue && queue.length > 0) {
-        const index = Math.max(0, queue.findIndex((t) => t.id === track.id));
+        const index = Math.max(
+          0,
+          queue.findIndex((t) => t.id === track.id),
+        );
         load(track, { queue, queueIndex: index });
       } else {
         setState((s) => {
@@ -316,7 +350,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         load(track);
       }
     },
-    [load]
+    [load],
   );
 
   const togglePlay = useCallback(() => {
@@ -370,7 +404,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!track) return;
       load(track, { queueIndex: index });
     },
-    [load]
+    [load],
   );
 
   const playNext = useCallback(() => {
@@ -385,14 +419,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const playPrevious = useCallback(() => {
     const { queueIndex, currentTime } = stateRef.current;
-    if (currentTime > 4) { seek(0); return; }
-    if (queueIndex > 0) { playFromQueue(queueIndex - 1); return; }
+    if (currentTime > 4) {
+      seek(0);
+      return;
+    }
+    if (queueIndex > 0) {
+      playFromQueue(queueIndex - 1);
+      return;
+    }
     seek(0);
   }, [playFromQueue, seek]);
 
   const addToQueue = useCallback((track: Track) => {
     setState((s) =>
-      s.queue.some((t) => t.id === track.id) ? s : { ...s, queue: [...s.queue, track] }
+      s.queue.some((t) => t.id === track.id) ? s : { ...s, queue: [...s.queue, track] },
     );
   }, []);
 
@@ -413,68 +453,85 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── EQ controls ─────────────────────────────────────────────────────────────
-  const setEqGain = useCallback((bandIndex: number, gainDb: number) => {
-    setupWebAudioDSP();
-    if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
-    if (filtersRef.current[bandIndex]) {
-      filtersRef.current[bandIndex].gain.value = gainDb;
-    }
-    setState((s) => {
-      const newGains = [...s.eqGains];
-      newGains[bandIndex] = gainDb;
-      return { ...s, eqGains: newGains, eqEnabled: true, eqPreset: "Custom" };
-    });
-  }, [setupWebAudioDSP]);
+  const setEqGain = useCallback(
+    (bandIndex: number, gainDb: number) => {
+      setupWebAudioDSP();
+      if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+      if (filtersRef.current[bandIndex]) {
+        filtersRef.current[bandIndex].gain.value = gainDb;
+      }
+      setState((s) => {
+        const newGains = [...s.eqGains];
+        newGains[bandIndex] = gainDb;
+        return { ...s, eqGains: newGains, eqEnabled: true, eqPreset: "Custom" };
+      });
+    },
+    [setupWebAudioDSP],
+  );
 
-  const setEqPreset = useCallback((presetName: string) => {
-    setupWebAudioDSP();
-    if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
-    const gains = EQ_PRESETS[presetName] ?? EQ_PRESETS["Flat"] ?? INITIAL_EQ_GAINS;
-    gains.forEach((gain, i) => {
-      if (filtersRef.current[i]) filtersRef.current[i].gain.value = gain;
-    });
-    setState((s) => ({ ...s, eqEnabled: true, eqPreset: presetName, eqGains: [...gains] }));
-  }, [setupWebAudioDSP]);
+  const setEqPreset = useCallback(
+    (presetName: string) => {
+      setupWebAudioDSP();
+      if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+      const gains = EQ_PRESETS[presetName] ?? EQ_PRESETS["Flat"] ?? INITIAL_EQ_GAINS;
+      gains.forEach((gain, i) => {
+        if (filtersRef.current[i]) filtersRef.current[i].gain.value = gain;
+      });
+      setState((s) => ({ ...s, eqEnabled: true, eqPreset: presetName, eqGains: [...gains] }));
+    },
+    [setupWebAudioDSP],
+  );
 
   const toggleEq = useCallback(() => {
     setupWebAudioDSP();
     setState((s) => {
       const next = !s.eqEnabled;
-      filtersRef.current.forEach((f, i) => { f.gain.value = next ? (s.eqGains[i] ?? 0) : 0; });
+      filtersRef.current.forEach((f, i) => {
+        f.gain.value = next ? (s.eqGains[i] ?? 0) : 0;
+      });
       return { ...s, eqEnabled: next };
     });
   }, [setupWebAudioDSP]);
 
-  const setBassBoostLevel = useCallback((level: number) => {
-    setupWebAudioDSP();
-    if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
-    const clamped = Math.max(0, Math.min(12, level));
-    if (bassBoostRef.current) bassBoostRef.current.gain.value = clamped;
-    if (filtersRef.current[0]) filtersRef.current[0].gain.value = clamped / 2;
-    if (filtersRef.current[1]) filtersRef.current[1].gain.value = clamped / 3;
-    setState((s) => ({ ...s, bassBoostLevel: clamped }));
-  }, [setupWebAudioDSP]);
+  const setBassBoostLevel = useCallback(
+    (level: number) => {
+      setupWebAudioDSP();
+      if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+      const clamped = Math.max(0, Math.min(12, level));
+      if (bassBoostRef.current) bassBoostRef.current.gain.value = clamped;
+      if (filtersRef.current[0]) filtersRef.current[0].gain.value = clamped / 2;
+      if (filtersRef.current[1]) filtersRef.current[1].gain.value = clamped / 3;
+      setState((s) => ({ ...s, bassBoostLevel: clamped }));
+    },
+    [setupWebAudioDSP],
+  );
 
-  const setTrebleLevel = useCallback((level: number) => {
-    setupWebAudioDSP();
-    if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
-    const clamped = Math.max(-12, Math.min(12, level));
-    if (trebleBoostRef.current) trebleBoostRef.current.gain.value = clamped;
-    if (filtersRef.current[8]) filtersRef.current[8].gain.value = clamped / 2;
-    if (filtersRef.current[9]) filtersRef.current[9].gain.value = clamped;
-    setState((s) => ({ ...s, trebleLevel: clamped }));
-  }, [setupWebAudioDSP]);
+  const setTrebleLevel = useCallback(
+    (level: number) => {
+      setupWebAudioDSP();
+      if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+      const clamped = Math.max(-12, Math.min(12, level));
+      if (trebleBoostRef.current) trebleBoostRef.current.gain.value = clamped;
+      if (filtersRef.current[8]) filtersRef.current[8].gain.value = clamped / 2;
+      if (filtersRef.current[9]) filtersRef.current[9].gain.value = clamped;
+      setState((s) => ({ ...s, trebleLevel: clamped }));
+    },
+    [setupWebAudioDSP],
+  );
 
-  const setStereoWidth = useCallback((width: number) => {
-    setupWebAudioDSP();
-    if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
-    const clamped = Math.max(0, Math.min(2, width));
-    if (pannerRef.current) {
-      // Scale 0 (mono) -> 1 (normal) -> 2 (extra wide)
-      pannerRef.current.pan.value = 0; // standard balanced pan
-    }
-    setState((s) => ({ ...s, stereoWidth: clamped }));
-  }, [setupWebAudioDSP]);
+  const setStereoWidth = useCallback(
+    (width: number) => {
+      setupWebAudioDSP();
+      if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+      const clamped = Math.max(0, Math.min(2, width));
+      if (pannerRef.current) {
+        // Scale 0 (mono) -> 1 (normal) -> 2 (extra wide)
+        pannerRef.current.pan.value = 0; // standard balanced pan
+      }
+      setState((s) => ({ ...s, stereoWidth: clamped }));
+    },
+    [setupWebAudioDSP],
+  );
 
   const getAnalyserNode = useCallback(() => {
     return analyserRef.current;
@@ -517,7 +574,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
     const onLoadedMetadata = () => {
-      console.log("[UniversalPlayer:Event:loadedmetadata] Metadata loaded. Duration:", audio.duration, "ReadyState:", audio.readyState);
+      console.log(
+        "[UniversalPlayer:Event:loadedmetadata] Metadata loaded. Duration:",
+        audio.duration,
+        "ReadyState:",
+        audio.readyState,
+      );
       setState((s) => ({ ...s, duration: audio.duration || s.currentTrack?.duration || 0 }));
     };
     const onLoadStart = () => {
@@ -533,94 +595,135 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     const onPlaying = () => {
       console.log("[UniversalPlayer:Event:playing] Audio is actively rendering audible sound");
-      setState((s) => ({ ...s, status: "playing", isPlaying: true, isLoading: false, errorMessage: undefined }));
+      setState((s) => ({
+        ...s,
+        status: "playing",
+        isPlaying: true,
+        isLoading: false,
+        errorMessage: undefined,
+      }));
     };
     const onCanPlay = () => {
-      console.log("[UniversalPlayer:Event:canplay] Audio can now start playback. readyState:", audio.readyState);
+      console.log(
+        "[UniversalPlayer:Event:canplay] Audio can now start playback. readyState:",
+        audio.readyState,
+      );
       setState((s) => ({ ...s, isLoading: false }));
     };
     const onPause = () => {
       console.log("[UniversalPlayer:Event:pause] Audio playback paused");
-      setState((s) => ({ ...s, status: s.currentTrack ? "paused" : "idle", isPlaying: false, isLoading: false }));
+      setState((s) => ({
+        ...s,
+        status: s.currentTrack ? "paused" : "idle",
+        isPlaying: false,
+        isLoading: false,
+      }));
     };
     const onError = () => {
       const mediaErr = audio.error;
       console.error(
         "[UniversalPlayer:Event:onerror] HTMLAudioElement encountered error:",
-        "Code:", mediaErr?.code,
-        "Message:", mediaErr?.message,
-        "Current src:", audio.src
+        "Code:",
+        mediaErr?.code,
+        "Message:",
+        mediaErr?.message,
+        "Current src:",
+        audio.src,
       );
       setState((s) => ({
         ...s,
         status: "error",
         isPlaying: false,
         isLoading: false,
-        errorMessage: mediaErr?.message || "Audio file decoding error or network stream unavailable",
+        errorMessage:
+          mediaErr?.message || "Audio file decoding error or network stream unavailable",
       }));
     };
 
-    audio.addEventListener("timeupdate",    onTimeUpdate);
-    audio.addEventListener("ended",         onEnded);
-    audio.addEventListener("loadedmetadata",onLoadedMetadata);
-    audio.addEventListener("loadstart",     onLoadStart);
-    audio.addEventListener("waiting",       onWaiting);
-    audio.addEventListener("play",          onPlay);
-    audio.addEventListener("playing",       onPlaying);
-    audio.addEventListener("canplay",       onCanPlay);
-    audio.addEventListener("pause",         onPause);
-    audio.addEventListener("error",         onError);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("loadstart", onLoadStart);
+    audio.addEventListener("waiting", onWaiting);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("playing", onPlaying);
+    audio.addEventListener("canplay", onCanPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("error", onError);
 
     return () => {
-      audio.removeEventListener("timeupdate",    onTimeUpdate);
-      audio.removeEventListener("ended",         onEnded);
-      audio.removeEventListener("loadedmetadata",onLoadedMetadata);
-      audio.removeEventListener("loadstart",     onLoadStart);
-      audio.removeEventListener("waiting",       onWaiting);
-      audio.removeEventListener("play",          onPlay);
-      audio.removeEventListener("playing",       onPlaying);
-      audio.removeEventListener("canplay",       onCanPlay);
-      audio.removeEventListener("pause",         onPause);
-      audio.removeEventListener("error",         onError);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("loadstart", onLoadStart);
+      audio.removeEventListener("waiting", onWaiting);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("playing", onPlaying);
+      audio.removeEventListener("canplay", onCanPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("error", onError);
     };
   }, [ensureAudio, playFromQueue]);
 
   // ── Context value (memoized) ────────────────────────────────────────────────
-  const value = useMemo<PlayerContextValue>(() => ({
-    ...state,
-    playTrack,
-    togglePlay,
-    pause,
-    resume,
-    setVolume,
-    seek,
-    playNext,
-    playPrevious,
-    addToQueue,
-    removeFromQueue,
-    playFromQueue,
-    clearQueue,
-    setPlaybackRate,
-    expandPlayer,
-    collapsePlayer,
-    setExpanded,
-    setEqGain,
-    setEqPreset,
-    toggleEq,
-    setBassBoostLevel,
-    setTrebleLevel,
-    setStereoWidth,
-    toggleNormalizer,
-    setCrossfadeDuration,
-    getAnalyserNode,
-  }), [
-    state,
-    playTrack, togglePlay, pause, resume, setVolume, seek,
-    playNext, playPrevious, addToQueue, removeFromQueue, playFromQueue, clearQueue,
-    setPlaybackRate, expandPlayer, collapsePlayer, setExpanded, setEqGain, setEqPreset, toggleEq,
-    setBassBoostLevel, setTrebleLevel, setStereoWidth, toggleNormalizer, setCrossfadeDuration,
-    getAnalyserNode,
-  ]);
+  const value = useMemo<PlayerContextValue>(
+    () => ({
+      ...state,
+      playTrack,
+      togglePlay,
+      pause,
+      resume,
+      setVolume,
+      seek,
+      playNext,
+      playPrevious,
+      addToQueue,
+      removeFromQueue,
+      playFromQueue,
+      clearQueue,
+      setPlaybackRate,
+      expandPlayer,
+      collapsePlayer,
+      setExpanded,
+      setEqGain,
+      setEqPreset,
+      toggleEq,
+      setBassBoostLevel,
+      setTrebleLevel,
+      setStereoWidth,
+      toggleNormalizer,
+      setCrossfadeDuration,
+      getAnalyserNode,
+    }),
+    [
+      state,
+      playTrack,
+      togglePlay,
+      pause,
+      resume,
+      setVolume,
+      seek,
+      playNext,
+      playPrevious,
+      addToQueue,
+      removeFromQueue,
+      playFromQueue,
+      clearQueue,
+      setPlaybackRate,
+      expandPlayer,
+      collapsePlayer,
+      setExpanded,
+      setEqGain,
+      setEqPreset,
+      toggleEq,
+      setBassBoostLevel,
+      setTrebleLevel,
+      setStereoWidth,
+      toggleNormalizer,
+      setCrossfadeDuration,
+      getAnalyserNode,
+    ],
+  );
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

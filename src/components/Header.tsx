@@ -55,13 +55,16 @@ export function Header() {
           "fixed left-0 right-0 top-0 z-50 transition-all duration-300 border-b backdrop-blur-2xl",
           isOffline
             ? "border-emerald-500/20 bg-background/85 shadow-[0_4px_30px_rgba(0,0,0,0.8)]"
-            : "border-border/40 bg-background/85 shadow-[0_4px_30px_rgba(0,0,0,0.8)]"
+            : "border-border/40 bg-background/85 shadow-[0_4px_30px_rgba(0,0,0,0.8)]",
         )}
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Left: Brand Identity */}
           <div className="flex items-center gap-6 lg:gap-10">
-            <Link to="/" className="group flex items-center gap-2.5 text-foreground transition-opacity hover:opacity-90">
+            <Link
+              to="/"
+              className="group flex items-center gap-2.5 text-foreground transition-opacity hover:opacity-90"
+            >
               <img
                 src="/logo.png"
                 alt="Layam"
@@ -96,7 +99,7 @@ export function Header() {
                         "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide transition-all",
                         pathname === item.to
                           ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm"
-                          : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                          : "text-muted-foreground hover:bg-surface-raised hover:text-foreground",
                       )}
                     >
                       <item.icon className="h-3.5 w-3.5" />
@@ -129,7 +132,7 @@ export function Header() {
                         "rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide transition-all",
                         active
                           ? "bg-surface-raised text-foreground border border-border/80 shadow-sm"
-                          : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                          : "text-muted-foreground hover:bg-surface hover:text-foreground",
                       )}
                     >
                       {item.label}

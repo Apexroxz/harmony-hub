@@ -4,7 +4,13 @@ import { toast } from "sonner";
 import type { Track } from "@/domain/music/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 
 interface RevenueSplitsModalProps {
@@ -26,7 +32,9 @@ export function RevenueSplitsModal({ track, trigger }: RevenueSplitsModalProps) 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (totalShare !== 100) {
-      toast.error("Invalid Splits", { description: "Collaborator revenue splits must sum to exactly 100%." });
+      toast.error("Invalid Splits", {
+        description: "Collaborator revenue splits must sum to exactly 100%.",
+      });
       return;
     }
 
@@ -132,7 +140,9 @@ export function RevenueSplitsModal({ track, trigger }: RevenueSplitsModalProps) 
             <div className="space-y-3 text-xs">
               <div>
                 <div className="flex justify-between mb-1">
-                  <span className="text-foreground font-semibold">Primary Artist ({track.artistName})</span>
+                  <span className="text-foreground font-semibold">
+                    Primary Artist ({track.artistName})
+                  </span>
                   <span className="font-mono text-primary font-bold">{artistShare}%</span>
                 </div>
                 <input

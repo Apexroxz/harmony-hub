@@ -85,7 +85,9 @@ export function PlayerBar() {
             <div className="flex items-center justify-between border-b border-border/40 px-5 py-3.5 bg-surface/50">
               <div className="flex items-center gap-2">
                 <ListMusic className="h-4 w-4 text-primary" />
-                <span className="text-xs font-bold uppercase tracking-wider text-foreground">Play Queue</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  Play Queue
+                </span>
                 <span className="rounded-full bg-surface-raised px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
                   {queue.length}
                 </span>
@@ -123,7 +125,7 @@ export function PlayerBar() {
                   <div
                     className={cn(
                       "group flex items-center justify-between gap-3 rounded-2xl p-2 transition-all hover:bg-surface-raised",
-                      i === queueIndex && "bg-primary/10 border border-primary/20"
+                      i === queueIndex && "bg-primary/10 border border-primary/20",
                     )}
                   >
                     <button
@@ -139,13 +141,16 @@ export function PlayerBar() {
                         <span
                           className={cn(
                             "block truncate text-xs font-bold",
-                            i === queueIndex ? "text-primary" : "text-foreground"
+                            i === queueIndex ? "text-primary" : "text-foreground",
                           )}
                         >
                           {track.title}
                         </span>
                         <span className="block truncate text-[11px] text-muted-foreground mt-0.5">
-                          {track.artistName} · <span className="font-mono text-[9px] font-bold text-primary">{track.quality}</span>
+                          {track.artistName} ·{" "}
+                          <span className="font-mono text-[9px] font-bold text-primary">
+                            {track.quality}
+                          </span>
                         </span>
                       </div>
                     </button>
@@ -178,7 +183,9 @@ export function PlayerBar() {
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* Left: Track Information & Master Quality Readout */}
           <div className="flex min-w-0 items-center gap-3.5 md:w-[28%]">
-            {isOffline || currentTrack.id.startsWith("local-") || currentTrack.source === "offline" ? (
+            {isOffline ||
+            currentTrack.id.startsWith("local-") ||
+            currentTrack.source === "offline" ? (
               <button
                 onClick={expandPlayer}
                 className="relative block h-13 w-13 shrink-0 overflow-hidden rounded-xl bg-surface-raised shadow-md group border border-border/40 text-left cursor-pointer"
@@ -205,7 +212,9 @@ export function PlayerBar() {
             )}
 
             <div className="min-w-0 flex-1">
-              {isOffline || currentTrack.id.startsWith("local-") || currentTrack.source === "offline" ? (
+              {isOffline ||
+              currentTrack.id.startsWith("local-") ||
+              currentTrack.source === "offline" ? (
                 <button
                   onClick={expandPlayer}
                   className="block truncate text-xs sm:text-sm font-bold text-foreground hover:text-primary transition-colors text-left w-full cursor-pointer"
@@ -236,7 +245,7 @@ export function PlayerBar() {
                     "font-mono text-[9px] font-bold px-1.5 py-0 rounded-full border",
                     isOffline
                       ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-                      : "border-primary/40 text-primary bg-primary/10"
+                      : "border-primary/40 text-primary bg-primary/10",
                   )}
                 >
                   {currentTrack.quality}
@@ -258,10 +267,14 @@ export function PlayerBar() {
                   )}
 
                 {status === "buffering" && (
-                  <span className="text-[10px] text-amber animate-pulse font-bold">· Buffering</span>
+                  <span className="text-[10px] text-amber animate-pulse font-bold">
+                    · Buffering
+                  </span>
                 )}
                 {status === "loading" && (
-                  <span className="text-[10px] text-primary animate-pulse font-bold">· Loading</span>
+                  <span className="text-[10px] text-primary animate-pulse font-bold">
+                    · Loading
+                  </span>
                 )}
                 {status === "error" && (
                   <span className="text-[10px] text-destructive font-bold flex items-center gap-0.5">
@@ -294,7 +307,7 @@ export function PlayerBar() {
                     "h-10 w-10 sm:h-11 sm:w-11 rounded-full shadow-lg transition-all",
                     isOffline
                       ? "bg-emerald-500 text-white hover:bg-emerald-400 shadow-emerald-500/25"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/25"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/25",
                   )}
                 >
                   {status === "loading" || status === "buffering" ? (
@@ -353,15 +366,13 @@ export function PlayerBar() {
                   ? isOffline
                     ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-400 shadow-sm"
                     : "border-primary/40 bg-primary/15 text-primary shadow-sm"
-                  : "border-transparent text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:bg-surface-raised hover:text-foreground",
               )}
               title="Studio Audio Console & 10-Band EQ"
             >
               <Sliders className="h-3.5 w-3.5" />
               <span className="hidden xl:inline">Console</span>
-              {eqEnabled && (
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              )}
+              {eqEnabled && <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
             </Button>
 
             {/* Queue Toggle */}
@@ -372,7 +383,7 @@ export function PlayerBar() {
               onClick={() => setQueueOpen((o) => !o)}
               className={cn(
                 "h-8 w-8 rounded-full text-muted-foreground hover:text-foreground relative transition-colors",
-                queueOpen && "bg-surface-raised text-foreground"
+                queueOpen && "bg-surface-raised text-foreground",
               )}
               title="Master Queue"
             >
@@ -403,11 +414,7 @@ export function PlayerBar() {
                 onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
                 className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full"
               >
-                {volume === 0 ? (
-                  <VolumeX className="h-4 w-4" />
-                ) : (
-                  <Volume2 className="h-4 w-4" />
-                )}
+                {volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               </Button>
               <div className="w-18 lg:w-22">
                 <Slider
@@ -423,10 +430,7 @@ export function PlayerBar() {
       </div>
 
       {/* Fullscreen Audiophile Poweramp-Style Player Modal */}
-      <FullscreenAudiophilePlayer
-        open={isExpanded}
-        onClose={collapsePlayer}
-      />
+      <FullscreenAudiophilePlayer open={isExpanded} onClose={collapsePlayer} />
 
       {/* Audio Console Modal */}
       <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />

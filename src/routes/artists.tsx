@@ -26,7 +26,10 @@ export const Route = createFileRoute("/artists")({
       { title: "Artists & Creators — Layam" },
       { name: "description", content: "Discover independent music creators and artists on Layam." },
       { property: "og:title", content: "Artists & Creators — Layam" },
-      { property: "og:description", content: "Discover independent music creators and artists on Layam." },
+      {
+        property: "og:description",
+        content: "Discover independent music creators and artists on Layam.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -36,7 +39,8 @@ export const Route = createFileRoute("/artists")({
 
 function ArtistsDirectoryPage() {
   const { data } = useQuery(catalogQueryOptions());
-  const allArtists: Artist[] = data?.artists && data.artists.length > 0 ? data.artists : fallbackArtists;
+  const allArtists: Artist[] =
+    data?.artists && data.artists.length > 0 ? data.artists : fallbackArtists;
   const allTracks = data?.tracks && data.tracks.length > 0 ? data.tracks : fallbackTracks;
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,7 +56,8 @@ function ArtistsDirectoryPage() {
 
     const artistTracks = allTracks.filter((t) => t.artistId === artist.id);
     const matchesGenre =
-      selectedGenre === "All" || artistTracks.some((t) => t.genre.toLowerCase() === selectedGenre.toLowerCase());
+      selectedGenre === "All" ||
+      artistTracks.some((t) => t.genre.toLowerCase() === selectedGenre.toLowerCase());
 
     return matchesSearch && matchesGenre;
   });
@@ -74,7 +79,8 @@ function ArtistsDirectoryPage() {
           </h1>
 
           <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-            Discover verified independent music producers. Follow their releases, subscribe to fan clubs, and collect master editions.
+            Discover verified independent music producers. Follow their releases, subscribe to fan
+            clubs, and collect master editions.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -97,7 +103,7 @@ function ArtistsDirectoryPage() {
                     "rounded-full px-3 py-1 text-xs font-semibold transition-all",
                     selectedGenre === g
                       ? "bg-primary text-primary-foreground shadow-sm"
-                      : "border border-border/60 bg-surface-raised text-muted-foreground hover:text-foreground"
+                      : "border border-border/60 bg-surface-raised text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {g}
@@ -129,11 +135,16 @@ function ArtistsDirectoryPage() {
                       <h3 className="font-bold text-base text-foreground truncate group-hover:text-primary transition-colors">
                         {artist.name}
                       </h3>
-                      {artist.verified && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                      {artist.verified && (
+                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{artist.handle}</p>
                     <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span className="font-semibold text-foreground">{formatNumber(artist.followers)}</span> followers
+                      <span className="font-semibold text-foreground">
+                        {formatNumber(artist.followers)}
+                      </span>{" "}
+                      followers
                     </div>
                   </div>
                 </div>
@@ -152,18 +163,17 @@ function ArtistsDirectoryPage() {
                       {genre}
                     </Badge>
                   ))}
-                  <Badge variant="outline" className="border-primary/30 text-[10px] text-primary font-mono font-bold">
+                  <Badge
+                    variant="outline"
+                    className="border-primary/30 text-[10px] text-primary font-mono font-bold"
+                  >
                     {artistTracks.length} Releases
                   </Badge>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-border/30 flex items-center justify-between">
-                <Link
-                  to="/artist/$id"
-                  params={{ id: artist.id }}
-                  className="w-full"
-                >
+                <Link to="/artist/$id" params={{ id: artist.id }} className="w-full">
                   <Button
                     size="sm"
                     className="w-full rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-bold gap-1.5 transition-colors"

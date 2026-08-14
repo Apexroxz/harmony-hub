@@ -14,7 +14,13 @@ import {
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { catalogQueryOptions } from "@/domain/music/queries";
-import { formatDuration, qualityLabel, isLossless, formatNumber, type Track } from "@/domain/music/types";
+import {
+  formatDuration,
+  qualityLabel,
+  isLossless,
+  formatNumber,
+  type Track,
+} from "@/domain/music/types";
 import { recordTrackPurchase } from "@/domain/music/purchases";
 import { usePlayer } from "@/lib/player";
 import { useAuth } from "@/lib/auth";
@@ -22,12 +28,7 @@ import { useWallet } from "@/lib/wallet";
 import { QualityBadge } from "@/components/QualityBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/store")({
@@ -36,14 +37,12 @@ export const Route = createFileRoute("/store")({
       { title: "Store — Layam" },
       {
         name: "description",
-        content:
-          "Buy and download high-fidelity tracks directly from independent artists.",
+        content: "Buy and download high-fidelity tracks directly from independent artists.",
       },
       { property: "og:title", content: "Store — Layam" },
       {
         property: "og:description",
-        content:
-          "Buy and download high-fidelity tracks directly from independent artists.",
+        content: "Buy and download high-fidelity tracks directly from independent artists.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -110,8 +109,7 @@ function StorePage() {
         track.artistName.toLowerCase().includes(q) ||
         track.genre.toLowerCase().includes(q);
       const matchesGenre =
-        selectedGenre === "All" ||
-        track.genre.toLowerCase() === selectedGenre.toLowerCase();
+        selectedGenre === "All" || track.genre.toLowerCase() === selectedGenre.toLowerCase();
       return matchesQuery && matchesGenre;
     });
   }, [tracks, query, selectedGenre]);
@@ -177,9 +175,7 @@ function StorePage() {
               <ShoppingBag className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                Store
-              </h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Store</h1>
             </div>
           </div>
           <p className="text-muted-foreground">
@@ -232,9 +228,7 @@ function StorePage() {
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 py-24 text-center">
             <Music2 className="mb-4 h-10 w-10 text-muted-foreground" />
             <p className="text-lg font-semibold text-foreground">
-              {tracks.length === 0
-                ? "No tracks in the store yet"
-                : "No tracks match your search"}
+              {tracks.length === 0 ? "No tracks in the store yet" : "No tracks match your search"}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {tracks.length === 0
@@ -268,10 +262,7 @@ function StorePage() {
       </div>
 
       {/* Purchase confirmation modal */}
-      <Dialog
-        open={buyingTrack !== null}
-        onOpenChange={(open) => !open && setBuyingTrack(null)}
-      >
+      <Dialog open={buyingTrack !== null} onOpenChange={(open) => !open && setBuyingTrack(null)}>
         <DialogContent className="max-w-sm rounded-3xl border-border/60 bg-background/95 p-6 backdrop-blur-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-foreground">
@@ -287,12 +278,8 @@ function StorePage() {
                   className="h-16 w-16 rounded-xl object-cover"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-foreground">
-                    {buyingTrack.title}
-                  </p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {buyingTrack.artistName}
-                  </p>
+                  <p className="truncate font-semibold text-foreground">{buyingTrack.title}</p>
+                  <p className="truncate text-sm text-muted-foreground">{buyingTrack.artistName}</p>
                   <QualityBadge spec={buyingTrack} className="mt-1" />
                 </div>
               </div>
@@ -306,12 +293,8 @@ function StorePage() {
                 </div>
                 {wallet.connected && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Wallet balance
-                    </span>
-                    <span className="text-foreground">
-                      ${wallet.balance.toFixed(2)}
-                    </span>
+                    <span className="text-muted-foreground">Wallet balance</span>
+                    <span className="text-foreground">${wallet.balance.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between border-t border-border/40 pt-2 text-sm">
@@ -325,8 +308,7 @@ function StorePage() {
               <div className="flex items-start gap-2 rounded-lg bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
                 <ShieldCheck className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
                 <span>
-                  You'll receive a lossless download and the artist is credited
-                  instantly.
+                  You'll receive a lossless download and the artist is credited instantly.
                 </span>
               </div>
 
@@ -344,9 +326,7 @@ function StorePage() {
                   onClick={confirmPurchase}
                   disabled={processing}
                 >
-                  {processing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
+                  {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {processing ? "Processing…" : `Buy for $${(buyingTrack.price ?? 0).toFixed(2)}`}
                 </Button>
               </div>
@@ -424,9 +404,7 @@ function StoreCard({
           >
             {track.title}
           </Link>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {track.artistName}
-          </p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{track.artistName}</p>
         </div>
 
         <div className="mt-3.5 pt-3 border-t border-border/30 flex items-center justify-between">

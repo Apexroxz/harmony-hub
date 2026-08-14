@@ -41,12 +41,14 @@ export const Route = createFileRoute("/")({
       { title: "Layam — Luxury Audiophile Player & Creator Platform" },
       {
         name: "description",
-        content: "Offline audiophile FLAC/WAV player with 10-band DSP + lossless creator streaming ecosystem.",
+        content:
+          "Offline audiophile FLAC/WAV player with 10-band DSP + lossless creator streaming ecosystem.",
       },
       { property: "og:title", content: "Layam — Luxury Audiophile Player & Creator Platform" },
       {
         property: "og:description",
-        content: "Offline audiophile FLAC/WAV player with 10-band DSP + lossless creator streaming ecosystem.",
+        content:
+          "Offline audiophile FLAC/WAV player with 10-band DSP + lossless creator streaming ecosystem.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -79,7 +81,11 @@ function OfflineHiFiDashboard() {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    console.log("[OfflineImport:Input-Hero] File input onChange event received files:", files?.length, files);
+    console.log(
+      "[OfflineImport:Input-Hero] File input onChange event received files:",
+      files?.length,
+      files,
+    );
     if (files && files.length > 0) {
       await importLocalFiles(files);
     }
@@ -104,7 +110,7 @@ function OfflineHiFiDashboard() {
         ref={folderInputRef}
         onChange={handleFileSelect}
         multiple
-        // @ts-ignore
+        // @ts-expect-error webkitdirectory is standard in browser inputs
         webkitdirectory=""
         className="hidden"
       />
@@ -123,7 +129,8 @@ function OfflineHiFiDashboard() {
           </h1>
 
           <p className="mt-4 text-sm text-muted-foreground leading-relaxed max-w-xl">
-            Bit-perfect playback directly from your local hardware storage. Uncompressed 24-bit/96kHz FLAC, WAV, and ALAC decoding with 10-band studio parametric EQ.
+            Bit-perfect playback directly from your local hardware storage. Uncompressed
+            24-bit/96kHz FLAC, WAV, and ALAC decoding with 10-band studio parametric EQ.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3.5">
@@ -184,7 +191,9 @@ function OfflineHiFiDashboard() {
             <p className="text-xs text-muted-foreground font-semibold">Local Tracks</p>
             <Music2 className="h-4 w-4 text-emerald-400" />
           </div>
-          <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">{localTracks.length}</p>
+          <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">
+            {localTracks.length}
+          </p>
           <p className="text-[11px] text-muted-foreground mt-1">Indexed in local storage</p>
         </div>
 
@@ -194,7 +203,9 @@ function OfflineHiFiDashboard() {
             <p className="text-xs text-muted-foreground font-semibold">Local Albums</p>
             <Disc3 className="h-4 w-4 text-primary" />
           </div>
-          <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">{localAlbums.length}</p>
+          <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">
+            {localAlbums.length}
+          </p>
           <p className="text-[11px] text-muted-foreground mt-1">Grouped by ID3 tags</p>
         </div>
 
@@ -205,7 +216,9 @@ function OfflineHiFiDashboard() {
             <HardDrive className="h-4 w-4 text-emerald-400" />
           </div>
           <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">
-            {storageUsedMb >= 1000 ? `${(storageUsedMb / 1024).toFixed(2)} GB` : `${storageUsedMb} MB`}
+            {storageUsedMb >= 1000
+              ? `${(storageUsedMb / 1024).toFixed(2)} GB`
+              : `${storageUsedMb} MB`}
           </p>
           <p className="text-[11px] text-muted-foreground mt-1">Local & downloaded masters</p>
         </div>
@@ -218,12 +231,18 @@ function OfflineHiFiDashboard() {
           </div>
           <div className="flex flex-wrap gap-1.5 mt-1">
             {formatsSummary.flac > 0 && (
-              <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[10px] font-mono">
+              <Badge
+                variant="outline"
+                className="border-emerald-500/40 text-emerald-400 text-[10px] font-mono"
+              >
                 {formatsSummary.flac} FLAC
               </Badge>
             )}
             {formatsSummary.wav > 0 && (
-              <Badge variant="outline" className="border-primary/40 text-primary text-[10px] font-mono">
+              <Badge
+                variant="outline"
+                className="border-primary/40 text-primary text-[10px] font-mono"
+              >
                 {formatsSummary.wav} WAV
               </Badge>
             )}
@@ -233,7 +252,10 @@ function OfflineHiFiDashboard() {
               </Badge>
             )}
             {formatsSummary.mp3 > 0 && (
-              <Badge variant="outline" className="border-border/60 text-muted-foreground text-[10px] font-mono">
+              <Badge
+                variant="outline"
+                className="border-border/60 text-muted-foreground text-[10px] font-mono"
+              >
                 {formatsSummary.mp3} MP3
               </Badge>
             )}
@@ -246,7 +268,9 @@ function OfflineHiFiDashboard() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-foreground">Recently Added Music</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Scanned files and downloaded DRM-free masters.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Scanned files and downloaded DRM-free masters.
+            </p>
           </div>
           <Link
             to="/library"
@@ -265,7 +289,11 @@ function OfflineHiFiDashboard() {
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted">
-                  <img src={track.coverImage} alt={track.title} className="h-full w-full object-cover" />
+                  <img
+                    src={track.coverImage}
+                    alt={track.title}
+                    className="h-full w-full object-cover"
+                  />
                   <button
                     onClick={() => playTrack(track as Track, localTracks as Track[])}
                     className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -283,7 +311,10 @@ function OfflineHiFiDashboard() {
               </div>
 
               <div className="flex flex-col items-end shrink-0">
-                <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[9px] font-mono font-bold">
+                <Badge
+                  variant="outline"
+                  className="border-emerald-500/40 text-emerald-400 text-[9px] font-mono font-bold"
+                >
                   {track.quality}
                 </Badge>
                 <span className="text-[10px] font-mono text-muted-foreground mt-0.5">
@@ -301,7 +332,9 @@ function OfflineHiFiDashboard() {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-foreground">Local Albums</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Organized from your device's ID3 metadata tags.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Organized from your device's ID3 metadata tags.
+              </p>
             </div>
             <Link
               to="/library"
@@ -356,9 +389,12 @@ function OfflineHiFiDashboard() {
               <ShoppingBag className="h-4 w-4" />
               <span>ONLINE MUSIC STORE · DIRECT OFFLINE DOWNLOAD</span>
             </div>
-            <h2 className="text-2xl font-bold text-foreground">Get New Masters for Offline Player</h2>
+            <h2 className="text-2xl font-bold text-foreground">
+              Get New Masters for Offline Player
+            </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Buy 24-bit high-resolution masters directly from independent artists. 85% goes straight to the creator and files download instantly into your local offline library.
+              Buy 24-bit high-resolution masters directly from independent artists. 85% goes
+              straight to the creator and files download instantly into your local offline library.
             </p>
           </div>
         </div>
@@ -412,7 +448,8 @@ function OnlineHomePage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-            Hybrid local Hi-Fi player + creator-first music ecosystem. Experience bit-perfect master playback, 10-band parametric EQ, and direct creator commerce.
+            Hybrid local Hi-Fi player + creator-first music ecosystem. Experience bit-perfect master
+            playback, 10-band parametric EQ, and direct creator commerce.
           </p>
 
           {/* Maximum 2 Primary Actions */}
@@ -448,7 +485,9 @@ function OnlineHomePage() {
         <div className="mb-8 flex items-end justify-between">
           <div>
             <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Featured Releases</h2>
-            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Hand-curated uncompressed master recordings.</p>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+              Hand-curated uncompressed master recordings.
+            </p>
           </div>
           <Link
             to="/store"
@@ -476,7 +515,9 @@ function OnlineHomePage() {
         <div className="mb-8 flex items-end justify-between">
           <div>
             <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Trending Masters</h2>
-            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Top streamed and collected releases on Layam.</p>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+              Top streamed and collected releases on Layam.
+            </p>
           </div>
           <Link
             to="/stream"

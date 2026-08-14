@@ -65,7 +65,7 @@ export function LoadError({
       role="alert"
       className={cn(
         "flex flex-col items-center justify-center gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 px-6 py-16 text-center",
-        className
+        className,
       )}
     >
       <AlertTriangle className="h-8 w-8 text-destructive" />

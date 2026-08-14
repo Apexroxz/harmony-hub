@@ -1,13 +1,14 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Layam E2E Feature Audit Suite", () => {
-
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("domcontentloaded");
   });
 
-  test("Scenario 1: Open Home page, play online track & verify player bar state", async ({ page }) => {
+  test("Scenario 1: Open Home page, play online track & verify player bar state", async ({
+    page,
+  }) => {
     await expect(page.locator("header")).toBeVisible();
     await expect(page.getByText("Layam").first()).toBeVisible();
 
@@ -82,7 +83,7 @@ test.describe("Layam E2E Feature Audit Suite", () => {
           name: "Demo Artist Creator",
           email: "artist@layam.app",
           role: "artist",
-        })
+        }),
       );
     });
     await page.goto("/");
@@ -95,7 +96,9 @@ test.describe("Layam E2E Feature Audit Suite", () => {
     await expect(page.getByText("Upload a Song").first()).toBeVisible();
   });
 
-  test("Scenario 5: Verify /dashboard is protected & redirects Listener/Guest users", async ({ page }) => {
+  test("Scenario 5: Verify /dashboard is protected & redirects Listener/Guest users", async ({
+    page,
+  }) => {
     await page.goto("/dashboard");
     await expect(page).toHaveURL("http://127.0.0.1:3000/");
     await expect(page.getByText(/Artist Account Required/i).first()).toBeVisible();

@@ -122,7 +122,12 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-feature-settings: "rlig" 1, "calt" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1,
+      "cv02" 1,
+      "cv03" 1,
+      "cv04" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: -0.011em;
@@ -150,7 +155,12 @@
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(135deg, oklch(0.98 0.002 60) 0%, oklch(0.78 0.14 70) 50%, oklch(0.72 0.17 52) 100%);
+    background: linear-gradient(
+      135deg,
+      oklch(0.98 0.002 60) 0%,
+      oklch(0.78 0.14 70) 50%,
+      oklch(0.72 0.17 52) 100%
+    );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -176,7 +186,9 @@
   }
 
   .glow-border {
-    box-shadow: 0 0 0 1px var(--color-border), 0 0 30px var(--color-glow-soft);
+    box-shadow:
+      0 0 0 1px var(--color-border),
+      0 0 30px var(--color-glow-soft);
   }
 
   .glow-text {

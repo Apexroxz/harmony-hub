@@ -11,7 +11,7 @@ const memo = new Map<string, string>();
  */
 export async function signedUrls(
   bucket: "covers" | "audio",
-  paths: string[]
+  paths: string[],
 ): Promise<Map<string, string>> {
   const resolved = new Map<string, string>();
   const unique = Array.from(new Set(paths.filter(Boolean)));
@@ -43,7 +43,7 @@ export async function signedUrls(
 export async function uploadMedia(
   bucket: "covers" | "audio",
   path: string,
-  file: File
+  file: File,
 ): Promise<string> {
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     ...(file.type ? { contentType: file.type } : {}),

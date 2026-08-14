@@ -32,7 +32,7 @@ export function TrackCard({ track, showBuyButton = true }: TrackCardProps) {
     <>
       <div
         className={cn(
-          "group relative overflow-hidden rounded-3xl border border-border/40 bg-card/90 transition-all duration-300 hover:border-primary/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex flex-col justify-between"
+          "group relative overflow-hidden rounded-3xl border border-border/40 bg-card/90 transition-all duration-300 hover:border-primary/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex flex-col justify-between",
         )}
       >
         {/* Large Artwork with Gloss & Floating Play Trigger */}
@@ -59,7 +59,7 @@ export function TrackCard({ track, showBuyButton = true }: TrackCardProps) {
                   "text-[10px] font-mono font-bold backdrop-blur-md border px-2 py-0.5",
                   purchased
                     ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
-                    : "bg-black/75 text-foreground border-white/10"
+                    : "bg-black/75 text-foreground border-white/10",
                 )}
               >
                 {purchased ? "PURCHASED" : `$${price.toFixed(2)}`}
@@ -76,7 +76,7 @@ export function TrackCard({ track, showBuyButton = true }: TrackCardProps) {
               "absolute bottom-3.5 right-3.5 h-11 w-11 rounded-full shadow-2xl transition-all duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-100 scale-90 cursor-pointer",
               isCurrent && isPlaying
                 ? "bg-primary text-primary-foreground opacity-100 scale-100 shadow-primary/30"
-                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/30"
+                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/30",
             )}
           >
             <Play className="h-5 w-5 fill-current ml-0.5" />
@@ -97,7 +97,9 @@ export function TrackCard({ track, showBuyButton = true }: TrackCardProps) {
           </div>
 
           <div className="mt-3.5 pt-3 border-t border-border/30 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span className="font-mono text-[11px] tabular-nums">{formatDuration(track.duration)}</span>
+            <span className="font-mono text-[11px] tabular-nums">
+              {formatDuration(track.duration)}
+            </span>
 
             {isOnline && showBuyButton && (
               <Button
@@ -108,7 +110,7 @@ export function TrackCard({ track, showBuyButton = true }: TrackCardProps) {
                   "h-7 rounded-full px-3 text-[11px] font-bold gap-1 transition-all cursor-pointer",
                   purchased
                     ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
                 )}
               >
                 {purchased ? (
@@ -129,11 +131,7 @@ export function TrackCard({ track, showBuyButton = true }: TrackCardProps) {
       </div>
 
       {/* Direct Buy Master Modal */}
-      <BuyTrackModal
-        track={track}
-        open={buyModalOpen}
-        onClose={() => setBuyModalOpen(false)}
-      />
+      <BuyTrackModal track={track} open={buyModalOpen} onClose={() => setBuyModalOpen(false)} />
     </>
   );
 }

@@ -53,12 +53,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 interface LibrarySearchParams {
@@ -74,11 +69,17 @@ export const Route = createFileRoute("/library")({
   head: () => ({
     meta: [
       { title: "Music Library & Local Player — Layam" },
-      { name: "description", content: "Offline audiophile library, folders, albums, playlists, and purchased masters." },
+      {
+        name: "description",
+        content: "Offline audiophile library, folders, albums, playlists, and purchased masters.",
+      },
     ],
   }),
   component: LibraryPage,
 });
+
+type OfflineTab = "tracks" | "folders" | "albums" | "artists" | "playlists" | "tags" | "store";
+type OnlineTab = "purchased" | "liked" | "local";
 
 function LibraryPage() {
   const search = useSearch({ from: "/library" });
@@ -100,10 +101,8 @@ function LibraryPage() {
   const { allTracks, likedIds } = useLibrary();
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer();
 
-  const [offlineTab, setOfflineTab] = useState<"tracks" | "folders" | "albums" | "artists" | "playlists" | "tags" | "store">(
-    (search.tab as any) || "tracks"
-  );
-  const [onlineTab, setOnlineTab] = useState<"purchased" | "liked" | "local">("purchased");
+  const [offlineTab, setOfflineTab] = useState<OfflineTab>((search.tab as OfflineTab) || "tracks");
+  const [onlineTab, setOnlineTab] = useState<OnlineTab>("purchased");
   const [consoleOpen, setConsoleOpen] = useState(false);
 
   // Playlist state
@@ -125,14 +124,21 @@ function LibraryPage() {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (search.tab && ["tracks", "folders", "albums", "artists", "playlists", "tags", "store"].includes(search.tab)) {
-      setOfflineTab(search.tab as any);
+    if (
+      search.tab &&
+      ["tracks", "folders", "albums", "artists", "playlists", "tags", "store"].includes(search.tab)
+    ) {
+      setOfflineTab(search.tab as OfflineTab);
     }
   }, [search.tab]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    console.log("[OfflineImport:Input] File input onChange event received files:", files?.length, files);
+    console.log(
+      "[OfflineImport:Input] File input onChange event received files:",
+      files?.length,
+      files,
+    );
     if (files && files.length > 0) {
       await importLocalFiles(files);
     }
@@ -185,13 +191,17 @@ function LibraryPage() {
           "group flex items-center justify-between gap-4 rounded-2xl p-3 transition-all border",
           isCurrent
             ? "bg-primary/10 border-primary/30 shadow-sm"
-            : "hover:bg-surface-raised/70 border-transparent hover:border-border/40"
+            : "hover:bg-surface-raised/70 border-transparent hover:border-border/40",
         )}
       >
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-surface-raised border border-border/30">
             {track.coverImage ? (
-              <img src={track.coverImage} alt={track.title} className="h-full w-full object-cover" />
+              <img
+                src={track.coverImage}
+                alt={track.title}
+                className="h-full w-full object-cover"
+              />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
                 <Music2 className="h-5 w-5" />
@@ -207,7 +217,7 @@ function LibraryPage() {
               }}
               className={cn(
                 "absolute inset-0 flex items-center justify-center bg-black/60 transition-opacity cursor-pointer",
-                isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100",
               )}
               aria-label={`Play ${track.title}`}
             >
@@ -228,7 +238,7 @@ function LibraryPage() {
               onClick={() => playTrack(track as Track, currentQueue as Track[])}
               className={cn(
                 "truncate font-bold text-sm cursor-pointer transition-colors",
-                isCurrent ? "text-primary" : "text-foreground group-hover:text-primary"
+                isCurrent ? "text-primary" : "text-foreground group-hover:text-primary",
               )}
             >
               {track.title}
@@ -262,7 +272,7 @@ function LibraryPage() {
                   "border text-[10px] font-mono font-bold",
                   isOffline
                     ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-                    : "border-primary/40 text-primary bg-primary/10"
+                    : "border-primary/40 text-primary bg-primary/10",
                 )}
               >
                 {track.quality}
@@ -292,8 +302,13 @@ function LibraryPage() {
                     <ListPlus className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-card border-border/80 rounded-2xl p-2 shadow-2xl">
-                  <DropdownMenuLabel className="text-xs font-bold text-foreground">Add to Playlist</DropdownMenuLabel>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 bg-card border-border/80 rounded-2xl p-2 shadow-2xl"
+                >
+                  <DropdownMenuLabel className="text-xs font-bold text-foreground">
+                    Add to Playlist
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-border/40" />
                   {localPlaylists.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">
@@ -360,7 +375,7 @@ function LibraryPage() {
                   "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider border",
                   isOffline
                     ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                    : "bg-primary/10 text-primary border-primary/20"
+                    : "bg-primary/10 text-primary border-primary/20",
                 )}
               >
                 {isOffline ? <WifiOff className="h-3 w-3" /> : <Library className="h-3 w-3" />}
@@ -387,7 +402,7 @@ function LibraryPage() {
               ref={folderInputRef}
               onChange={handleFileSelect}
               multiple
-              // @ts-ignore
+              // @ts-expect-error webkitdirectory is standard in browser inputs
               webkitdirectory=""
               className="hidden"
             />
@@ -428,22 +443,34 @@ function LibraryPage() {
           {isOffline ? (
             <>
               {[
-                { id: "tracks", label: `Tracks (${localTracks.length})`, icon: Music2 },
-                { id: "folders", label: `Folders (${localFolders.length})`, icon: FolderOpen },
-                { id: "albums", label: `Albums (${localAlbums.length})`, icon: Disc3 },
-                { id: "artists", label: `Artists (${localArtistGroups.length})`, icon: Users },
-                { id: "playlists", label: `Playlists (${localPlaylists.length})`, icon: ListMusic },
-                { id: "tags", label: "Tag Editor", icon: Edit3 },
-                { id: "store", label: "Buy Store Masters", icon: ShoppingBag },
+                { id: "tracks" as const, label: `Tracks (${localTracks.length})`, icon: Music2 },
+                {
+                  id: "folders" as const,
+                  label: `Folders (${localFolders.length})`,
+                  icon: FolderOpen,
+                },
+                { id: "albums" as const, label: `Albums (${localAlbums.length})`, icon: Disc3 },
+                {
+                  id: "artists" as const,
+                  label: `Artists (${localArtistGroups.length})`,
+                  icon: Users,
+                },
+                {
+                  id: "playlists" as const,
+                  label: `Playlists (${localPlaylists.length})`,
+                  icon: ListMusic,
+                },
+                { id: "tags" as const, label: "Tag Editor", icon: Edit3 },
+                { id: "store" as const, label: "Buy Store Masters", icon: ShoppingBag },
               ].map((tabItem) => (
                 <button
                   key={tabItem.id}
-                  onClick={() => setOfflineTab(tabItem.id as any)}
+                  onClick={() => setOfflineTab(tabItem.id)}
                   className={cn(
                     "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all shrink-0",
                     offlineTab === tabItem.id
                       ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-sm"
-                      : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                      : "text-muted-foreground hover:bg-surface-raised hover:text-foreground",
                   )}
                 >
                   <tabItem.icon className="h-3.5 w-3.5" />
@@ -454,18 +481,30 @@ function LibraryPage() {
           ) : (
             <>
               {[
-                { id: "purchased", label: `Purchased Masters (${purchasedTracks.length})`, icon: Download },
-                { id: "liked", label: `Liked Tracks (${likedTracks.length})`, icon: Heart },
-                { id: "local", label: `Local Files (${localTracks.length})`, icon: FolderOpen },
+                {
+                  id: "purchased" as const,
+                  label: `Purchased Masters (${purchasedTracks.length})`,
+                  icon: Download,
+                },
+                {
+                  id: "liked" as const,
+                  label: `Liked Tracks (${likedTracks.length})`,
+                  icon: Heart,
+                },
+                {
+                  id: "local" as const,
+                  label: `Local Files (${localTracks.length})`,
+                  icon: FolderOpen,
+                },
               ].map((tabItem) => (
                 <button
                   key={tabItem.id}
-                  onClick={() => setOnlineTab(tabItem.id as any)}
+                  onClick={() => setOnlineTab(tabItem.id)}
                   className={cn(
                     "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all shrink-0",
                     onlineTab === tabItem.id
                       ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                      : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                      : "text-muted-foreground hover:bg-surface-raised hover:text-foreground",
                   )}
                 >
                   <tabItem.icon className="h-3.5 w-3.5" />
@@ -487,7 +526,8 @@ function LibraryPage() {
                     <Music2 className="h-10 w-10 text-muted-foreground mb-3" />
                     <h3 className="text-lg font-bold text-foreground">No local tracks imported</h3>
                     <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-5">
-                      Drop FLAC, WAV, ALAC, or MP3 files from your device to listen offline with full 10-band DSP equalization.
+                      Drop FLAC, WAV, ALAC, or MP3 files from your device to listen offline with
+                      full 10-band DSP equalization.
                     </p>
                     <Button
                       onClick={() => fileInputRef.current?.click()}
@@ -525,7 +565,10 @@ function LibraryPage() {
 
                       <div className="mt-4 space-y-1">
                         {folder.tracks.slice(0, 3).map((t) => (
-                          <div key={t.id} className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                          <div
+                            key={t.id}
+                            className="text-xs text-muted-foreground truncate flex items-center gap-1.5"
+                          >
                             <span className="h-1 w-1 rounded-full bg-emerald-400" />
                             {t.title}
                           </div>
@@ -602,7 +645,9 @@ function LibraryPage() {
                         {artist.artistName.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-bold text-sm text-foreground truncate">{artist.artistName}</h3>
+                        <h3 className="font-bold text-sm text-foreground truncate">
+                          {artist.artistName}
+                        </h3>
                         <p className="text-xs text-muted-foreground">
                           {artist.trackCount} local {artist.trackCount === 1 ? "track" : "tracks"}
                         </p>
@@ -653,9 +698,12 @@ function LibraryPage() {
                 {localPlaylists.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-border/60 p-12 text-center bg-card/40">
                     <ListMusic className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
-                    <h3 className="text-base font-bold text-foreground">No Offline Playlists Created</h3>
+                    <h3 className="text-base font-bold text-foreground">
+                      No Offline Playlists Created
+                    </h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                      Create custom playlists for your high-res audio tracks, albums, or workout sets. All stored locally on your device.
+                      Create custom playlists for your high-res audio tracks, albums, or workout
+                      sets. All stored locally on your device.
                     </p>
                   </div>
                 ) : (
@@ -671,7 +719,9 @@ function LibraryPage() {
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2 text-emerald-400">
                                 <ListMusic className="h-5 w-5" />
-                                <h3 className="font-bold text-sm text-foreground truncate">{pl.name}</h3>
+                                <h3 className="font-bold text-sm text-foreground truncate">
+                                  {pl.name}
+                                </h3>
                               </div>
                               <div className="flex items-center gap-1">
                                 <Button
@@ -697,13 +747,17 @@ function LibraryPage() {
                               </div>
                             </div>
                             <p className="text-xs text-muted-foreground mb-4">
-                              {plTracks.length} {plTracks.length === 1 ? "track" : "tracks"} · {formatDuration(plTracks.reduce((acc, t) => acc + (t.duration || 0), 0))}
+                              {plTracks.length} {plTracks.length === 1 ? "track" : "tracks"} ·{" "}
+                              {formatDuration(
+                                plTracks.reduce((acc, t) => acc + (t.duration || 0), 0),
+                              )}
                             </p>
 
                             <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                               {plTracks.length === 0 && (
                                 <p className="text-[11px] text-muted-foreground italic py-3 text-center">
-                                  No songs added yet. Click &quot;Add Songs&quot; above to select local tracks.
+                                  No songs added yet. Click &quot;Add Songs&quot; above to select
+                                  local tracks.
                                 </p>
                               )}
                               {plTracks.map((t) => (
@@ -712,7 +766,9 @@ function LibraryPage() {
                                   className="flex items-center justify-between text-xs text-foreground/90 py-1 px-2 rounded-xl bg-surface/60 hover:bg-surface-raised transition-colors group"
                                 >
                                   <span className="truncate flex-1 font-medium">{t.title}</span>
-                                  <span className="text-[10px] font-mono text-muted-foreground mr-2 shrink-0">{t.quality}</span>
+                                  <span className="text-[10px] font-mono text-muted-foreground mr-2 shrink-0">
+                                    {t.quality}
+                                  </span>
                                   <button
                                     onClick={() => removeTrackFromPlaylist(pl.id, t.id)}
                                     className="text-muted-foreground hover:text-destructive text-xs font-bold px-1"
@@ -743,7 +799,10 @@ function LibraryPage() {
 
                 {/* Manage / Add Tracks to Playlist Dialog */}
                 {managePlaylist && (
-                  <Dialog open={Boolean(managePlaylist)} onOpenChange={(open) => !open && setManagePlaylist(null)}>
+                  <Dialog
+                    open={Boolean(managePlaylist)}
+                    onOpenChange={(open) => !open && setManagePlaylist(null)}
+                  >
                     <DialogContent className="max-w-md bg-card border-border/80 rounded-3xl p-6 shadow-2xl">
                       <DialogHeader>
                         <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
@@ -767,9 +826,13 @@ function LibraryPage() {
                           {localTracks
                             .filter((t) =>
                               playlistTrackSearch
-                                ? t.title.toLowerCase().includes(playlistTrackSearch.toLowerCase()) ||
-                                  t.artistName.toLowerCase().includes(playlistTrackSearch.toLowerCase())
-                                : true
+                                ? t.title
+                                    .toLowerCase()
+                                    .includes(playlistTrackSearch.toLowerCase()) ||
+                                  t.artistName
+                                    .toLowerCase()
+                                    .includes(playlistTrackSearch.toLowerCase())
+                                : true,
                             )
                             .map((track) => {
                               const isAdded = managePlaylist.trackIds.includes(track.id);
@@ -780,12 +843,21 @@ function LibraryPage() {
                                     if (isAdded) {
                                       removeTrackFromPlaylist(managePlaylist.id, track.id);
                                       setManagePlaylist((prev) =>
-                                        prev ? { ...prev, trackIds: prev.trackIds.filter((id) => id !== track.id) } : null
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              trackIds: prev.trackIds.filter(
+                                                (id) => id !== track.id,
+                                              ),
+                                            }
+                                          : null,
                                       );
                                     } else {
                                       addTrackToPlaylist(managePlaylist.id, track.id);
                                       setManagePlaylist((prev) =>
-                                        prev ? { ...prev, trackIds: [...prev.trackIds, track.id] } : null
+                                        prev
+                                          ? { ...prev, trackIds: [...prev.trackIds, track.id] }
+                                          : null,
                                       );
                                     }
                                   }}
@@ -793,7 +865,7 @@ function LibraryPage() {
                                     "flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer",
                                     isAdded
                                       ? "bg-emerald-500/10 border-emerald-500/30 text-foreground"
-                                      : "bg-surface/50 border-transparent hover:border-border/60 text-muted-foreground hover:text-foreground"
+                                      : "bg-surface/50 border-transparent hover:border-border/60 text-muted-foreground hover:text-foreground",
                                   )}
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -803,22 +875,32 @@ function LibraryPage() {
                                       className="h-8 w-8 rounded-lg object-cover shrink-0"
                                     />
                                     <div className="min-w-0 flex-1">
-                                      <p className="font-bold text-xs truncate text-foreground">{track.title}</p>
-                                      <p className="text-[10px] text-muted-foreground truncate">{track.artistName}</p>
+                                      <p className="font-bold text-xs truncate text-foreground">
+                                        {track.title}
+                                      </p>
+                                      <p className="text-[10px] text-muted-foreground truncate">
+                                        {track.artistName}
+                                      </p>
                                     </div>
                                   </div>
 
                                   <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-[10px] font-mono font-bold text-emerald-400">{track.quality}</span>
+                                    <span className="text-[10px] font-mono font-bold text-emerald-400">
+                                      {track.quality}
+                                    </span>
                                     <div
                                       className={cn(
                                         "h-6 w-6 rounded-full flex items-center justify-center border transition-colors",
                                         isAdded
                                           ? "bg-emerald-500 border-emerald-500 text-white"
-                                          : "border-border/80 hover:border-emerald-500"
+                                          : "border-border/80 hover:border-emerald-500",
                                       )}
                                     >
-                                      {isAdded ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5 text-muted-foreground" />}
+                                      {isAdded ? (
+                                        <Check className="h-3.5 w-3.5" />
+                                      ) : (
+                                        <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -842,9 +924,12 @@ function LibraryPage() {
             {/* 6. Tag Editor View */}
             {offlineTab === "tags" && (
               <div className="max-w-xl rounded-3xl border border-border/40 bg-card p-6 sm:p-8">
-                <h3 className="text-lg font-bold text-foreground mb-1">Local Tag & Metadata Editor</h3>
+                <h3 className="text-lg font-bold text-foreground mb-1">
+                  Local Tag & Metadata Editor
+                </h3>
                 <p className="text-xs text-muted-foreground mb-6">
-                  Select any track to modify title, artist, album, and genre tags without touching cloud servers.
+                  Select any track to modify title, artist, album, and genre tags without touching
+                  cloud servers.
                 </p>
 
                 <div className="mb-4">
@@ -871,7 +956,9 @@ function LibraryPage() {
                 {selectedTrackForEdit && (
                   <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Track Title</label>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                        Track Title
+                      </label>
                       <Input
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
@@ -880,7 +967,9 @@ function LibraryPage() {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Artist Name</label>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                        Artist Name
+                      </label>
                       <Input
                         value={editArtist}
                         onChange={(e) => setEditArtist(e.target.value)}
@@ -889,7 +978,9 @@ function LibraryPage() {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Album Title</label>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                        Album Title
+                      </label>
                       <Input
                         value={editAlbum}
                         onChange={(e) => setEditAlbum(e.target.value)}
@@ -898,7 +989,9 @@ function LibraryPage() {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Genre</label>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                        Genre
+                      </label>
                       <Input
                         value={editGenre}
                         onChange={(e) => setEditGenre(e.target.value)}
@@ -927,9 +1020,14 @@ function LibraryPage() {
                     <ShoppingBag className="h-4 w-4" />
                     <span>ONLINE MUSIC STORE · DIRECT OFFLINE DOWNLOAD</span>
                   </div>
-                  <h3 className="text-xl font-bold text-foreground">Get New Masters for Your Offline Player</h3>
+                  <h3 className="text-xl font-bold text-foreground">
+                    Get New Masters for Your Offline Player
+                  </h3>
                   <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                    Buy high-resolution DRM-free master tracks directly from creators. Once purchased, tracks are instantly downloaded and added directly into your Local Offline Library under <code className="text-foreground font-mono">Downloads/Purchased</code>.
+                    Buy high-resolution DRM-free master tracks directly from creators. Once
+                    purchased, tracks are instantly downloaded and added directly into your Local
+                    Offline Library under{" "}
+                    <code className="text-foreground font-mono">Downloads/Purchased</code>.
                   </p>
                 </div>
 
@@ -953,7 +1051,8 @@ function LibraryPage() {
                     <ShoppingBag className="h-10 w-10 text-muted-foreground mb-3" />
                     <h3 className="text-lg font-bold text-foreground">No purchased masters yet</h3>
                     <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-5">
-                      Purchase DRM-free 24-bit masters directly from independent creators in the Store. 85% goes straight to the artist.
+                      Purchase DRM-free 24-bit masters directly from independent creators in the
+                      Store. 85% goes straight to the artist.
                     </p>
                     <Link to="/store">
                       <Button className="rounded-full bg-primary text-primary-foreground font-bold text-xs gap-1.5 shadow-md">

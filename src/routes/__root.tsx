@@ -111,9 +111,7 @@ class AppErrorBoundary extends Component<EBProps, EBState> {
       return (
         <div className="flex min-h-[60vh] items-center justify-center px-4">
           <div className="max-w-md text-center">
-            <h2 className="text-xl font-semibold text-foreground">
-              Something went wrong
-            </h2>
+            <h2 className="text-xl font-semibold text-foreground">Something went wrong</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {this.state.error?.message ?? "An unexpected error occurred."}
             </p>
@@ -140,14 +138,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Stream, upload, and discover music without boundaries." },
       { name: "author", content: "Layam" },
       { property: "og:title", content: "Layam — Web3 Music Streaming" },
-      { property: "og:description", content: "Stream, upload, and discover music without boundaries." },
+      {
+        property: "og:description",
+        content: "Stream, upload, and discover music without boundaries.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Layam" },
       { name: "twitter:title", content: "Layam — Web3 Music Streaming" },
-      { name: "twitter:description", content: "Stream, upload, and discover music without boundaries." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5c4cdd89-eeb5-4c4b-992e-d18481599686/id-preview-e0dfcf83--39543f6f-cddc-4a65-b58c-bd036d69ae54.lovable.app-1785930626231.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5c4cdd89-eeb5-4c4b-992e-d18481599686/id-preview-e0dfcf83--39543f6f-cddc-4a65-b58c-bd036d69ae54.lovable.app-1785930626231.png" },
+      {
+        name: "twitter:description",
+        content: "Stream, upload, and discover music without boundaries.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5c4cdd89-eeb5-4c4b-992e-d18481599686/id-preview-e0dfcf83--39543f6f-cddc-4a65-b58c-bd036d69ae54.lovable.app-1785930626231.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5c4cdd89-eeb5-4c4b-992e-d18481599686/id-preview-e0dfcf83--39543f6f-cddc-4a65-b58c-bd036d69ae54.lovable.app-1785930626231.png",
+      },
     ],
     links: [
       {
@@ -188,22 +200,22 @@ function RootComponent() {
           <ModeProvider>
             <LibraryProvider>
               <PlayerProvider>
-              <Toaster
-                position="bottom-right"
-                richColors
-                toastOptions={{
-                  className: "bg-card text-foreground border-border",
-                }}
-              />
-              <div className="flex min-h-screen flex-col">
-                <Header />
-                <main className="flex-1">
-                  <AppErrorBoundary>
-                    <Outlet />
-                  </AppErrorBoundary>
-                </main>
-                <PlayerBar />
-              </div>
+                <Toaster
+                  position="bottom-right"
+                  richColors
+                  toastOptions={{
+                    className: "bg-card text-foreground border-border",
+                  }}
+                />
+                <div className="flex min-h-screen flex-col">
+                  <Header />
+                  <main className="flex-1">
+                    <AppErrorBoundary>
+                      <Outlet />
+                    </AppErrorBoundary>
+                  </main>
+                  <PlayerBar />
+                </div>
               </PlayerProvider>
             </LibraryProvider>
           </ModeProvider>
@@ -212,4 +224,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

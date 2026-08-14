@@ -34,12 +34,14 @@ export const Route = createFileRoute("/stream")({
       { title: "Community Feed — Layam" },
       {
         name: "description",
-        content: "Discover real-time drops, community fan activity, and lossless releases from creators.",
+        content:
+          "Discover real-time drops, community fan activity, and lossless releases from creators.",
       },
       { property: "og:title", content: "Community Feed — Layam" },
       {
         property: "og:description",
-        content: "Discover real-time drops, community fan activity, and lossless releases from creators.",
+        content:
+          "Discover real-time drops, community fan activity, and lossless releases from creators.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -140,7 +142,7 @@ function StreamPage() {
               "text-xs font-semibold gap-1.5 rounded-full",
               filter === tab.id
                 ? "bg-primary text-primary-foreground"
-                : "border-border/60 bg-glass text-muted-foreground hover:text-foreground"
+                : "border-border/60 bg-glass text-muted-foreground hover:text-foreground",
             )}
           >
             <tab.icon className="h-3.5 w-3.5" />
@@ -152,10 +154,7 @@ function StreamPage() {
       {isLoading ? (
         <FeedSkeleton count={4} />
       ) : error ? (
-        <LoadError
-          message="We couldn't load the community feed."
-          onRetry={() => refetch()}
-        />
+        <LoadError message="We couldn't load the community feed." onRetry={() => refetch()} />
       ) : filteredTracks.length === 0 ? (
         <EmptyState
           title="No activity yet"
@@ -203,7 +202,8 @@ function FeedItem({
   onLike: () => void;
   onRepost: () => void;
 }) {
-  const { playTrack, togglePlay, currentTrack, isPlaying, progress, seek, addToQueue } = usePlayer();
+  const { playTrack, togglePlay, currentTrack, isPlaying, progress, seek, addToQueue } =
+    usePlayer();
   const { isLocked } = useOwnership(track.id);
   const isCurrent = currentTrack?.id === track.id;
 
@@ -274,7 +274,8 @@ function FeedItem({
             {track.title}
           </Link>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {track.genre} · {formatDuration(track.duration)} · {formatNumber(track.playCount)} streams
+            {track.genre} · {formatDuration(track.duration)} · {formatNumber(track.playCount)}{" "}
+            streams
           </p>
 
           {/* Interactive Waveform / progress */}
@@ -302,7 +303,7 @@ function FeedItem({
             onClick={onLike}
             className={cn(
               "flex items-center gap-1.5 transition-colors hover:text-rose-400",
-              liked && "text-rose-500 font-semibold"
+              liked && "text-rose-500 font-semibold",
             )}
           >
             <Heart className={cn("h-4 w-4", liked && "fill-current")} />
@@ -313,7 +314,7 @@ function FeedItem({
             onClick={onRepost}
             className={cn(
               "flex items-center gap-1.5 transition-colors hover:text-emerald-400",
-              reposted && "text-emerald-400 font-semibold"
+              reposted && "text-emerald-400 font-semibold",
             )}
           >
             <Repeat2 className="h-4 w-4" />

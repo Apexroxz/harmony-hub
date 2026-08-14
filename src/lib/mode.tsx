@@ -300,23 +300,29 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 
   const setMode = useCallback((newMode: AppMode) => {
     setModeState(newMode);
-    toast.info(`Switched to ${newMode === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`, {
-      description:
-        newMode === "offline"
-          ? "Local Hi-Fi engine active. Zero network requests."
-          : "Full streaming catalog, store, and creator features active.",
-    });
+    toast.info(
+      `Switched to ${newMode === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`,
+      {
+        description:
+          newMode === "offline"
+            ? "Local Hi-Fi engine active. Zero network requests."
+            : "Full streaming catalog, store, and creator features active.",
+      },
+    );
   }, []);
 
   const toggleMode = useCallback(() => {
     setModeState((prev) => {
       const next = prev === "online" ? "offline" : "online";
-      toast.info(`Switched to ${next === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`, {
-        description:
-          next === "offline"
-            ? "Local audiophile player active. Zero network requests."
-            : "Full streaming catalog, store, and community active.",
-      });
+      toast.info(
+        `Switched to ${next === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`,
+        {
+          description:
+            next === "offline"
+              ? "Local audiophile player active. Zero network requests."
+              : "Full streaming catalog, store, and community active.",
+        },
+      );
       return next;
     });
   }, []);
@@ -337,7 +343,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
           artist: t.artistName,
           folderPath: "Downloads/Purchased",
           album: t.album || "Store Master Downloads",
-          fileSizeBytes: (t.duration * (t.bitrate || 1411) * 125), // estimated file size
+          fileSizeBytes: t.duration * (t.bitrate || 1411) * 125, // estimated file size
         }));
     } catch {
       return [];
@@ -346,7 +352,11 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 
   const importLocalFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
-    console.log("[OfflineImport:1/5] Browser received raw files count:", fileArray.length, fileArray);
+    console.log(
+      "[OfflineImport:1/5] Browser received raw files count:",
+      fileArray.length,
+      fileArray,
+    );
     if (fileArray.length === 0) return;
 
     // Filter strictly for audio files (ignoring .DS_Store, artwork, directories, etc.)
@@ -363,7 +373,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     console.log(
       "[OfflineImport:2/5] Valid audio files detected:",
       validAudioFiles.length,
-      validAudioFiles.map((f) => ({ name: f.name, size: f.size, type: f.type }))
+      validAudioFiles.map((f) => ({ name: f.name, size: f.size, type: f.type })),
     );
 
     if (validAudioFiles.length === 0) {
@@ -383,7 +393,10 @@ export function ModeProvider({ children }: { children: ReactNode }) {
         const format = getAudioFormatName(file.name);
         const isLossless = ["FLAC", "WAV", "AIFF", "ALAC"].includes(format);
         const objectUrl = URL.createObjectURL(file);
-        console.log(`[OfflineImport:3/5] Generated audioUrl via createObjectURL for [${file.name}]:`, objectUrl);
+        console.log(
+          `[OfflineImport:3/5] Generated audioUrl via createObjectURL for [${file.name}]:`,
+          objectUrl,
+        );
 
         // Extract embedded ID3 tags
         const metadata = await extractAudioMetadata(file).catch(() => ({
@@ -429,7 +442,9 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     }
 
     if (newTracks.length > 0) {
-      console.log(`[OfflineImport:5/5] Updating state with ${newTracks.length} new track(s). Total imported tracks will be updated.`);
+      console.log(
+        `[OfflineImport:5/5] Updating state with ${newTracks.length} new track(s). Total imported tracks will be updated.`,
+      );
       setImportedTracks((prev) => {
         const updated = [...newTracks, ...prev];
         console.log("[OfflineImport:State] importedTracks state is now:", updated);
@@ -447,12 +462,8 @@ export function ModeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateLocalTrackMetadata = useCallback((id: string, updates: Partial<LocalTrack>) => {
-    setImportedTracks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
-    );
-    setSampleTracks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
-    );
+    setImportedTracks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+    setSampleTracks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
     toast.success("Updated track tags & metadata");
   }, []);
 
@@ -479,7 +490,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
         if (p.id !== playlistId) return p;
         if (p.trackIds.includes(trackId)) return p;
         return { ...p, trackIds: [...p.trackIds, trackId] };
-      })
+      }),
     );
     toast.success("Added to playlist");
   }, []);
@@ -489,7 +500,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       prev.map((p) => {
         if (p.id !== playlistId) return p;
         return { ...p, trackIds: p.trackIds.filter((id) => id !== trackId) };
-      })
+      }),
     );
     toast.info("Removed from playlist");
   }, []);
@@ -637,7 +648,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       removeTrackFromPlaylist,
       rescanLibrary,
       clearOfflineCache,
-    ]
+    ],
   );
 
   return <ModeContext.Provider value={value}>{children}</ModeContext.Provider>;

@@ -38,7 +38,9 @@ export function FolderBrowser({ localTracks }: FolderBrowserProps) {
       <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 bg-surface-raised p-12 text-center">
         <Folder className="h-10 w-10 text-muted-foreground mb-3" />
         <h3 className="text-lg font-semibold text-foreground">No folders found</h3>
-        <p className="text-sm text-muted-foreground mt-1">Import local audio files or folders to browse.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Import local audio files or folders to browse.
+        </p>
       </div>
     );
   }
@@ -48,7 +50,9 @@ export function FolderBrowser({ localTracks }: FolderBrowserProps) {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-foreground">Folder Browser</h2>
-          <p className="text-xs text-muted-foreground">Browse local audio files by directory structure.</p>
+          <p className="text-xs text-muted-foreground">
+            Browse local audio files by directory structure.
+          </p>
         </div>
         <Badge variant="secondary" className="bg-primary/10 text-primary">
           {folderEntries.length} Folder(s)
@@ -83,9 +87,7 @@ export function FolderBrowser({ localTracks }: FolderBrowserProps) {
                     <span className="font-semibold text-foreground text-sm truncate block">
                       {folderName}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {tracks.length} track(s)
-                    </span>
+                    <span className="text-xs text-muted-foreground">{tracks.length} track(s)</span>
                   </div>
                 </div>
 

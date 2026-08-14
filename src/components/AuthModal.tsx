@@ -1,9 +1,25 @@
 import { useState, useEffect } from "react";
-import { Disc3, Mail, Lock, User, Sparkles, LogIn, UserPlus, Check, ArrowRight } from "lucide-react";
+import {
+  Disc3,
+  Mail,
+  Lock,
+  User,
+  Sparkles,
+  LogIn,
+  UserPlus,
+  Check,
+  ArrowRight,
+} from "lucide-react";
 import { useAuth, type UserRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -14,13 +30,19 @@ interface AuthModalProps {
   trigger?: React.ReactNode;
 }
 
-export function AuthModal({ open: externalOpen, onOpenChange: externalOnOpenChange, defaultTab = "signin", trigger }: AuthModalProps) {
+export function AuthModal({
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
+  defaultTab = "signin",
+  trigger,
+}: AuthModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = externalOpen !== undefined;
   const open = isControlled ? externalOpen : internalOpen;
   const setOpen = isControlled ? externalOnOpenChange! : setInternalOpen;
 
-  const { signInWithEmail, signUpWithEmail, loginWithGoogle, loginWithFacebook, demoLogin } = useAuth();
+  const { signInWithEmail, signUpWithEmail, loginWithGoogle, loginWithFacebook, demoLogin } =
+    useAuth();
 
   const [mode, setMode] = useState<"signin" | "signup">(defaultTab);
 
@@ -75,15 +97,17 @@ export function AuthModal({ open: externalOpen, onOpenChange: externalOnOpenChan
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <Disc3 className="h-7 w-7" />
           </div>
-          <DialogTitle className="text-2xl font-bold text-foreground">
-            Welcome to Layam
-          </DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-foreground">Welcome to Layam</DialogTitle>
           <p className="text-xs text-muted-foreground">
             Stream high-resolution music or publish your own tracks.
           </p>
         </DialogHeader>
 
-        <Tabs value={mode} onValueChange={(v) => setMode(v as "signin" | "signup")} className="w-full">
+        <Tabs
+          value={mode}
+          onValueChange={(v) => setMode(v as "signin" | "signup")}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-surface-raised p-1 mb-5">
             <TabsTrigger value="signin" className="rounded-xl text-xs font-semibold">
               Log In
@@ -232,14 +256,16 @@ export function AuthModal({ open: externalOpen, onOpenChange: externalOnOpenChan
                     "p-3 rounded-2xl border text-left transition-all cursor-pointer",
                     role === "listener"
                       ? "border-primary bg-primary/10 text-primary font-bold"
-                      : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+                      : "border-border/60 bg-card text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <div className="text-xs font-bold flex items-center justify-between">
                     <span>🎧 Listener</span>
                     {role === "listener" && <Check className="h-3.5 w-3.5" />}
                   </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">Stream & play music</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    Stream & play music
+                  </div>
                 </button>
 
                 <button
@@ -249,7 +275,7 @@ export function AuthModal({ open: externalOpen, onOpenChange: externalOnOpenChan
                     "p-3 rounded-2xl border text-left transition-all cursor-pointer",
                     role === "artist"
                       ? "border-primary bg-primary/10 text-primary font-bold"
-                      : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+                      : "border-border/60 bg-card text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <div className="text-xs font-bold flex items-center justify-between">

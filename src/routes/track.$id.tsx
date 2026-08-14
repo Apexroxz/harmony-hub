@@ -35,7 +35,10 @@ export const Route = createFileRoute("/track/$id")({
           { title: `${loaderData.track.title} — Layam` },
           { name: "description", content: `Stream and buy ${loaderData.track.title} on Layam.` },
           { property: "og:title", content: `${loaderData.track.title} — Layam` },
-          { property: "og:description", content: `Stream and buy ${loaderData.track.title} on Layam.` },
+          {
+            property: "og:description",
+            content: `Stream and buy ${loaderData.track.title} on Layam.`,
+          },
           { property: "og:type", content: "music.song" },
           { name: "twitter:card", content: "summary_large_image" },
         ]
@@ -58,7 +61,7 @@ function TrackPage() {
   const similar = tracks
     .filter(
       (t: typeof track) =>
-        t.id !== track.id && (t.genre === track.genre || t.artistId === track.artistId)
+        t.id !== track.id && (t.genre === track.genre || t.artistId === track.artistId),
     )
     .slice(0, 3);
 
@@ -91,10 +94,16 @@ function TrackPage() {
             {/* Details & Actions */}
             <div className="flex flex-col justify-center">
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="bg-surface-raised text-foreground font-semibold">
+                <Badge
+                  variant="secondary"
+                  className="bg-surface-raised text-foreground font-semibold"
+                >
                   {track.genre}
                 </Badge>
-                <Badge variant="outline" className="border-border/60 font-mono text-xs text-primary font-bold">
+                <Badge
+                  variant="outline"
+                  className="border-border/60 font-mono text-xs text-primary font-bold"
+                >
                   {track.quality} {track.sampleRate ? `${track.sampleRate / 1000}kHz` : "44.1kHz"}
                 </Badge>
                 {purchased && (
@@ -141,7 +150,7 @@ function TrackPage() {
                       "rounded-full font-bold gap-2 px-6 shadow-md transition-all",
                       purchased
                         ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                        : "bg-gradient-to-r from-orange to-amber text-black hover:opacity-90 shadow-orange/20"
+                        : "bg-gradient-to-r from-orange to-amber text-black hover:opacity-90 shadow-orange/20",
                     )}
                   >
                     {purchased ? (
@@ -204,11 +213,7 @@ function TrackPage() {
       </div>
 
       {/* Buy Master Modal */}
-      <BuyTrackModal
-        track={track}
-        open={buyModalOpen}
-        onClose={() => setBuyModalOpen(false)}
-      />
+      <BuyTrackModal track={track} open={buyModalOpen} onClose={() => setBuyModalOpen(false)} />
     </>
   );
 }

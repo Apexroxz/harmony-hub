@@ -16,7 +16,7 @@ export function ModeSwitch() {
         "relative flex h-8 items-center rounded-full p-1 cursor-pointer select-none transition-colors border shadow-inner",
         isOffline
           ? "border-emerald-500/40 bg-emerald-950/60"
-          : "border-border/60 bg-surface-raised/80"
+          : "border-border/60 bg-surface-raised/80",
       )}
     >
       {/* Background Mode Labels */}
@@ -24,7 +24,7 @@ export function ModeSwitch() {
         <span
           className={cn(
             "flex items-center gap-1 transition-colors pl-1",
-            !isOffline ? "text-primary font-bold" : "text-muted-foreground/60"
+            !isOffline ? "text-primary font-bold" : "text-muted-foreground/60",
           )}
         >
           <Wifi className="h-3 w-3" />
@@ -34,7 +34,7 @@ export function ModeSwitch() {
         <span
           className={cn(
             "flex items-center gap-1 transition-colors pr-1",
-            isOffline ? "text-emerald-400 font-bold" : "text-muted-foreground/60"
+            isOffline ? "text-emerald-400 font-bold" : "text-muted-foreground/60",
           )}
         >
           <Headphones className="h-3 w-3" />
@@ -50,7 +50,7 @@ export function ModeSwitch() {
           "absolute top-0.5 bottom-0.5 flex items-center justify-center rounded-full px-2.5 shadow-md text-[10px] font-extrabold gap-1 border",
           isOffline
             ? "right-0.5 bg-emerald-500 text-white border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]"
-            : "left-0.5 bg-primary text-primary-foreground border-primary/40 shadow-[0_0_12px_var(--color-glow-soft)]"
+            : "left-0.5 bg-primary text-primary-foreground border-primary/40 shadow-[0_0_12px_var(--color-glow-soft)]",
         )}
       >
         {isOffline ? (

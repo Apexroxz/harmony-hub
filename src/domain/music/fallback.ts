@@ -11,8 +11,7 @@
  */
 import type { Track, Artist } from "./types";
 
-const makeArt = (query: string, seed: number) =>
-  `https://picsum.photos/seed/${seed}/500/500`;
+const makeArt = (query: string, seed: number) => `https://picsum.photos/seed/${seed}/500/500`;
 
 const makeAudiusCover = (id: string) =>
   `https://usermetadata.audius.co/content/${id}/cover_art_sizes/150x150.jpg`;
@@ -365,16 +364,112 @@ export const FALLBACK_TRACKS: Track[] = [
 ];
 
 export const FALLBACK_ARTISTS: Artist[] = [
-  { id: "fallback-artist-1",  name: "SoundHelix Collective", handle: "@soundhelix",  avatar: makeArt("music producer studio", 201), bio: "Royalty-free music for creators.",         followers: 8200,  verified: true },
-  { id: "fallback-artist-2",  name: "Neon Architects",       handle: "@neonarch",    avatar: makeArt("neon geometric art",    202), bio: "Electronic and synthwave producers.",    followers: 12400, verified: true },
-  { id: "fallback-artist-3",  name: "Aqua Tones",            handle: "@aquatones",   avatar: makeArt("water reflection",      203), bio: "Ambient soundscapes and folk.",          followers: 5600,  verified: false },
-  { id: "fallback-artist-4",  name: "Electric Storm",        handle: "@elecstorm",   avatar: makeArt("lightning guitar",      204), bio: "Hard rock and alternative.",             followers: 21000, verified: true },
-  { id: "fallback-artist-5",  name: "Blue Note Sessions",    handle: "@bluenote",    avatar: makeArt("jazz piano night",      205), bio: "Live jazz and soul recordings.",         followers: 4300,  verified: false },
-  { id: "fallback-artist-6",  name: "Cosmos Audio Lab",      handle: "@cosmosaudio", avatar: makeArt("space telescope",       206), bio: "Ambient and electronic space music.",    followers: 9100,  verified: true },
-  { id: "fallback-artist-7",  name: "Sunrise Collective",    handle: "@sunrise",     avatar: makeArt("sunrise landscape",     207), bio: "Indie and acoustic compositions.",       followers: 7800,  verified: false },
-  { id: "fallback-artist-8",  name: "Studio 11",             handle: "@studio11",    avatar: makeArt("recording studio",      208), bio: "Pop productions and grooves.",           followers: 16500, verified: true },
-  { id: "fallback-artist-9",  name: "Orbital Symphony",      handle: "@orbital",     avatar: makeArt("orchestra conductor",   209), bio: "Classical and contemporary compositions.",followers: 3200, verified: false },
-  { id: "fallback-artist-10", name: "Phuture Collective",    handle: "@phuture",     avatar: makeArt("future bass synth",     210), bio: "Future bass and electronic pop.",       followers: 34000, verified: true },
-  { id: "fallback-artist-11", name: "MAAD WEST",             handle: "@maadwest",    avatar: makeArt("hip hop street art",    211), bio: "West coast hip-hop and rap.",           followers: 27000, verified: true },
-  { id: "fallback-artist-12", name: "Aspire Higher",         handle: "@aspirehigher",avatar: makeArt("motivational sky",     212), bio: "Chill pop and lo-fi beats.",             followers: 41000, verified: true },
+  {
+    id: "fallback-artist-1",
+    name: "SoundHelix Collective",
+    handle: "@soundhelix",
+    avatar: makeArt("music producer studio", 201),
+    bio: "Royalty-free music for creators.",
+    followers: 8200,
+    verified: true,
+  },
+  {
+    id: "fallback-artist-2",
+    name: "Neon Architects",
+    handle: "@neonarch",
+    avatar: makeArt("neon geometric art", 202),
+    bio: "Electronic and synthwave producers.",
+    followers: 12400,
+    verified: true,
+  },
+  {
+    id: "fallback-artist-3",
+    name: "Aqua Tones",
+    handle: "@aquatones",
+    avatar: makeArt("water reflection", 203),
+    bio: "Ambient soundscapes and folk.",
+    followers: 5600,
+    verified: false,
+  },
+  {
+    id: "fallback-artist-4",
+    name: "Electric Storm",
+    handle: "@elecstorm",
+    avatar: makeArt("lightning guitar", 204),
+    bio: "Hard rock and alternative.",
+    followers: 21000,
+    verified: true,
+  },
+  {
+    id: "fallback-artist-5",
+    name: "Blue Note Sessions",
+    handle: "@bluenote",
+    avatar: makeArt("jazz piano night", 205),
+    bio: "Live jazz and soul recordings.",
+    followers: 4300,
+    verified: false,
+  },
+  {
+    id: "fallback-artist-6",
+    name: "Cosmos Audio Lab",
+    handle: "@cosmosaudio",
+    avatar: makeArt("space telescope", 206),
+    bio: "Ambient and electronic space music.",
+    followers: 9100,
+    verified: true,
+  },
+  {
+    id: "fallback-artist-7",
+    name: "Sunrise Collective",
+    handle: "@sunrise",
+    avatar: makeArt("sunrise landscape", 207),
+    bio: "Indie and acoustic compositions.",
+    followers: 7800,
+    verified: false,
+  },
+  {
+    id: "fallback-artist-8",
+    name: "Studio 11",
+    handle: "@studio11",
+    avatar: makeArt("recording studio", 208),
+    bio: "Pop productions and grooves.",
+    followers: 16500,
+    verified: true,
+  },
+  {
+    id: "fallback-artist-9",
+    name: "Orbital Symphony",
+    handle: "@orbital",
+    avatar: makeArt("orchestra conductor", 209),
+    bio: "Classical and contemporary compositions.",
+    followers: 3200,
+    verified: false,
+  },
+  {
+    id: "fallback-artist-10",
+    name: "Phuture Collective",
+    handle: "@phuture",
+    avatar: makeArt("future bass synth", 210),
+    bio: "Future bass and electronic pop.",
+    followers: 34000,
+    verified: true,
+  },
+  {
+    id: "fallback-artist-11",
+    name: "MAAD WEST",
+    handle: "@maadwest",
+    avatar: makeArt("hip hop street art", 211),
+    bio: "West coast hip-hop and rap.",
+    followers: 27000,
+    verified: true,
+  },
+  {
+    id: "fallback-artist-12",
+    name: "Aspire Higher",
+    handle: "@aspirehigher",
+    avatar: makeArt("motivational sky", 212),
+    bio: "Chill pop and lo-fi beats.",
+    followers: 41000,
+    verified: true,
+  },
 ];

@@ -64,7 +64,9 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
               </div>
               <div>
                 <h2 className="text-xl font-bold text-foreground">Offline Hi-Fi Settings</h2>
-                <p className="text-xs text-muted-foreground">DSP engine, local storage, and audio decoder controls.</p>
+                <p className="text-xs text-muted-foreground">
+                  DSP engine, local storage, and audio decoder controls.
+                </p>
               </div>
             </div>
 
@@ -87,11 +89,14 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
                   <span className="text-xs font-bold text-foreground">Local Audio Storage</span>
                 </div>
                 <span className="font-mono text-xs font-bold text-emerald-400">
-                  {storageUsedMb >= 1000 ? `${(storageUsedMb / 1024).toFixed(2)} GB` : `${storageUsedMb} MB`}
+                  {storageUsedMb >= 1000
+                    ? `${(storageUsedMb / 1024).toFixed(2)} GB`
+                    : `${storageUsedMb} MB`}
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Indexed across {localTracks.length} local FLAC/WAV/ALAC audio files and store downloads.
+                Indexed across {localTracks.length} local FLAC/WAV/ALAC audio files and store
+                downloads.
               </p>
             </div>
 
@@ -111,7 +116,8 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
                 }
                 className={cn(
                   "rounded-full text-xs font-bold h-7 px-3",
-                  offlineSettings.gaplessPlayback && "bg-emerald-500 text-white hover:bg-emerald-600"
+                  offlineSettings.gaplessPlayback &&
+                    "bg-emerald-500 text-white hover:bg-emerald-600",
                 )}
               >
                 {offlineSettings.gaplessPlayback ? "ENABLED" : "DISABLED"}
@@ -141,7 +147,9 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
 
             {/* Buffer Size */}
             <div className="rounded-2xl border border-border/40 bg-surface-raised p-4">
-              <span className="text-xs font-bold text-foreground block mb-2">Audio Engine Buffer</span>
+              <span className="text-xs font-bold text-foreground block mb-2">
+                Audio Engine Buffer
+              </span>
               <div className="grid grid-cols-3 gap-2">
                 {(["Direct", "Fast (64kb)", "Audiophile (512kb)"] as const).map((buf) => (
                   <button
@@ -151,7 +159,7 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
                       "rounded-xl border p-2.5 text-center text-xs font-semibold transition-all",
                       offlineSettings.bufferSize === buf
                         ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-400"
-                        : "border-border/40 bg-card text-muted-foreground hover:text-foreground"
+                        : "border-border/40 bg-card text-muted-foreground hover:text-foreground",
                     )}
                   >
                     {buf}
