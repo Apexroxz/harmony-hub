@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Sparkles, LogOut, ShieldCheck, Music2, ArrowUpRight, Check } from "lucide-react";
 import { useAuth, type UserRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,11 @@ import { cn } from "@/lib/utils";
 export function UserMenu() {
   const { user, isArtist, isListener, demoLogin, logout, upgradeToArtist } = useAuth();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -22,20 +27,20 @@ export function UserMenu() {
           )}
         >
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-primary font-bold text-[10px]">
-            {user?.name ? user.name[0]?.toUpperCase() : "U"}
+            {mounted && user?.name ? user.name[0]?.toUpperCase() : "U"}
           </div>
           <span className="hidden sm:inline font-medium text-foreground">
-            {user?.name || "Guest Listener"}
+            {mounted && user?.name ? user.name : "Guest Listener"}
           </span>
           <Badge
             className={cn(
               "text-[9px] px-1.5 py-0 font-bold",
-              isArtist
+              mounted && isArtist
                 ? "bg-primary text-primary-foreground"
                 : "bg-surface-raised text-muted-foreground border border-border/60"
             )}
           >
-            {isArtist ? "ARTIST" : "LISTENER"}
+            {mounted && isArtist ? "ARTIST" : "LISTENER"}
           </Badge>
         </Button>
       </DialogTrigger>
