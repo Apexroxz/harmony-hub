@@ -79,6 +79,7 @@ function OfflineHiFiDashboard() {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
+    console.log("[OfflineImport:Input-Hero] File input onChange event received files:", files?.length, files);
     if (files && files.length > 0) {
       await importLocalFiles(files);
     }

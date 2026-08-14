@@ -346,20 +346,28 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 
   const importLocalFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
+    console.log("[OfflineImport:1/5] Browser received raw files count:", fileArray.length, fileArray);
     if (fileArray.length === 0) return;
 
     // Filter strictly for audio files (ignoring .DS_Store, artwork, directories, etc.)
     const validAudioFiles = fileArray.filter((file) => {
       if (!file || !file.name || file.name.startsWith(".")) return false;
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-      return (
+      const isAudio =
         file.type.startsWith("audio/") ||
         SUPPORTED_AUDIO_EXTENSIONS.includes(ext) ||
-        /\.(mp3|aac|m4a|ogg|opus|wav|flac|alac|aiff?)$/i.test(file.name)
-      );
+        /\.(mp3|aac|m4a|ogg|opus|wav|flac|alac|aiff?)$/i.test(file.name);
+      return isAudio;
     });
 
+    console.log(
+      "[OfflineImport:2/5] Valid audio files detected:",
+      validAudioFiles.length,
+      validAudioFiles.map((f) => ({ name: f.name, size: f.size, type: f.type }))
+    );
+
     if (validAudioFiles.length === 0) {
+      console.warn("[OfflineImport:Warn] No valid audio files found in selection.");
       toast.warning("No audio files detected in selection", {
         description: "Please select .mp3, .wav, .flac, .m4a, .aac, or .ogg audio files.",
       });
@@ -375,6 +383,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
         const format = getAudioFormatName(file.name);
         const isLossless = ["FLAC", "WAV", "AIFF", "ALAC"].includes(format);
         const objectUrl = URL.createObjectURL(file);
+        console.log(`[OfflineImport:3/5] Generated audioUrl via createObjectURL for [${file.name}]:`, objectUrl);
 
         // Extract embedded ID3 tags
         const metadata = await extractAudioMetadata(file).catch(() => ({
@@ -412,14 +421,20 @@ export function ModeProvider({ children }: { children: ReactNode }) {
           fileSizeBytes: file.size || 45000000,
         };
 
+        console.log(`[OfflineImport:4/5] Created Track Object for [${file.name}]:`, track);
         newTracks.push(track);
       } catch (err) {
-        console.warn("Failed to import single file:", file.name, err);
+        console.error("[OfflineImport:Error] Failed to import single file:", file.name, err);
       }
     }
 
     if (newTracks.length > 0) {
-      setImportedTracks((prev) => [...newTracks, ...prev]);
+      console.log(`[OfflineImport:5/5] Updating state with ${newTracks.length} new track(s). Total imported tracks will be updated.`);
+      setImportedTracks((prev) => {
+        const updated = [...newTracks, ...prev];
+        console.log("[OfflineImport:State] importedTracks state is now:", updated);
+        return updated;
+      });
       toast.success(`Imported ${newTracks.length} local master(s)`, {
         description: "Parsed ID3 tags & ready in Local Hi-Fi Library",
       });
