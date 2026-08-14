@@ -11,14 +11,46 @@ import { toast } from "sonner";
 import type { Track, AudioFormat } from "@/domain/music/types";
 import { extractAudioMetadata } from "./tagExtractor";
 import cover1 from "@/assets/covers/cover-1.jpg";
+import cover2 from "@/assets/covers/cover-2.jpg";
 import cover3 from "@/assets/covers/cover-3.jpg";
+import cover4 from "@/assets/covers/cover-4.jpg";
 import cover5 from "@/assets/covers/cover-5.jpg";
+import cover6 from "@/assets/covers/cover-6.jpg";
 
 export type AppMode = "online" | "offline";
 
 export interface LocalTrack extends Track {
   folderPath?: string;
   album?: string;
+  year?: string;
+  trackNumber?: number;
+}
+
+export interface LocalPlaylist {
+  id: string;
+  name: string;
+  trackIds: string[];
+  createdAt: string;
+}
+
+export interface LocalAlbum {
+  name: string;
+  artistName: string;
+  coverImage: string;
+  trackCount: number;
+  tracks: LocalTrack[];
+}
+
+export interface LocalArtistGroup {
+  artistName: string;
+  trackCount: number;
+  tracks: LocalTrack[];
+}
+
+export interface LocalFolderGroup {
+  folderPath: string;
+  trackCount: number;
+  tracks: LocalTrack[];
 }
 
 export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
@@ -35,9 +67,9 @@ export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
     bitrate: 1411,
     sampleRate: 44100,
     bitDepth: 16,
-    playCount: 4200,
-    likes: 310,
-    comments: 42,
+    playCount: 0,
+    likes: 0,
+    comments: 0,
     createdAt: "2026-08-01",
     uploaderId: "local-device",
     folderPath: "Music/Synthwave",
@@ -56,9 +88,9 @@ export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
     bitrate: 4608,
     sampleRate: 96000,
     bitDepth: 24,
-    playCount: 8900,
-    likes: 620,
-    comments: 88,
+    playCount: 0,
+    likes: 0,
+    comments: 0,
     createdAt: "2026-08-05",
     uploaderId: "local-device",
     folderPath: "Music/Electropop",
@@ -77,13 +109,34 @@ export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
     bitrate: 1411,
     sampleRate: 44100,
     bitDepth: 16,
-    playCount: 1500,
-    likes: 120,
-    comments: 14,
+    playCount: 0,
+    likes: 0,
+    comments: 0,
     createdAt: "2026-08-08",
     uploaderId: "local-device",
     folderPath: "Downloads/Bass",
     album: "Grid Beats",
+  },
+  {
+    id: "local-chain-reaction",
+    title: "Chain Reaction",
+    artistId: "neon-drifter",
+    artistName: "Neon Drifter",
+    coverImage: cover2,
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+    duration: 226,
+    genre: "Cyberpunk",
+    quality: "FLAC",
+    bitrate: 4608,
+    sampleRate: 96000,
+    bitDepth: 24,
+    playCount: 0,
+    likes: 0,
+    comments: 0,
+    createdAt: "2026-08-10",
+    uploaderId: "local-device",
+    folderPath: "Music/Synthwave",
+    album: "Midnight Sessions",
   },
 ];
 
@@ -94,15 +147,24 @@ interface ModeContextValue {
   toggleMode: () => void;
   setMode: (mode: AppMode) => void;
   localTracks: LocalTrack[];
+  localAlbums: LocalAlbum[];
+  localArtistGroups: LocalArtistGroup[];
+  localFolders: LocalFolderGroup[];
+  localPlaylists: LocalPlaylist[];
   importLocalFiles: (files: FileList | File[]) => Promise<void>;
   removeLocalTrack: (id: string) => void;
   updateLocalTrackMetadata: (id: string, updates: Partial<LocalTrack>) => void;
+  createPlaylist: (name: string) => void;
+  deletePlaylist: (id: string) => void;
+  addTrackToPlaylist: (playlistId: string, trackId: string) => void;
+  removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
 }
 
 const ModeContext = createContext<ModeContextValue | null>(null);
 
 const STORAGE_KEY = "layam_app_mode";
 const LOCAL_TRACKS_KEY = "layam_imported_tracks";
+const PLAYLISTS_KEY = "layam_local_playlists";
 
 export function ModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<AppMode>(() => {
@@ -125,6 +187,25 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     return [];
   });
 
+  const [localPlaylists, setLocalPlaylists] = useState<LocalPlaylist[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(PLAYLISTS_KEY);
+        if (saved) return JSON.parse(saved) as LocalPlaylist[];
+      } catch {
+        // ignore
+      }
+    }
+    return [
+      {
+        id: "playlist-favorites",
+        name: "Hi-Fi Favorites",
+        trackIds: ["local-midnight-protocol", "local-phantom-waves"],
+        createdAt: "2026-08-10",
+      },
+    ];
+  });
+
   const [sampleTracks, setSampleTracks] = useState<LocalTrack[]>(LOCAL_SAMPLE_TRACKS);
 
   useEffect(() => {
@@ -143,18 +224,35 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     }
   }, [importedTracks]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(localPlaylists));
+    } catch {
+      // ignore
+    }
+  }, [localPlaylists]);
+
   const setMode = useCallback((newMode: AppMode) => {
     setModeState(newMode);
-    toast.info(`Switched to ${newMode === "offline" ? "Offline Mode" : "Online Mode"}`, {
+    toast.info(`Switched to ${newMode === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`, {
       description:
         newMode === "offline"
-          ? "Playing local & cached music. Online features paused."
-          : "Streaming & Web3 features re-enabled.",
+          ? "Local Hi-Fi engine active. Zero network requests."
+          : "Full streaming catalog, store, and creator features active.",
     });
   }, []);
 
   const toggleMode = useCallback(() => {
-    setModeState((prev) => (prev === "online" ? "offline" : "online"));
+    setModeState((prev) => {
+      const next = prev === "online" ? "offline" : "online";
+      toast.info(`Switched to ${next === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`, {
+        description:
+          next === "offline"
+            ? "Local audiophile player active. Zero network requests."
+            : "Full streaming catalog, store, and community active.",
+      });
+      return next;
+    });
   }, []);
 
   const importLocalFiles = useCallback(async (files: FileList | File[]) => {
@@ -167,7 +265,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       const ext = file.name.split(".").pop()?.toUpperCase() ?? "MP3";
       const objectUrl = URL.createObjectURL(file);
 
-      // Extract embedded ID3 tags (Title, Artist, Album, Cover Artwork, Folder Path)
+      // Extract embedded ID3 tags
       const metadata = await extractAudioMetadata(file);
 
       const track: LocalTrack = {
@@ -178,26 +276,26 @@ export function ModeProvider({ children }: { children: ReactNode }) {
         coverImage: metadata.coverImage || cover1,
         audioUrl: objectUrl,
         duration: metadata.duration || 180,
-        genre: "Local File",
+        genre: "Local Audio",
         quality: (ext === "FLAC" || ext === "WAV" || ext === "ALAC" ? ext : "MP3") as AudioFormat,
-        bitrate: 1411,
-        sampleRate: 44100,
-        bitDepth: 16,
-        playCount: 1,
+        bitrate: ext === "FLAC" ? 1411 : ext === "WAV" ? 4608 : 320,
+        sampleRate: ext === "WAV" ? 96000 : 44100,
+        bitDepth: ext === "WAV" ? 24 : 16,
+        playCount: 0,
         likes: 0,
         comments: 0,
         createdAt: new Date().toISOString().slice(0, 10),
         uploaderId: "local-user",
-        folderPath: metadata.folderPath || "Local Tracks",
-        album: metadata.album || "Local Library",
+        folderPath: metadata.folderPath || "Imported Tracks",
+        album: metadata.album || "Local Audio",
       };
 
       newTracks.push(track);
     }
 
     setImportedTracks((prev) => [...newTracks, ...prev]);
-    toast.success(`Imported ${newTracks.length} local track(s)`, {
-      description: "Extracted ID3 metadata & added to Offline Library",
+    toast.success(`Imported ${newTracks.length} local master(s)`, {
+      description: "Parsed ID3 tags & added to Local Hi-Fi Library",
     });
   }, []);
 
@@ -213,12 +311,100 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     setSampleTracks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
     );
-    toast.success("Updated local track tags & artwork");
+    toast.success("Updated track tags & metadata");
+  }, []);
+
+  const createPlaylist = useCallback((name: string) => {
+    if (!name.trim()) return;
+    const newPl: LocalPlaylist = {
+      id: `pl-${Date.now()}`,
+      name: name.trim(),
+      trackIds: [],
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    setLocalPlaylists((prev) => [...prev, newPl]);
+    toast.success(`Created local playlist "${name}"`);
+  }, []);
+
+  const deletePlaylist = useCallback((id: string) => {
+    setLocalPlaylists((prev) => prev.filter((p) => p.id !== id));
+    toast.info("Playlist removed");
+  }, []);
+
+  const addTrackToPlaylist = useCallback((playlistId: string, trackId: string) => {
+    setLocalPlaylists((prev) =>
+      prev.map((p) => {
+        if (p.id !== playlistId) return p;
+        if (p.trackIds.includes(trackId)) return p;
+        return { ...p, trackIds: [...p.trackIds, trackId] };
+      })
+    );
+    toast.success("Added to playlist");
+  }, []);
+
+  const removeTrackFromPlaylist = useCallback((playlistId: string, trackId: string) => {
+    setLocalPlaylists((prev) =>
+      prev.map((p) => {
+        if (p.id !== playlistId) return p;
+        return { ...p, trackIds: p.trackIds.filter((id) => id !== trackId) };
+      })
+    );
+    toast.info("Removed from playlist");
   }, []);
 
   const allLocalTracks = useMemo(() => {
     return [...importedTracks, ...sampleTracks];
   }, [importedTracks, sampleTracks]);
+
+  // Derived Local Albums grouping
+  const localAlbums = useMemo<LocalAlbum[]>(() => {
+    const albumMap = new Map<string, LocalTrack[]>();
+    for (const track of allLocalTracks) {
+      const albumKey = track.album || "Unknown Album";
+      const list = albumMap.get(albumKey) ?? [];
+      list.push(track);
+      albumMap.set(albumKey, list);
+    }
+    return Array.from(albumMap.entries()).map(([name, tracks]) => ({
+      name,
+      artistName: tracks[0]?.artistName || "Local Artist",
+      coverImage: tracks[0]?.coverImage || cover1,
+      trackCount: tracks.length,
+      tracks,
+    }));
+  }, [allLocalTracks]);
+
+  // Derived Local Artists grouping
+  const localArtistGroups = useMemo<LocalArtistGroup[]>(() => {
+    const artistMap = new Map<string, LocalTrack[]>();
+    for (const track of allLocalTracks) {
+      const artistKey = track.artistName || "Local Artist";
+      const list = artistMap.get(artistKey) ?? [];
+      list.push(track);
+      artistMap.set(artistKey, list);
+    }
+    return Array.from(artistMap.entries()).map(([artistName, tracks]) => ({
+      artistName,
+      trackCount: tracks.length,
+      tracks,
+    }));
+  }, [allLocalTracks]);
+
+  // Derived Local Folders grouping
+  const localFolders = useMemo<LocalFolderGroup[]>(() => {
+    const folderMap = new Map<string, LocalTrack[]>();
+    for (const track of allLocalTracks) {
+      const folderKey = track.folderPath || "Unsorted";
+      const list = folderMap.get(folderKey) ?? [];
+      list.push(track);
+      folderMap.set(folderKey, list);
+    }
+    return Array.from(folderMap.entries()).map(([folderPath, tracks]) => ({
+      folderPath,
+      trackCount: tracks.length,
+      tracks,
+    }));
+  }, [allLocalTracks]);
 
   const value = useMemo<ModeContextValue>(
     () => ({
@@ -228,11 +414,35 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       toggleMode,
       setMode,
       localTracks: allLocalTracks,
+      localAlbums,
+      localArtistGroups,
+      localFolders,
+      localPlaylists,
       importLocalFiles,
       removeLocalTrack,
       updateLocalTrackMetadata,
+      createPlaylist,
+      deletePlaylist,
+      addTrackToPlaylist,
+      removeTrackFromPlaylist,
     }),
-    [mode, toggleMode, setMode, allLocalTracks, importLocalFiles, removeLocalTrack, updateLocalTrackMetadata]
+    [
+      mode,
+      toggleMode,
+      setMode,
+      allLocalTracks,
+      localAlbums,
+      localArtistGroups,
+      localFolders,
+      localPlaylists,
+      importLocalFiles,
+      removeLocalTrack,
+      updateLocalTrackMetadata,
+      createPlaylist,
+      deletePlaylist,
+      addTrackToPlaylist,
+      removeTrackFromPlaylist,
+    ]
   );
 
   return <ModeContext.Provider value={value}>{children}</ModeContext.Provider>;

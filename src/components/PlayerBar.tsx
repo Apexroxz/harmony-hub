@@ -13,12 +13,17 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
+  Sliders,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlayer, PLAYBACK_RATES } from "@/lib/player";
 import { formatDuration } from "@/domain/music/types";
+import { AudioConsoleModal } from "./AudioConsoleModal";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 import { Waveform } from "@/components/Waveform";
 import { ArtistName } from "@/components/ArtistAvatar";
 import { cn } from "@/lib/utils";
@@ -37,6 +42,7 @@ export function PlayerBar() {
     queue,
     queueIndex,
     playbackRate,
+    eqEnabled,
     togglePlay,
     playNext,
     playPrevious,
@@ -50,6 +56,7 @@ export function PlayerBar() {
 
   const [queueOpen, setQueueOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
 
   if (!currentTrack) return null;
 
@@ -67,7 +74,7 @@ export function PlayerBar() {
             <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
               <div className="flex items-center gap-2">
                 <ListMusic className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold">Queue</span>
+                <span className="text-sm font-semibold">Master Queue</span>
                 <span className="text-xs text-muted-foreground">{queue.length}</span>
               </div>
               <div className="flex items-center gap-1">
@@ -118,25 +125,27 @@ export function PlayerBar() {
                         <span
                           className={cn(
                             "block truncate text-sm font-medium",
-                            i === queueIndex ? "text-primary" : "text-foreground"
+                            i === queueIndex ? "text-primary font-semibold" : "text-foreground"
                           )}
                         >
                           {track.title}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {track.artistName}
+                          {track.artistName} · <span className="font-mono text-[10px]">{track.quality}</span>
                         </span>
                       </span>
                     </button>
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      {formatDuration(track.duration)}
-                    </span>
+                    {i === queueIndex && (
+                      <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
+                        Playing
+                      </span>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={`Remove ${track.title} from queue`}
+                      aria-label="Remove from queue"
                       onClick={() => removeFromQueue(i)}
-                      className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                      className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <X className="h-3.5 w-3.5" />
                     </Button>
@@ -148,60 +157,27 @@ export function PlayerBar() {
         )}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ y: 96, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 260, damping: 28 }}
-        className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-glass-strong"
-      >
-        {/* Progress bar */}
-        <div
-          className="group relative h-1 w-full cursor-pointer bg-muted/30"
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            seek(((e.clientX - rect.left) / rect.width) * 100);
-          }}
-        >
-          <div
-            className="h-full bg-primary/15"
-            style={{ width: `${Math.min(progress + 15, 100)}%` }}
-          />
-          <div
-            className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary to-accent"
-            style={{ width: `${progress}%` }}
-          />
-          <div
-            className="absolute top-1/2 h-3 w-3 rounded-full bg-primary opacity-0 shadow-[0_0_12px_var(--color-glow)] transition-opacity group-hover:opacity-100"
-            style={{ left: `${progress}%`, transform: "translate(-50%, -50%)" }}
-          />
-        </div>
-
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3 lg:px-8">
-          {/* Track info */}
-          <div className="flex min-w-0 flex-1 items-center gap-3 md:w-[26%] md:flex-none">
-            <motion.div
-              key={currentTrack.id}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="relative"
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/40 bg-glass-strong backdrop-blur-xl">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
+          {/* Track Info & Hi-Fi Identity */}
+          <div className="flex min-w-0 items-center gap-3 md:w-[26%]">
+            <Link
+              to="/track/$id"
+              params={{ id: currentTrack.id }}
+              className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-surface-raised shadow-md group"
             >
               <img
                 src={currentTrack.coverImage}
-                alt={`${currentTrack.title} album art`}
-                width={48}
-                height={48}
-                className="h-11 w-11 rounded-lg object-cover shadow-lg sm:h-12 sm:w-12"
+                alt={currentTrack.title}
+                className="h-full w-full object-cover group-hover:scale-105 transition-transform"
               />
-              {isPlaying && (
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_8px_var(--color-glow)]" />
-              )}
-            </motion.div>
-            <div className="min-w-0">
+            </Link>
+
+            <div className="min-w-0 flex-1">
               <Link
                 to="/track/$id"
                 params={{ id: currentTrack.id }}
-                className="block truncate text-sm font-semibold text-foreground hover:text-primary"
+                className="block truncate text-sm font-bold text-foreground hover:text-primary transition-colors"
               >
                 {currentTrack.title}
               </Link>
@@ -209,24 +185,34 @@ export function PlayerBar() {
                 <ArtistName
                   artistId={currentTrack.artistId}
                   name={currentTrack.artistName}
-                  className="text-xs font-normal text-muted-foreground"
+                  className="text-xs font-normal text-muted-foreground truncate"
                 />
+
+                {/* Audiophile Quality Tag */}
+                <Badge
+                  variant="outline"
+                  className="border-primary/40 bg-primary/10 text-primary text-[9px] font-mono font-bold px-1 py-0"
+                >
+                  {currentTrack.quality}
+                  {currentTrack.bitDepth ? ` ${currentTrack.bitDepth}-bit` : ""}
+                </Badge>
+
                 {status === "buffering" && (
                   <span className="text-[10px] text-amber animate-pulse font-bold">· Buffering</span>
                 )}
                 {status === "loading" && (
-                  <span className="text-[10px] text-primary animate-pulse font-bold">· Loading</span>
+                  <span className="text-[10px] text-primary animate-pulse font-bold">· Loading Master</span>
                 )}
                 {status === "error" && (
                   <span className="text-[10px] text-destructive font-bold flex items-center gap-0.5">
-                    <AlertCircle className="h-2.5 w-2.5" /> Error
+                    <AlertCircle className="h-2.5 w-2.5" /> Retry
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Controls */}
+          {/* Center Playback Controls & Waveform */}
           <div className="flex flex-none items-center gap-1 sm:gap-2 md:flex-1 md:flex-col md:gap-1.5">
             <div className="flex items-center gap-1 sm:gap-3">
               <Button
@@ -299,8 +285,26 @@ export function PlayerBar() {
             </div>
           </div>
 
-          {/* Right controls */}
+          {/* Right Console Shortcuts & Volume */}
           <div className="flex flex-none items-center justify-end gap-1 md:w-[26%] md:gap-2">
+            {/* Audio Console Shortcut */}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Open Audio Console"
+              onClick={() => setConsoleOpen(true)}
+              className={cn(
+                "h-8 w-8 transition-colors",
+                eqEnabled
+                  ? "text-primary bg-primary/10 shadow-[0_0_10px_var(--color-glow-soft)]"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="10-Band EQ & DSP Audio Console"
+            >
+              <Sliders className="h-4 w-4" />
+            </Button>
+
+            {/* Playback Speed */}
             <div className="relative">
               <Button
                 variant="ghost"
@@ -314,6 +318,7 @@ export function PlayerBar() {
                   "h-8 w-8 text-muted-foreground hover:text-foreground",
                   playbackRate !== 1 && "text-primary"
                 )}
+                title="Playback Speed"
               >
                 <Gauge className="h-4 w-4" />
               </Button>
@@ -346,6 +351,7 @@ export function PlayerBar() {
               </AnimatePresence>
             </div>
 
+            {/* Queue Toggle */}
             <Button
               variant="ghost"
               size="icon"
@@ -358,6 +364,7 @@ export function PlayerBar() {
                 "relative h-8 w-8 text-muted-foreground hover:text-foreground",
                 queueOpen && "text-primary"
               )}
+              title="Queue Drawer"
             >
               <ListMusic className="h-4 w-4" />
               {queue.length > 1 && (
@@ -367,6 +374,7 @@ export function PlayerBar() {
               )}
             </Button>
 
+            {/* Volume Control */}
             <div className="hidden items-center gap-2 sm:flex">
               <Button
                 variant="ghost"
@@ -381,21 +389,21 @@ export function PlayerBar() {
                   <Volume2 className="h-4 w-4" />
                 )}
               </Button>
-              <Slider
-                value={[volume * 100]}
-                max={100}
-                step={1}
-                aria-label="Volume"
-                onValueChange={(v) => {
-                  const value = v[0];
-                  if (typeof value === "number") setVolume(value / 100);
-                }}
-                className="w-20 lg:w-24"
-              />
+              <div className="w-20 lg:w-24">
+                <Slider
+                  value={[volume * 100]}
+                  max={100}
+                  step={1}
+                  onValueChange={([val]) => setVolume(val / 100)}
+                />
+              </div>
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Audio Console Modal */}
+      <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
     </>
   );
 }

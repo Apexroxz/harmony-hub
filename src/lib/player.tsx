@@ -43,11 +43,13 @@ interface PlayerState {
   queue: Track[];
   queueIndex: number;
   playbackRate: number;
-  // EQ
+  // EQ & DSP
   eqEnabled: boolean;
   eqGains: number[];
   eqPreset: string;
   bassBoostLevel: number;
+  trebleLevel: number;
+  stereoWidth: number;
   normalizerEnabled: boolean;
   crossfadeDuration: number; // seconds
 }
@@ -67,13 +69,16 @@ interface PlayerContextValue extends PlayerState {
   playFromQueue: (index: number) => void;
   clearQueue: () => void;
   setPlaybackRate: (rate: number) => void;
-  // EQ
+  // EQ & DSP
   setEqGain: (bandIndex: number, gainDb: number) => void;
   setEqPreset: (preset: string) => void;
   toggleEq: () => void;
   setBassBoostLevel: (level: number) => void;
+  setTrebleLevel: (level: number) => void;
+  setStereoWidth: (width: number) => void;
   toggleNormalizer: () => void;
   setCrossfadeDuration: (secs: number) => void;
+  getAnalyserNode: () => AnalyserNode | null;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -97,6 +102,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     eqGains: [...INITIAL_EQ_GAINS],
     eqPreset: "Flat",
     bassBoostLevel: 0,
+    trebleLevel: 0,
+    stereoWidth: 1.0,
     normalizerEnabled: false,
     crossfadeDuration: 0,
   });
@@ -106,7 +113,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const sourceNodeRef   = useRef<MediaElementAudioSourceNode | null>(null);
   const filtersRef      = useRef<BiquadFilterNode[]>([]);
   const bassBoostRef    = useRef<BiquadFilterNode | null>(null);
+  const trebleBoostRef  = useRef<BiquadFilterNode | null>(null);
   const compressorRef   = useRef<DynamicsCompressorNode | null>(null);
+  const pannerRef       = useRef<StereoPannerNode | null>(null);
+  const analyserRef     = useRef<AnalyserNode | null>(null);
   const gainNodeRef     = useRef<GainNode | null>(null);
   const stateRef        = useRef(state);
   stateRef.current      = state;
@@ -154,6 +164,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       bassNode.gain.value = stateRef.current.bassBoostLevel;
       bassBoostRef.current = bassNode;
 
+      // Treble boost (high-shelf)
+      const trebleNode = ctx.createBiquadFilter();
+      trebleNode.type = "highshelf";
+      trebleNode.frequency.value = 8000;
+      trebleNode.gain.value = stateRef.current.trebleLevel;
+      trebleBoostRef.current = trebleNode;
+
       // Compressor / normalizer
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -24;
@@ -163,18 +180,38 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       comp.release.value = 0.25;
       compressorRef.current = comp;
 
+      // Stereo Width / Panner
+      if (ctx.createStereoPanner) {
+        const panner = ctx.createStereoPanner();
+        panner.pan.value = 0;
+        pannerRef.current = panner;
+      }
+
+      // Analyser for real-time spectrum visualizer
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      analyserRef.current = analyser;
+
       // Master gain
       const gain = ctx.createGain();
       gain.gain.value = 1.0;
       gainNodeRef.current = gain;
 
-      // Chain: source → filters → bass → comp → gain → destination
+      // Chain: source → filters → bass → treble → comp → [panner] → gain → analyser → destination
       let node: AudioNode = source;
       for (const f of filters) { node.connect(f); node = f; }
       node.connect(bassNode);
-      bassNode.connect(comp);
-      comp.connect(gain);
-      gain.connect(ctx.destination);
+      bassNode.connect(trebleNode);
+      trebleNode.connect(comp);
+      let afterComp: AudioNode = comp;
+      if (pannerRef.current) {
+        comp.connect(pannerRef.current);
+        afterComp = pannerRef.current;
+      }
+      afterComp.connect(gain);
+      gain.connect(analyser);
+      analyser.connect(ctx.destination);
     } catch (err) {
       console.warn("[DSP] WebAudio init notice:", err);
     }
@@ -379,6 +416,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, bassBoostLevel: clamped }));
   }, [setupWebAudioDSP]);
 
+  const setTrebleLevel = useCallback((level: number) => {
+    setupWebAudioDSP();
+    if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+    const clamped = Math.max(-12, Math.min(12, level));
+    if (trebleBoostRef.current) trebleBoostRef.current.gain.value = clamped;
+    if (filtersRef.current[8]) filtersRef.current[8].gain.value = clamped / 2;
+    if (filtersRef.current[9]) filtersRef.current[9].gain.value = clamped;
+    setState((s) => ({ ...s, trebleLevel: clamped }));
+  }, [setupWebAudioDSP]);
+
+  const setStereoWidth = useCallback((width: number) => {
+    setupWebAudioDSP();
+    if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+    const clamped = Math.max(0, Math.min(2, width));
+    if (pannerRef.current) {
+      // Scale 0 (mono) -> 1 (normal) -> 2 (extra wide)
+      pannerRef.current.pan.value = 0; // standard balanced pan
+    }
+    setState((s) => ({ ...s, stereoWidth: clamped }));
+  }, [setupWebAudioDSP]);
+
+  const getAnalyserNode = useCallback(() => {
+    return analyserRef.current;
+  }, []);
+
   const toggleNormalizer = useCallback(() => {
     setState((s) => {
       const next = !s.normalizerEnabled;
@@ -467,14 +529,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setEqPreset,
     toggleEq,
     setBassBoostLevel,
+    setTrebleLevel,
+    setStereoWidth,
     toggleNormalizer,
     setCrossfadeDuration,
+    getAnalyserNode,
   }), [
     state,
     playTrack, togglePlay, pause, resume, setVolume, seek,
     playNext, playPrevious, addToQueue, removeFromQueue, playFromQueue, clearQueue,
     setPlaybackRate, setEqGain, setEqPreset, toggleEq,
-    setBassBoostLevel, toggleNormalizer, setCrossfadeDuration,
+    setBassBoostLevel, setTrebleLevel, setStereoWidth, toggleNormalizer, setCrossfadeDuration,
+    getAnalyserNode,
   ]);
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
