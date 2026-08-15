@@ -46,6 +46,7 @@ export function PlayerBar() {
     playFromQueue,
     removeFromQueue,
     clearQueue,
+    isExpanded = false,
     expandPlayer,
     toggleConsole,
   } = usePlayer();
