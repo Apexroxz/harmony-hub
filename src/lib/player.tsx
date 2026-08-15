@@ -12,6 +12,7 @@ import type { Track } from "@/domain/music/types";
 import { getAudioBlobUrl } from "./indexedDbAudio";
 import { FALLBACK_TRACKS } from "@/domain/music/fallback";
 import { getGuaranteedAudioUrl } from "./synthAudio";
+import { recordPlay } from "./plays.functions";
 
 // ─── EQ constants ────────────────────────────────────────────────────────────
 export const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -162,6 +163,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const loadSeqRef = useRef<number>(0);
+  const recordedPlayTrackIdRef = useRef<string | null>(null);
 
   // ── Audio element singleton (Guaranteed Single Master Player across App) ──────
   const ensureAudio = useCallback(() => {
@@ -312,6 +314,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       // Immediately increment sequence & halt any playing audio
       const seq = ++loadSeqRef.current;
+      recordedPlayTrackIdRef.current = null;
       try {
         audio.pause();
         audio.currentTime = 0;
@@ -688,6 +691,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         currentTime: audio.currentTime,
         duration: duration || s.duration,
       }));
+
+      // Trigger verified play recording after 10s of real continuous playback
+      if (
+        audio.currentTime >= 10 &&
+        stateRef.current.currentTrack &&
+        recordedPlayTrackIdRef.current !== stateRef.current.currentTrack.id
+      ) {
+        const trackId = stateRef.current.currentTrack.id;
+        // Skip local offline and synthetic preview IDs
+        if (
+          !trackId.startsWith("local-") &&
+          !trackId.startsWith("audius-") &&
+          !trackId.startsWith("jamendo-") &&
+          !trackId.startsWith("apple-")
+        ) {
+          recordedPlayTrackIdRef.current = trackId;
+          void recordPlay({
+            data: {
+              trackId,
+              durationSec: Math.round(audio.currentTime),
+            },
+          }).catch((err) => {
+            console.warn("[Player] Stream accounting notification:", err);
+          });
+        }
+      }
     };
 
     const onEnded = () => {

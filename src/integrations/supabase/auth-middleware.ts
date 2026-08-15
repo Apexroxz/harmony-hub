@@ -94,12 +94,48 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
       throw new Error("Unauthorized: No user ID found in token");
     }
 
+    const rawRole =
+      (data.claims as Record<string, any>)?.user_metadata?.role ??
+      (data.claims as Record<string, any>)?.app_metadata?.role ??
+      (data.claims as Record<string, any>)?.role ??
+      "listener";
+
     return next({
       context: {
         supabase,
         userId: data.claims.sub,
         claims: data.claims,
+        role: rawRole,
       },
     });
   },
 );
+
+/**
+ * Server middleware to enforce specific role authorizations.
+ */
+export function requireRoleAuth(allowedRoles: string[]) {
+  return createMiddleware({ type: "function" })
+    .middleware([requireSupabaseAuth])
+    .server(async ({ next, context }) => {
+      const userRole = String((context as any).role || "listener").toLowerCase();
+      const normalizedAllowed = allowedRoles.map((r) => r.toLowerCase());
+
+      const isAllowed =
+        normalizedAllowed.includes(userRole) ||
+        (userRole === "super_admin" || userRole === "developer") ||
+        (normalizedAllowed.includes("creator") && userRole === "artist");
+
+      if (!isAllowed) {
+        throw new Error(
+          `Forbidden: Insufficient privileges. Required one of: [${allowedRoles.join(", ")}], have: '${userRole}'`,
+        );
+      }
+
+      return next();
+    });
+}
+
+export const requireCreatorAuth = requireRoleAuth(["creator", "artist", "admin", "super_admin"]);
+export const requireAdminAuth = requireRoleAuth(["admin", "super_admin"]);
+

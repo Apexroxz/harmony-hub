@@ -9,8 +9,17 @@ import {
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  type UserRole,
+  type Permission,
+  normalizeRole,
+  hasPermission,
+  isCreatorRole,
+  isAdminRole,
+  isSuperAdminRole,
+} from "@/lib/permissions";
 
-export type UserRole = "listener" | "artist" | "developer";
+export type { UserRole, Permission };
 
 export interface AuthUser {
   id: string;
@@ -25,8 +34,12 @@ interface AuthContextValue {
   loading: boolean;
   role: UserRole;
   isArtist: boolean;
+  isCreator: boolean;
   isListener: boolean;
   isDeveloper: boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  can: (permission: Permission) => boolean;
   setRole: (role: UserRole) => void;
   loginWithGoogle: (role: UserRole) => Promise<void>;
   loginWithFacebook: (role: UserRole) => Promise<void>;
@@ -47,7 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? (JSON.parse(stored) as AuthUser) : null;
+      if (!stored) return null;
+      const parsed = JSON.parse(stored) as AuthUser;
+      // Sanitize stored role - ensure invalid roles fallback to listener
+      return {
+        ...parsed,
+        role: parsed.role ? (normalizeRole(parsed.role) as UserRole) : "listener",
+      };
     } catch {
       return null;
     }
@@ -55,17 +74,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Sync Supabase real session on mount
   useEffect(() => {
-    // Get initial session
     supabase.auth
       .getSession()
       .then(({ data }) => {
         if (data.session?.user) {
           const su = data.session.user;
+          const rawRole = (su.user_metadata?.["role"] as string | undefined) ?? "listener";
           setUser({
             id: su.id,
             name: su.user_metadata?.["full_name"] ?? su.email?.split("@")[0] ?? "User",
             email: su.email ?? "",
-            role: (su.user_metadata?.["role"] as UserRole) ?? "listener",
+            role: normalizeRole(rawRole),
             avatarUrl: su.user_metadata?.["avatar_url"] as string | undefined,
           });
         }
@@ -78,11 +97,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const su = session.user;
+        const rawRole = (su.user_metadata?.["role"] as string | undefined) ?? "listener";
         const authUser: AuthUser = {
           id: su.id,
           name: su.user_metadata?.["full_name"] ?? su.email?.split("@")[0] ?? "User",
           email: su.email ?? "",
-          role: (su.user_metadata?.["role"] as UserRole) ?? "listener",
+          role: normalizeRole(rawRole),
           avatarUrl: su.user_metadata?.["avatar_url"] as string | undefined,
         };
         setUser(authUser);
@@ -106,12 +126,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const loginAsGuest = useCallback((role: UserRole = "listener") => {
+  const loginAsGuest = useCallback((roleInput: UserRole = "listener") => {
+    // In production, guests cannot self-assign admin roles
+    const safeRole: UserRole =
+      import.meta.env.DEV
+        ? roleInput
+        : roleInput === "admin" || roleInput === "super_admin" || (roleInput as string) === "developer"
+        ? "listener"
+        : roleInput;
+
     const guestUser: AuthUser = {
       id: "guest",
       name: "Guest User",
       email: "guest@layam.app",
-      role,
+      role: safeRole,
     };
     setUser(guestUser);
   }, []);
@@ -123,14 +151,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           provider: "google",
           options: {
             redirectTo: window.location.origin,
-            queryParams: { role },
+            queryParams: { role: normalizeRole(role) },
           },
         });
         if (error) throw error;
       } catch (err: unknown) {
         console.warn("Google OAuth notice:", err);
         toast.info("OAuth Notice", {
-          description: "OAuth unconfigured. Logging in as Guest.",
+          description: "OAuth unconfigured in environment. Logging in as Guest.",
         });
         loginAsGuest(role);
       }
@@ -145,14 +173,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           provider: "facebook",
           options: {
             redirectTo: window.location.origin,
-            queryParams: { role },
+            queryParams: { role: normalizeRole(role) },
           },
         });
         if (error) throw error;
       } catch (err: unknown) {
         console.warn("Facebook OAuth notice:", err);
         toast.info("OAuth Notice", {
-          description: "OAuth unconfigured. Logging in as Guest.",
+          description: "OAuth unconfigured in environment. Logging in as Guest.",
         });
         loginAsGuest(role);
       }
@@ -161,12 +189,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signUpWithEmail = useCallback(
-    async (email: string, pass: string, role: UserRole, name?: string) => {
+    async (email: string, pass: string, roleInput: UserRole, name?: string) => {
+      // Protect against privilege escalation during registration
+      const safeRole: UserRole =
+        roleInput === "admin" || roleInput === "super_admin" || (roleInput as string) === "developer"
+          ? "listener"
+          : roleInput;
+
       try {
         const { data, error } = await supabase.auth.signUp({
           email,
           password: pass,
-          options: { data: { full_name: name ?? email.split("@")[0], role } },
+          options: { data: { full_name: name ?? email.split("@")[0], role: safeRole } },
         });
         if (error) throw error;
         if (data.user) {
@@ -174,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: data.user.id,
             name: name ?? email.split("@")[0] ?? "User",
             email,
-            role,
+            role: safeRole,
           };
           setUser(authUser);
           toast.success("Account created! Welcome to Layam.");
@@ -194,11 +228,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       if (data.user) {
         const su = data.user;
+        const rawRole = (su.user_metadata?.["role"] as string | undefined) ?? "listener";
         const authUser: AuthUser = {
           id: su.id,
           name: su.user_metadata?.["full_name"] ?? su.email?.split("@")[0] ?? "User",
           email: su.email ?? email,
-          role: (su.user_metadata?.["role"] as UserRole) ?? "listener",
+          role: normalizeRole(rawRole),
           avatarUrl: su.user_metadata?.["avatar_url"] as string | undefined,
         };
         setUser(authUser);
@@ -211,32 +246,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const demoLogin = useCallback((role: UserRole) => {
+  /**
+   * Demo login for prototyping - isolated in development or controlled testing environments.
+   */
+  const demoLogin = useCallback((roleInput: UserRole) => {
+    const isDev = import.meta.env.DEV;
+    const isPrivileged =
+      roleInput === "admin" || roleInput === "super_admin" || (roleInput as string) === "developer";
+
+    if (!isDev && isPrivileged) {
+      toast.error("Privileged role escalation blocked outside development mode.");
+      return;
+    }
+
+    const normalized = normalizeRole(roleInput);
     const demoUser: AuthUser = {
-      id: `demo-${role}`,
-      name: role === "developer" ? "Master Developer" : role === "artist" ? "Demo Artist" : "Demo Listener",
-      email: `demo-${role}@layam.app`,
-      role,
+      id: `demo-${normalized}`,
+      name:
+        normalized === "super_admin"
+          ? "Master Developer (Dev Simulation)"
+          : normalized === "admin"
+          ? "Platform Admin"
+          : normalized === "creator"
+          ? "Demo Creator"
+          : "Demo Listener",
+      email: `demo-${normalized}@layam.app`,
+      role: roleInput,
     };
     setUser(demoUser);
-    toast.success(`Role switched to ${role === "developer" ? "Master Developer" : role === "artist" ? "Artist Creator" : "Listener"}.`);
+    toast.success(`Active Persona: ${demoUser.name}`);
   }, []);
 
+  /**
+   * Safe role switcher for UI previewing.
+   * Prevents granting real administrative permissions outside dev environments.
+   */
   const setRole = useCallback((newRole: UserRole) => {
+    const isDev = import.meta.env.DEV;
+    const isPrivileged =
+      newRole === "admin" || newRole === "super_admin" || (newRole as string) === "developer";
+
+    if (!isDev && isPrivileged) {
+      toast.error("Administrative roles cannot be assigned client-side.");
+      return;
+    }
+
     setUser((prev) => {
       const base: AuthUser = prev || {
-        id: "owner-dev",
-        name: "Master Developer",
-        email: "developer@layam.app",
+        id: "demo-user",
+        name: "Layam User",
+        email: "user@layam.app",
         role: newRole,
       };
       return {
         ...base,
         role: newRole,
-        name: newRole === "developer" ? "Master Developer" : newRole === "artist" ? "Artist Creator" : "Audiophile Listener",
+        name:
+          newRole === "developer" || newRole === "super_admin"
+            ? "Master Developer (Dev Mode)"
+            : newRole === "admin"
+            ? "Platform Admin"
+            : newRole === "artist" || newRole === "creator"
+            ? "Artist Creator"
+            : "Audiophile Listener",
       };
     });
-    toast.success(`Access Mode: ${newRole === "developer" ? "👑 Master Owner / Developer (Full Access)" : newRole === "artist" ? "🎨 Artist Creator" : "🎧 Listener"}`);
+    toast.success(
+      `Access Mode: ${
+        newRole === "developer" || newRole === "super_admin"
+          ? "👑 Master Developer (Dev Simulation)"
+          : newRole === "artist" || newRole === "creator"
+          ? "🎨 Artist Creator"
+          : "🎧 Listener"
+      }`,
+    );
   }, []);
 
   const logout = useCallback(async () => {
@@ -250,27 +333,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!prev) return prev;
       const updated: AuthUser = {
         ...prev,
-        role: "artist",
+        role: "creator",
         name: prev.name.includes("Listener") ? "Artist Creator" : prev.name,
       };
       return updated;
     });
 
     try {
-      await supabase.auth.updateUser({ data: { role: "artist" } });
+      await supabase.auth.updateUser({ data: { role: "creator" } });
     } catch {
       // ignore
     }
 
     toast.success("Account Upgraded to Artist Creator!", {
-      description: "Song Uploads and Artist Portal Analytics unlocked.",
+      description: "Lossless Master Ingestion and Studio Analytics unlocked.",
     });
   }, []);
 
-  const isDeveloper = user?.role === "developer";
-  const isArtist = user?.role === "artist" || user?.role === "developer";
-  const isListener = user?.role === "listener";
-  const role: UserRole = user?.role ?? "developer";
+  // Standardized RBAC checks
+  const role: UserRole = user?.role ?? "listener";
+  const isListener = role === "listener";
+  const isArtist = isCreatorRole(role);
+  const isCreator = isCreatorRole(role);
+  const isAdmin = isAdminRole(role);
+  const isSuperAdmin = isSuperAdminRole(role);
+  const isDeveloper = isSuperAdminRole(role) || (role as string) === "developer";
+
+  const can = useCallback(
+    (permission: Permission) => {
+      return hasPermission(role, permission);
+    },
+    [role],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -278,8 +372,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       role,
       isArtist,
+      isCreator,
       isListener,
       isDeveloper,
+      isAdmin,
+      isSuperAdmin,
+      can,
       setRole,
       loginWithGoogle,
       loginWithFacebook,
@@ -295,8 +393,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       role,
       isArtist,
+      isCreator,
       isListener,
       isDeveloper,
+      isAdmin,
+      isSuperAdmin,
+      can,
       setRole,
       loginWithGoogle,
       loginWithFacebook,
@@ -319,3 +421,4 @@ export function useAuth(): AuthContextValue {
   }
   return ctx;
 }
+
