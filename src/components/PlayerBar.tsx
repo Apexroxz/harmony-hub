@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Play,
@@ -8,34 +8,40 @@ import {
   Volume2,
   VolumeX,
   ListMusic,
-  Maximize2,
-  Sliders,
+  Gauge,
   X,
   Trash2,
   Loader2,
   AlertCircle,
+  Sliders,
+  Sparkles,
+  Maximize2,
+  Disc3,
 } from "lucide-react";
-import { usePlayer } from "@/lib/player";
+import { usePlayer, PLAYBACK_RATES } from "@/lib/player";
 import { formatDuration } from "@/domain/music/types";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 import { Waveform } from "@/components/Waveform";
 import { useAppMode } from "@/lib/mode";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 export function PlayerBar() {
   const {
     currentTrack,
-    status = "idle",
-    isPlaying = false,
-    progress = 0,
-    volume = 0.8,
-    currentTime = 0,
-    duration = 180,
-    queue = [],
-    queueIndex = 0,
-    eqEnabled = false,
+    status,
+    errorMessage,
+    isPlaying,
+    isLoading,
+    progress,
+    volume,
+    currentTime,
+    duration,
+    queue,
+    queueIndex,
+    playbackRate,
+    eqEnabled,
     togglePlay,
     playNext,
     playPrevious,
@@ -44,242 +50,168 @@ export function PlayerBar() {
     playFromQueue,
     removeFromQueue,
     clearQueue,
-    isExpanded = false,
+    setPlaybackRate,
+    isExpanded,
     expandPlayer,
+    openConsole,
     toggleConsole,
   } = usePlayer();
 
-  useEffect(() => {
-    console.log("[Layam Hi-Fi] PlayerBar mounted & active", {
-      currentTrackTitle: currentTrack?.title,
-      isPlaying,
-      isExpanded,
-    });
-  }, [currentTrack, isPlaying, isExpanded]);
-
-  const { isOffline, importLocalFiles } = useAppMode();
+  const { isOffline } = useAppMode();
   const [queueOpen, setQueueOpen] = useState(false);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [speedOpen, setSpeedOpen] = useState(false);
 
-  // Drag and Drop handlers for Player
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingOver(true);
-  }, []);
+  // If no track is loaded, display sleek hardware standby chassis
+  if (!currentTrack) {
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#08090B]/95 backdrop-blur-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.9)]">
+        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0D0E12] border border-[#D99A2B]/30 text-[#D99A2B] shadow-inner">
+              <Disc3 className="h-6 w-6 opacity-60" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-[#f2f3f5]">
+                Layam Audiophile Player
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="font-mono text-[10px] text-[#D99A2B] font-semibold uppercase">
+                  64-BIT FLOAT PCM DIRECT
+                </span>
+                <span className="text-[10px] text-[#9ba1ad]">· Select or drop audio file</span>
+              </div>
+            </div>
+          </div>
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingOver(false);
-  }, []);
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleConsole}
+              className="h-8 rounded-lg border border-white/[0.08] bg-[#0D0E12] px-3 text-xs font-mono font-medium text-[#9ba1ad] hover:text-[#f2f3f5] hover:border-[#D99A2B]/40"
+            >
+              <Sliders className="h-3.5 w-3.5 mr-1.5 text-[#D99A2B]" />
+              Audio Console
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDraggingOver(false);
-
-      const files = e.dataTransfer?.files;
-      if (files && files.length > 0) {
-        toast.info(`Importing ${files.length} master track(s)...`);
-        await importLocalFiles?.(files);
-      }
-    },
-    [importLocalFiles],
-  );
-
-  const handleFileInputChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (files && files.length > 0) {
-        toast.info(`Importing ${files.length} master track(s)...`);
-        await importLocalFiles?.(files);
-      }
-      e.target.value = "";
-    },
-    [importLocalFiles],
-  );
-
-  // Never render in fullscreen mode (mutually exclusive)
-  if (isExpanded) return null;
-
-  // Defensive field extraction with safe fallbacks (supporting both active and resting/standby states)
-  const hasActiveTrack = Boolean(currentTrack);
-  const trackTitle = currentTrack?.title || (queue.length > 0 ? "Ready to Play" : "No Master Selected");
-  const artistName =
-    currentTrack?.artistName ||
-    (currentTrack as any)?.artist ||
-    (queue.length > 0 ? `${queue.length} track(s) in queue` : "Select a track or drop audio files");
-  const albumName = currentTrack?.albumName || (currentTrack as any)?.album || "";
-  const coverImage = currentTrack?.coverImage || "/logo.png";
-  const formatLabel = currentTrack?.quality || (currentTrack as any)?.format || "FLAC";
-  const rawSampleRate = currentTrack?.sampleRate;
-  const sampleRateLabel = rawSampleRate
-    ? Number(rawSampleRate) >= 1000
-      ? `${(Number(rawSampleRate) / 1000).toFixed(1)} kHz`
-      : `${rawSampleRate} Hz`
+  const formatLabel = currentTrack.format || currentTrack.quality || "FLAC";
+  const sampleRateKhz = currentTrack.sampleRate
+    ? currentTrack.sampleRate >= 1000
+      ? `${(currentTrack.sampleRate / 1000).toFixed(1)} kHz`
+      : `${currentTrack.sampleRate} Hz`
     : "96.0 kHz";
-  const bitDepthLabel = currentTrack?.bitDepth ? `${currentTrack.bitDepth}-BIT` : "24-BIT";
-  const trackDuration =
-    typeof duration === "number" && !isNaN(duration) && duration > 0 ? duration : currentTrack?.duration || 180;
-  const trackCurrentTime = typeof currentTime === "number" && !isNaN(currentTime) ? currentTime : 0;
-  const trackProgress = typeof progress === "number" && !isNaN(progress) ? progress : 0;
-
-  const handlePlayClick = () => {
-    if (hasActiveTrack) {
-      togglePlay();
-    } else if (queue.length > 0) {
-      playFromQueue(0);
-    } else {
-      fileInputRef.current?.click();
-    }
-  };
 
   return (
     <>
-      {/* Hidden File Input for Layam Logo Add Master Button */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="audio/*,.flac,.wav,.mp3,.alac,.aac,.m4a,.ogg"
-        onChange={handleFileInputChange}
-        className="hidden"
-      />
-
-      {/* ── Slide-up Master Queue Popover Drawer ── */}
+      {/* ── Queue Popover Drawer ── */}
       <AnimatePresence>
         {queueOpen && (
           <motion.aside
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            style={{
-              position: "fixed",
-              bottom: "96px",
-              right: "16px",
-              zIndex: 10000,
-              backgroundColor: "#08090B",
-            }}
-            className="max-h-[58vh] w-[min(92vw,25rem)] overflow-hidden rounded-2xl border border-[#D99A2B]/25 shadow-[0_25px_70px_rgba(0,0,0,0.95)] flex flex-col"
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 32 }}
+            className="fixed bottom-[88px] right-3 z-50 max-h-[58vh] w-[min(92vw,25rem)] overflow-hidden rounded-2xl border border-[#D99A2B]/25 bg-[#08090B] shadow-[0_25px_90px_rgba(0,0,0,0.98)] sm:right-6"
           >
-            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
+            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-[#0D0E12]">
               <div className="flex items-center gap-2">
                 <ListMusic className="h-4 w-4 text-[#D99A2B]" />
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#f2f3f5]">
-                  Master Play Queue
+                <span className="text-xs font-bold font-mono uppercase tracking-wider text-[#f2f3f5]">
+                  MASTER PLAY QUEUE
                 </span>
-                <span className="rounded-md bg-[#D99A2B]/10 px-2 py-0.5 text-[10px] font-mono text-[#D99A2B] border border-[#D99A2B]/20">
-                  {queue.length} Tracks
+                <span className="rounded bg-[#14161C] border border-[#D99A2B]/30 px-2 py-0.5 text-[10px] font-mono text-[#D99A2B] font-bold">
+                  {queue.length}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                {/* Layam Add Master Button in Queue */}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 rounded-lg bg-[#D99A2B]/10 border border-[#D99A2B]/30 px-2.5 py-1 text-[11px] font-semibold text-[#D99A2B] hover:bg-[#D99A2B]/20 transition-all cursor-pointer mr-1"
-                  title="Drop or Add FLAC/WAV masters"
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Clear queue"
+                  onClick={clearQueue}
+                  className="h-7 w-7 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg"
+                  title="Clear Queue"
                 >
-                  <img src="/logo.png" alt="Layam" className="h-3.5 w-3.5 rounded object-contain" />
-                  <span>+ Add</span>
-                </button>
-
-                {queue.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Clear queue"
-                    onClick={clearQueue}
-                    className="h-7 w-7 text-[#9ba1ad] hover:text-red-400 rounded-lg hover:bg-white/[0.04]"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   aria-label="Close queue"
                   onClick={() => setQueueOpen(false)}
-                  className="h-7 w-7 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg hover:bg-white/[0.04]"
+                  className="h-7 w-7 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg"
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
 
-            {/* Drag & Drop Zone inside Queue */}
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                "m-3 flex items-center justify-center gap-2 rounded-xl border border-dashed p-2.5 text-center transition-all cursor-pointer",
-                isDraggingOver
-                  ? "border-[#D99A2B] bg-[#D99A2B]/15 text-[#D99A2B] scale-[0.99]"
-                  : "border-white/[0.08] bg-white/[0.02] text-[#9ba1ad] hover:border-[#D99A2B]/40 hover:text-[#f2f3f5] hover:bg-white/[0.04]",
-              )}
-            >
-              <img
-                src="/logo.png"
-                alt="Layam Emblem"
-                className="h-4 w-4 rounded object-contain opacity-80"
-              />
-              <span className="text-[11px] font-mono">
-                {isDraggingOver ? "Drop master files now" : "Drag & drop audio masters into queue"}
-              </span>
-            </div>
-
-            <ul className="max-h-[42vh] overflow-y-auto px-3 pb-3 space-y-1">
+            <ul className="max-h-[46vh] overflow-y-auto p-2 space-y-1 divide-y divide-white/[0.03]">
               {queue.length === 0 && (
-                <li className="px-4 py-8 text-center text-xs text-[#9ba1ad] font-mono">
-                  Queue is empty. Select a master track to play.
+                <li className="px-4 py-8 text-center text-xs font-mono text-[#9ba1ad]">
+                  Queue is empty. Select a track to play.
                 </li>
               )}
               {queue.map((track, i) => (
-                <li
-                  key={`${track.id || i}-${i}`}
-                  onClick={() => playFromQueue(i)}
-                  className={cn(
-                    "flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs transition-colors cursor-pointer group",
-                    i === queueIndex
-                      ? "bg-[#D99A2B]/10 text-[#D99A2B] font-medium border border-[#D99A2B]/20"
-                      : "text-[#f2f3f5] hover:bg-white/[0.04] border border-transparent",
-                  )}
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <img
-                      src={track.coverImage || "/logo.png"}
-                      alt={track.title || "Track"}
-                      className="h-9 w-9 rounded-lg object-cover flex-shrink-0 bg-[#121316] ring-1 ring-white/[0.06]"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = "/logo.png";
-                      }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{track.title || "Untitled"}</p>
-                      <p className="truncate text-[11px] text-[#9ba1ad]">
-                        {track.artistName || (track as any).artist || "Local Artist"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[10px] text-[#9ba1ad]">
-                      {formatDuration(track.duration || 0)}
-                    </span>
+                <li key={`${track.id}-${i}`}>
+                  <div
+                    className={cn(
+                      "group flex items-center justify-between gap-3 rounded-xl p-2 transition-all cursor-pointer",
+                      i === queueIndex
+                        ? "bg-[#14161C] border border-[#D99A2B]/40 shadow-sm"
+                        : "hover:bg-[#0D0E12] border border-transparent"
+                    )}
+                  >
                     <button
+                      onClick={() => playFromQueue(i)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer"
+                    >
+                      <img
+                        src={track.coverImage || "/placeholder.svg"}
+                        alt=""
+                        className="h-10 w-10 rounded-lg object-cover shadow-sm shrink-0 bg-[#0D0E12]"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            "block truncate text-xs font-bold",
+                            i === queueIndex ? "text-[#D99A2B]" : "text-[#f2f3f5]"
+                          )}
+                        >
+                          {track.title}
+                        </span>
+                        <span className="block truncate text-[11px] text-[#9ba1ad] mt-0.5">
+                          {track.artistName} ·{" "}
+                          <span className="font-mono text-[9px] font-bold text-[#D99A2B]">
+                            {track.quality || "FLAC"}
+                          </span>
+                        </span>
+                      </div>
+                    </button>
+
+                    {i === queueIndex && (
+                      <span className="rounded bg-[#D99A2B]/20 border border-[#D99A2B]/40 px-2 py-0.5 text-[9px] font-mono font-extrabold text-[#D99A2B] shrink-0">
+                        NOW
+                      </span>
+                    )}
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove from queue"
                       onClick={(e) => {
                         e.stopPropagation();
                         removeFromQueue(i);
                       }}
-                      className="opacity-0 group-hover:opacity-100 text-[#9ba1ad] hover:text-[#f2f3f5] p-1 cursor-pointer"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 rounded-md shrink-0 text-[#9ba1ad] hover:text-[#f2f3f5]"
                     >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
                 </li>
               ))}
@@ -288,259 +220,251 @@ export function PlayerBar() {
         )}
       </AnimatePresence>
 
-      {/* ── Fixed Full-Width Solid Obsidian Audiophile Hardware Cockpit ── */}
-      <footer
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 9999,
-          backgroundColor: "#08090B",
-          borderTop: "1px solid rgba(217,154,43,0.25)",
-          boxShadow: "0 -12px 45px rgba(0,0,0,0.92)",
-          padding: "12px 24px",
-          display: "block",
-          visibility: "visible",
-          opacity: 1,
-        }}
-      >
-        {isDraggingOver && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center gap-2 bg-[#08090B]/95 backdrop-blur-md pointer-events-none">
-            <img src="/logo.png" alt="Layam" className="h-6 w-6 rounded animate-pulse" />
-            <span className="text-xs font-mono font-bold text-[#D99A2B]">
-              Drop Master Audio File(s) Here to Play
-            </span>
+      {/* ── Luxury Audiophile Floating Player Bar ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#08090B]/98 backdrop-blur-2xl shadow-[0_-10px_45px_rgba(0,0,0,0.92)]">
+        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          {/* Left: Track Information & Master Quality Readout */}
+          <div className="flex min-w-0 items-center gap-3.5 md:w-[28%]">
+            <button
+              onClick={expandPlayer}
+              className="relative block h-13 w-13 shrink-0 overflow-hidden rounded-xl bg-[#0D0E12] shadow-md group border border-[#D99A2B]/25 text-left cursor-pointer transition-transform active:scale-95"
+              title="Expand Full Audiophile Cockpit (Space/Click)"
+            >
+              <img
+                src={currentTrack.coverImage || "/placeholder.svg"}
+                alt={currentTrack.title}
+                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Maximize2 className="h-4 w-4 text-[#f2f3f5]" />
+              </div>
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <button
+                onClick={expandPlayer}
+                className="block truncate text-xs sm:text-sm font-bold text-[#f2f3f5] hover:text-[#D99A2B] transition-colors text-left w-full cursor-pointer"
+              >
+                {currentTrack.title}
+              </button>
+
+              <div className="flex items-center gap-2 truncate text-xs text-[#9ba1ad] mt-0.5">
+                <span className="text-xs font-medium text-[#9ba1ad] truncate">
+                  {currentTrack.artistName || "Unknown Artist"}
+                </span>
+
+                {/* Audiophile Master Spec Badge */}
+                <Badge
+                  variant="outline"
+                  className="font-mono text-[9px] font-bold px-1.5 py-0 rounded border border-[#D99A2B]/35 text-[#D99A2B] bg-[#D99A2B]/10"
+                >
+                  {formatLabel} · {sampleRateKhz}
+                </Badge>
+
+                {status === "buffering" && (
+                  <span className="text-[10px] text-[#D99A2B] animate-pulse font-mono font-bold">
+                    · Buffering
+                  </span>
+                )}
+                {status === "loading" && (
+                  <span className="text-[10px] text-[#D99A2B] animate-pulse font-mono font-bold">
+                    · Loading
+                  </span>
+                )}
+                {status === "error" && (
+                  <span className="text-[10px] text-red-400 font-mono font-bold flex items-center gap-0.5">
+                    <AlertCircle className="h-2.5 w-2.5" /> Error
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        )}
 
-        <div className="mx-auto flex max-w-7xl flex-col gap-2">
-          {/* Main Controls Row */}
-          <div className="flex items-center justify-between gap-3 sm:gap-6">
-            {/* 1. Track Information & Master Quality Readout */}
-            <div className="flex min-w-0 items-center gap-3.5 md:w-[30%]">
-              <button
-                onClick={hasActiveTrack ? expandPlayer : undefined}
-                className="relative block h-12 w-12 sm:h-13 sm:w-13 shrink-0 overflow-hidden rounded-xl bg-[#111216] shadow-md group border border-[#D99A2B]/30 text-left cursor-pointer transition-transform hover:scale-105"
-                title={hasActiveTrack ? "Expand Audiophile Console" : "Layam Hi-Fi Vault"}
+          {/* Center: Precision Playback Controls & Waveform Seekbar */}
+          <div className="flex flex-none items-center gap-2 md:flex-1 md:flex-col md:gap-1 max-w-xl">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Previous track"
+                onClick={playPrevious}
+                className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-full transition-transform active:scale-90"
               >
-                <img
-                  src={coverImage}
-                  alt={trackTitle}
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = "/logo.png";
-                  }}
-                />
-              </button>
+                <SkipBack className="h-4 w-4 fill-current" />
+              </Button>
 
-              <div className="min-w-0 flex-1">
-                <button
-                  onClick={hasActiveTrack ? expandPlayer : undefined}
-                  className="block truncate text-xs sm:text-sm font-bold text-[#f2f3f5] hover:text-[#D99A2B] transition-colors text-left cursor-pointer"
+              <motion.div whileTap={{ scale: 0.92 }}>
+                <Button
+                  size="icon"
+                  aria-label={isPlaying ? "Pause" : "Play"}
+                  onClick={togglePlay}
+                  className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shadow-[0_0_20px_rgba(217,154,43,0.35)] bg-gradient-to-b from-[#f5b84c] via-[#D99A2B] to-[#b37a1a] text-[#08090B] hover:brightness-110 active:brightness-95 border border-[#fbd38d]/50 transition-all cursor-pointer"
                 >
-                  {trackTitle}
-                </button>
-
-                <div className="flex items-center gap-2 truncate mt-0.5">
-                  <span className="text-xs text-[#9ba1ad] truncate font-medium">{artistName}</span>
-                  {albumName && (
-                    <span className="hidden sm:inline text-[11px] text-[#6b7280] truncate">
-                      · {albumName}
-                    </span>
-                  )}
-                </div>
-
-                {/* Audiophile Hardware Badges */}
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider bg-[#D99A2B]/10 text-[#D99A2B] border border-[#D99A2B]/25">
-                    PCM
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono text-[#9ba1ad] bg-white/[0.03] border border-white/[0.06]">
-                    {formatLabel} · {bitDepthLabel}
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono text-[#D99A2B]/90 bg-[#D99A2B]/5 border border-[#D99A2B]/20">
-                    {sampleRateLabel}
-                  </span>
-                  {eqEnabled ? (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-1">
-                      <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
-                      DSP ON
-                    </span>
+                  {status === "loading" || status === "buffering" ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-[#08090B]" />
+                  ) : isPlaying ? (
+                    <Pause className="h-5 w-5 fill-current text-[#08090B]" />
                   ) : (
-                    <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[9px] font-mono text-[#6b7280] bg-white/[0.02] border border-white/[0.04]">
-                      DSP DIRECT
-                    </span>
+                    <Play className="h-5 w-5 fill-current ml-0.5 text-[#08090B]" />
                   )}
-                  {status === "buffering" && (
-                    <span className="text-[10px] text-amber-400 animate-pulse font-mono font-bold">
-                      · Buffering
-                    </span>
-                  )}
-                  {status === "error" && (
-                    <span className="text-[10px] text-red-400 font-mono font-bold flex items-center gap-0.5">
-                      <AlertCircle className="h-2.5 w-2.5" /> Error
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Precision Transport & Center Cockpit Controls */}
-            <div className="flex flex-1 flex-col items-center justify-center max-w-xl px-2">
-              <div className="flex items-center gap-3 sm:gap-5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Previous track"
-                  onClick={playPrevious}
-                  disabled={!hasActiveTrack && queue.length === 0}
-                  className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-white/[0.04] rounded-full transition-transform active:scale-95 cursor-pointer disabled:opacity-30"
-                >
-                  <SkipBack className="h-4 w-4 fill-current" />
                 </Button>
+              </motion.div>
 
-                {/* Large Gold Hardware Circular Play Button */}
-                <motion.div whileTap={{ scale: 0.93 }}>
-                  <button
-                    aria-label={isPlaying ? "Pause" : "Play"}
-                    onClick={handlePlayClick}
-                    className="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-gradient-to-b from-[#f5b84c] via-[#D99A2B] to-[#b37a1a] text-[#08090B] shadow-[0_0_20px_rgba(217,154,43,0.35)] hover:shadow-[0_0_30px_rgba(217,154,43,0.55)] active:scale-95 transition-all flex items-center justify-center cursor-pointer border border-[#fbd38d]/40"
-                  >
-                    {status === "loading" || status === "buffering" ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : isPlaying ? (
-                      <Pause className="h-5 w-5 fill-current" />
-                    ) : (
-                      <Play className="h-5 w-5 fill-current ml-0.5" />
-                    )}
-                  </button>
-                </motion.div>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Next track"
-                  onClick={playNext}
-                  disabled={!hasActiveTrack && queue.length === 0}
-                  className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-white/[0.04] rounded-full transition-transform active:scale-95 cursor-pointer disabled:opacity-30"
-                >
-                  <SkipForward className="h-4 w-4 fill-current" />
-                </Button>
-              </div>
-            </div>
-
-            {/* 3. Studio Hardware Utilities & Volume */}
-            <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 md:w-[30%]">
-              {/* Layam Add Master Button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="hidden xl:flex items-center gap-1.5 rounded-lg border border-[#D99A2B]/30 bg-[#D99A2B]/10 px-2.5 py-1 text-xs font-semibold text-[#D99A2B] hover:bg-[#D99A2B]/20 hover:border-[#D99A2B]/50 transition-all cursor-pointer"
-                title="Add / Drop FLAC, WAV Masters"
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Next track"
+                onClick={playNext}
+                className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-full transition-transform active:scale-90"
               >
-                <img src="/logo.png" alt="Layam" className="h-3.5 w-3.5 rounded object-contain" />
-                <span className="text-[11px]">+ Add Master</span>
-              </button>
+                <SkipForward className="h-4 w-4 fill-current" />
+              </Button>
+            </div>
 
-              {/* Hardware DSP Console Button */}
+            {/* Desktop Waveform & Seek Timeline */}
+            <div className="hidden w-full items-center gap-2.5 md:flex">
+              <span className="w-10 text-right font-mono text-[10px] text-[#9ba1ad] tabular-nums">
+                {formatDuration(currentTime)}
+              </span>
+
+              <div className="relative flex-1">
+                <Waveform
+                  seed={currentTrack.id}
+                  peaks={currentTrack.waveform}
+                  progress={progress}
+                  onSeek={seek}
+                  className="h-3 w-full"
+                />
+              </div>
+
+              <span className="w-10 text-left font-mono text-[10px] text-[#9ba1ad] tabular-nums">
+                {formatDuration(duration)}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Studio Audio Console & Hardware Controls */}
+          <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 md:w-[28%]">
+            {/* Audio Console / 10-Band EQ Trigger */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleConsole}
+              className={cn(
+                "h-8 rounded-lg px-2.5 text-xs font-mono font-bold gap-1.5 transition-all border cursor-pointer",
+                eqEnabled
+                  ? "border-[#D99A2B]/60 bg-[#D99A2B]/15 text-[#D99A2B] shadow-[0_0_12px_rgba(217,154,43,0.2)]"
+                  : "border-white/[0.08] bg-[#0D0E12] text-[#9ba1ad] hover:text-[#f2f3f5] hover:border-white/[0.15]"
+              )}
+              title="Studio DSP Console & 10-Band EQ (E)"
+            >
+              <Sliders className="h-3.5 w-3.5 text-[#D99A2B]" />
+              <span className="hidden xl:inline">Console</span>
+              {eqEnabled && (
+                <span className="h-1.5 w-1.5 rounded-full bg-[#D99A2B] animate-pulse" />
+              )}
+            </Button>
+
+            {/* Playback Rate / Speed Selector */}
+            <div className="relative hidden sm:block">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={toggleConsole}
-                className={cn(
-                  "h-8 rounded-lg px-2.5 text-xs font-mono font-bold gap-1.5 transition-all border cursor-pointer",
-                  eqEnabled
-                    ? "border-[#D99A2B]/50 bg-[#D99A2B]/15 text-[#D99A2B] shadow-[0_0_12px_rgba(217,154,43,0.2)]"
-                    : "border-white/[0.06] bg-white/[0.02] text-[#9ba1ad] hover:bg-white/[0.06] hover:text-[#f2f3f5]",
-                )}
-                title="Studio Audio Console & 10-Band EQ"
+                onClick={() => setSpeedOpen((o) => !o)}
+                className="h-8 px-2 font-mono text-xs font-bold text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg border border-white/[0.08] bg-[#0D0E12]"
+                title="Playback Rate"
               >
-                <Sliders className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline">DSP</span>
-                {eqEnabled && <span className="h-1.5 w-1.5 rounded-full bg-[#D99A2B] animate-pulse" />}
+                <Gauge className="h-3.5 w-3.5 mr-1 text-[#D99A2B]" />
+                {playbackRate}x
               </Button>
 
-              {/* Master Queue Popover Toggle */}
+              <AnimatePresence>
+                {speedOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute bottom-full right-0 mb-2 rounded-xl border border-white/[0.08] bg-[#08090B] p-1 shadow-2xl z-50 min-w-[70px]"
+                  >
+                    {PLAYBACK_RATES.map((rate) => (
+                      <button
+                        key={rate}
+                        onClick={() => {
+                          setPlaybackRate(rate);
+                          setSpeedOpen(false);
+                        }}
+                        className={cn(
+                          "w-full rounded-lg px-2.5 py-1 text-left font-mono text-xs transition-colors cursor-pointer",
+                          playbackRate === rate
+                            ? "bg-[#D99A2B]/20 text-[#D99A2B] font-bold"
+                            : "text-[#9ba1ad] hover:bg-[#14161C] hover:text-[#f2f3f5]"
+                        )}
+                      >
+                        {rate}x
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Queue Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Toggle playback queue"
+              onClick={() => setQueueOpen((o) => !o)}
+              className={cn(
+                "h-8 w-8 rounded-lg border border-white/[0.08] bg-[#0D0E12] text-[#9ba1ad] hover:text-[#f2f3f5] relative transition-colors cursor-pointer",
+                queueOpen && "border-[#D99A2B]/40 text-[#D99A2B] bg-[#14161C]"
+              )}
+              title="Master Queue"
+            >
+              <ListMusic className="h-4 w-4" />
+              {queue.length > 0 && (
+                <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-[#D99A2B]" />
+              )}
+            </Button>
+
+            {/* Maximize / Fullscreen Audiophile Player Trigger */}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Expand Audiophile Player"
+              onClick={expandPlayer}
+              className="h-8 w-8 rounded-lg border border-white/[0.08] bg-[#0D0E12] text-[#9ba1ad] hover:text-[#f2f3f5] hover:border-[#D99A2B]/40 transition-colors cursor-pointer"
+              title="Expand Full Audiophile Cockpit (F)"
+            >
+              <Maximize2 className="h-4 w-4 text-[#D99A2B]" />
+            </Button>
+
+            {/* Precision Volume Slider */}
+            <div className="hidden items-center gap-2 lg:flex">
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label="Toggle playback queue"
-                onClick={() => setQueueOpen((o) => !o)}
-                className={cn(
-                  "h-8 w-8 rounded-lg text-[#9ba1ad] hover:text-[#f2f3f5] relative transition-colors cursor-pointer border border-white/[0.06] bg-white/[0.02]",
-                  queueOpen && "bg-white/[0.08] text-[#f2f3f5] border-[#D99A2B]/40",
-                )}
-                title="Master Queue"
+                aria-label={volume === 0 ? "Unmute" : "Mute"}
+                onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
+                className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg"
               >
-                <ListMusic className="h-4 w-4" />
-                {queue.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#D99A2B]" />
+                {volume === 0 ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4 text-[#D99A2B]" />
                 )}
               </Button>
-
-              {/* Fullscreen Cockpit Modal Toggle */}
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Expand Audiophile Player"
-                onClick={hasActiveTrack ? expandPlayer : undefined}
-                disabled={!hasActiveTrack}
-                className="h-8 w-8 rounded-lg text-[#9ba1ad] hover:text-[#f2f3f5] cursor-pointer border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] disabled:opacity-30"
-                title="Expand Full Audiophile Cockpit"
-              >
-                <Maximize2 className="h-4 w-4" />
-              </Button>
-
-              {/* Precision Volume Knob / Slider */}
-              <div className="hidden sm:flex items-center gap-2 pl-1 border-l border-white/[0.08]">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={volume === 0 ? "Unmute" : "Mute"}
-                  onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
-                  className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg hover:bg-white/[0.04] cursor-pointer"
-                >
-                  {volume === 0 ? <VolumeX className="h-4 w-4 text-red-400" /> : <Volume2 className="h-4 w-4" />}
-                </Button>
-                <div className="w-16 lg:w-20">
-                  <Slider
-                    value={[volume * 100]}
-                    max={100}
-                    step={1}
-                    onValueChange={([val]) => setVolume(val / 100)}
-                    className="cursor-pointer"
-                  />
-                </div>
+              <div className="w-18 lg:w-22">
+                <Slider
+                  value={[volume * 100]}
+                  max={100}
+                  step={1}
+                  onValueChange={([val]) => setVolume((val ?? 0) / 100)}
+                />
               </div>
             </div>
           </div>
-
-          {/* 4. Precision Hardware Waveform Seekbar Strip */}
-          <div className="flex w-full items-center gap-3 pt-1 border-t border-white/[0.04]">
-            <span className="w-10 text-right font-mono text-[10px] font-semibold text-[#D99A2B]/90 tabular-nums">
-              {formatDuration(trackCurrentTime)}
-            </span>
-
-            <div className="relative flex-1">
-              <Waveform
-                seed={currentTrack?.id || "layam-resting"}
-                peaks={currentTrack?.waveform}
-                progress={trackProgress}
-                duration={trackDuration}
-                onSeek={hasActiveTrack ? seek : undefined}
-                className="h-3 w-full"
-              />
-            </div>
-
-            <span className="w-10 text-left font-mono text-[10px] text-[#9ba1ad] tabular-nums">
-              {formatDuration(trackDuration)}
-            </span>
-          </div>
         </div>
-      </footer>
+      </div>
     </>
   );
 }
