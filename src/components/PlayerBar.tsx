@@ -100,7 +100,10 @@ export function PlayerBar() {
   // Defensive field extraction with safe fallbacks (supporting both active and resting/standby states)
   const hasActiveTrack = Boolean(currentTrack);
   const trackTitle = currentTrack?.title || (queue.length > 0 ? "Ready to Play" : "No Master Selected");
-  const artistName = currentTrack?.artistName || (currentTrack as any)?.artist || (queue.length > 0 ? `${queue.length} track(s) in queue` : "Select a track or drop audio files");
+  const artistName =
+    currentTrack?.artistName ||
+    (currentTrack as any)?.artist ||
+    (queue.length > 0 ? `${queue.length} track(s) in queue` : "Select a track or drop audio files");
   const albumName = currentTrack?.albumName || (currentTrack as any)?.album || "";
   const coverImage = currentTrack?.coverImage || "/logo.png";
   const formatLabel = currentTrack?.quality || (currentTrack as any)?.format || "FLAC";
@@ -110,10 +113,9 @@ export function PlayerBar() {
       ? `${(Number(rawSampleRate) / 1000).toFixed(1)} kHz`
       : `${rawSampleRate} Hz`
     : "96.0 kHz";
-  const bitDepthLabel = currentTrack?.bitDepth
-    ? `${currentTrack.bitDepth}-BIT`
-    : "24-BIT";
-  const trackDuration = typeof duration === "number" && !isNaN(duration) && duration > 0 ? duration : (currentTrack?.duration || 180);
+  const bitDepthLabel = currentTrack?.bitDepth ? `${currentTrack.bitDepth}-BIT` : "24-BIT";
+  const trackDuration =
+    typeof duration === "number" && !isNaN(duration) && duration > 0 ? duration : currentTrack?.duration || 180;
   const trackCurrentTime = typeof currentTime === "number" && !isNaN(currentTime) ? currentTime : 0;
   const trackProgress = typeof progress === "number" && !isNaN(progress) ? progress : 0;
 
@@ -147,7 +149,7 @@ export function PlayerBar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="fixed bottom-[115px] right-4 z-50 max-h-[58vh] w-[min(92vw,25rem)] overflow-hidden rounded-2xl border border-[#D99A2B]/25 bg-[#08090B] shadow-[0_25px_70px_rgba(0,0,0,0.95)] sm:right-8 flex flex-col"
+            className="fixed bottom-[96px] right-4 z-50 max-h-[58vh] w-[min(92vw,25rem)] overflow-hidden rounded-2xl border border-[#D99A2B]/25 bg-[#08090B] shadow-[0_25px_70px_rgba(0,0,0,0.95)] sm:right-8 flex flex-col"
           >
             <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
               <div className="flex items-center gap-2">
@@ -230,7 +232,7 @@ export function PlayerBar() {
                     "flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs transition-colors cursor-pointer group",
                     i === queueIndex
                       ? "bg-[#D99A2B]/10 text-[#D99A2B] font-medium border border-[#D99A2B]/20"
-                      : "text-[#f2f3f5] hover:bg-white/[0.04] border border-transparent"
+                      : "text-[#f2f3f5] hover:bg-white/[0.04] border border-transparent",
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -271,24 +273,18 @@ export function PlayerBar() {
         )}
       </AnimatePresence>
 
-      {/* ── Solid Obsidian Audiophile Hardware Cockpit Chassis ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
+      {/* ── Fixed Full-Width Solid Obsidian Audiophile Hardware Cockpit ── */}
+      <footer
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "fixed bottom-6 left-4 right-4 z-40 max-w-6xl mx-auto rounded-2xl bg-[#08090B] border border-[#D99A2B]/20 shadow-[0_25px_90px_rgba(0,0,0,0.92)] p-3 sm:px-5 sm:py-3.5 transition-all duration-200",
-          isDraggingOver
-            ? "border-[#D99A2B] shadow-[0_0_35px_rgba(217,154,43,0.35)] ring-2 ring-[#D99A2B]/40 scale-[1.005]"
-            : "hover:border-[#D99A2B]/35"
+          "fixed bottom-0 left-0 right-0 z-50 border-t border-[#D99A2B]/25 bg-[#08090B] shadow-[0_-12px_45px_rgba(0,0,0,0.92)] px-4 py-3 sm:px-6 transition-colors duration-200",
+          isDraggingOver && "border-[#D99A2B] bg-[#08090B]/95 shadow-[0_-12px_45px_rgba(217,154,43,0.3)]",
         )}
       >
         {isDraggingOver && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center gap-2 rounded-2xl bg-[#08090B]/90 backdrop-blur-md pointer-events-none">
+          <div className="absolute inset-0 z-50 flex items-center justify-center gap-2 bg-[#08090B]/95 backdrop-blur-md pointer-events-none">
             <img src="/logo.png" alt="Layam" className="h-6 w-6 rounded animate-pulse" />
             <span className="text-xs font-mono font-bold text-[#D99A2B]">
               Drop Master Audio File(s) Here to Play
@@ -296,15 +292,14 @@ export function PlayerBar() {
           </div>
         )}
 
-        <div className="flex flex-col gap-2.5">
-          {/* Main Cockpit Row */}
-          <div className="flex items-center justify-between gap-3 sm:gap-4">
-            
-            {/* 1. Physical Album Cartridge & Track Info */}
+        <div className="mx-auto flex max-w-7xl flex-col gap-2">
+          {/* Main Controls Row */}
+          <div className="flex items-center justify-between gap-3 sm:gap-6">
+            {/* 1. Track Information & Master Quality Readout */}
             <div className="flex min-w-0 items-center gap-3.5 md:w-[30%]">
               <button
                 onClick={hasActiveTrack ? expandPlayer : undefined}
-                className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#111216] group text-left cursor-pointer transition-transform hover:scale-[1.02] ring-1 ring-[#D99A2B]/30 shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
+                className="relative block h-12 w-12 sm:h-13 sm:w-13 shrink-0 overflow-hidden rounded-xl bg-[#111216] shadow-md group border border-[#D99A2B]/30 text-left cursor-pointer transition-transform hover:scale-105"
                 title={hasActiveTrack ? "Expand Audiophile Console" : "Layam Hi-Fi Vault"}
               >
                 <img
@@ -317,20 +312,16 @@ export function PlayerBar() {
                 />
               </button>
 
-              <div className="min-w-0 flex-1 flex flex-col justify-center">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={hasActiveTrack ? expandPlayer : undefined}
-                    className="block truncate text-sm font-bold text-[#f2f3f5] hover:text-[#D99A2B] transition-colors text-left cursor-pointer tracking-tight"
-                  >
-                    {trackTitle}
-                  </button>
-                </div>
+              <div className="min-w-0 flex-1">
+                <button
+                  onClick={hasActiveTrack ? expandPlayer : undefined}
+                  className="block truncate text-xs sm:text-sm font-bold text-[#f2f3f5] hover:text-[#D99A2B] transition-colors text-left cursor-pointer"
+                >
+                  {trackTitle}
+                </button>
 
                 <div className="flex items-center gap-2 truncate mt-0.5">
-                  <span className="text-xs text-[#9ba1ad] truncate font-medium">
-                    {artistName}
-                  </span>
+                  <span className="text-xs text-[#9ba1ad] truncate font-medium">{artistName}</span>
                   {albumName && (
                     <span className="hidden sm:inline text-[11px] text-[#6b7280] truncate">
                       · {albumName}
@@ -338,7 +329,7 @@ export function PlayerBar() {
                   )}
                 </div>
 
-                {/* Audiophile PCM Hardware Badges */}
+                {/* Audiophile Hardware Badges */}
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider bg-[#D99A2B]/10 text-[#D99A2B] border border-[#D99A2B]/25">
                     PCM
@@ -375,7 +366,7 @@ export function PlayerBar() {
 
             {/* 2. Precision Transport & Center Cockpit Controls */}
             <div className="flex flex-1 flex-col items-center justify-center max-w-xl px-2">
-              <div className="flex items-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-3 sm:gap-5">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -417,19 +408,15 @@ export function PlayerBar() {
               </div>
             </div>
 
-            {/* 3. Right: Studio Hardware Utilities & Volume */}
+            {/* 3. Studio Hardware Utilities & Volume */}
             <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 md:w-[30%]">
-              {/* Layam Emblem Add Master Button */}
+              {/* Layam Add Master Button */}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="hidden xl:flex items-center gap-1.5 rounded-lg border border-[#D99A2B]/30 bg-[#D99A2B]/10 px-2.5 py-1 text-xs font-semibold text-[#D99A2B] hover:bg-[#D99A2B]/20 hover:border-[#D99A2B]/50 transition-all cursor-pointer"
                 title="Add / Drop FLAC, WAV Masters"
               >
-                <img
-                  src="/logo.png"
-                  alt="Layam"
-                  className="h-3.5 w-3.5 rounded object-contain"
-                />
+                <img src="/logo.png" alt="Layam" className="h-3.5 w-3.5 rounded object-contain" />
                 <span className="text-[11px]">+ Add Master</span>
               </button>
 
@@ -442,15 +429,13 @@ export function PlayerBar() {
                   "h-8 rounded-lg px-2.5 text-xs font-mono font-bold gap-1.5 transition-all border cursor-pointer",
                   eqEnabled
                     ? "border-[#D99A2B]/50 bg-[#D99A2B]/15 text-[#D99A2B] shadow-[0_0_12px_rgba(217,154,43,0.2)]"
-                    : "border-white/[0.06] bg-white/[0.02] text-[#9ba1ad] hover:bg-white/[0.06] hover:text-[#f2f3f5]"
+                    : "border-white/[0.06] bg-white/[0.02] text-[#9ba1ad] hover:bg-white/[0.06] hover:text-[#f2f3f5]",
                 )}
                 title="Studio Audio Console & 10-Band EQ"
               >
                 <Sliders className="h-3.5 w-3.5" />
                 <span className="hidden lg:inline">DSP</span>
-                {eqEnabled && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#D99A2B] animate-pulse" />
-                )}
+                {eqEnabled && <span className="h-1.5 w-1.5 rounded-full bg-[#D99A2B] animate-pulse" />}
               </Button>
 
               {/* Master Queue Popover Toggle */}
@@ -461,7 +446,7 @@ export function PlayerBar() {
                 onClick={() => setQueueOpen((o) => !o)}
                 className={cn(
                   "h-8 w-8 rounded-lg text-[#9ba1ad] hover:text-[#f2f3f5] relative transition-colors cursor-pointer border border-white/[0.06] bg-white/[0.02]",
-                  queueOpen && "bg-white/[0.08] text-[#f2f3f5] border-[#D99A2B]/40"
+                  queueOpen && "bg-white/[0.08] text-[#f2f3f5] border-[#D99A2B]/40",
                 )}
                 title="Master Queue"
               >
@@ -493,11 +478,7 @@ export function PlayerBar() {
                   onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
                   className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg hover:bg-white/[0.04] cursor-pointer"
                 >
-                  {volume === 0 ? (
-                    <VolumeX className="h-4 w-4 text-red-400" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
+                  {volume === 0 ? <VolumeX className="h-4 w-4 text-red-400" /> : <Volume2 className="h-4 w-4" />}
                 </Button>
                 <div className="w-16 lg:w-20">
                   <Slider
@@ -534,7 +515,7 @@ export function PlayerBar() {
             </span>
           </div>
         </div>
-      </motion.div>
+      </footer>
     </>
   );
 }
