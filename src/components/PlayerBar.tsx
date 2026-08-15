@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { usePlayer } from "@/lib/player";
 import { formatDuration } from "@/domain/music/types";
-import { useGlobalHotkeys } from "@/lib/useGlobalHotkeys";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Waveform } from "@/components/Waveform";
@@ -28,8 +27,8 @@ import { toast } from "sonner";
 export function PlayerBar() {
   const {
     currentTrack,
-    status,
-    isPlaying,
+    status = "idle",
+    isPlaying = false,
     progress = 0,
     volume = 0.8,
     currentTime = 0,
@@ -55,14 +54,6 @@ export function PlayerBar() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Desktop audiophile hotkeys
-  useGlobalHotkeys({
-    onToggleConsole: toggleConsole,
-    onToggleDac: () => {},
-    onToggleShortcuts: () => {},
-    onToggleQueue: () => setQueueOpen((o) => !o),
-  });
-
   // Drag and Drop handlers for Player
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -82,7 +73,7 @@ export function PlayerBar() {
       e.stopPropagation();
       setIsDraggingOver(false);
 
-      const files = e.dataTransfer.files;
+      const files = e.dataTransfer?.files;
       if (files && files.length > 0) {
         toast.info(`Importing ${files.length} master track(s)...`);
         await importLocalFiles?.(files);
@@ -103,10 +94,15 @@ export function PlayerBar() {
     [importLocalFiles],
   );
 
+  // Never render if there is no active track or when in fullscreen mode
   if (!currentTrack || isExpanded) return null;
 
-  // Format telemetry metrics safely
-  const formatLabel = currentTrack.quality || "FLAC";
+  // Defensive field extraction with safe fallbacks
+  const trackTitle = currentTrack.title || "Master Track";
+  const artistName = currentTrack.artistName || (currentTrack as any).artist || "Local Artist";
+  const albumName = currentTrack.albumName || (currentTrack as any).album || "";
+  const coverImage = currentTrack.coverImage || "/logo.png";
+  const formatLabel = currentTrack.quality || (currentTrack as any).format || "FLAC";
   const rawSampleRate = currentTrack.sampleRate;
   const sampleRateLabel = rawSampleRate
     ? Number(rawSampleRate) >= 1000
@@ -116,6 +112,9 @@ export function PlayerBar() {
   const bitDepthLabel = currentTrack.bitDepth
     ? `${currentTrack.bitDepth}-BIT`
     : "24-BIT";
+  const trackDuration = typeof duration === "number" && !isNaN(duration) && duration > 0 ? duration : (currentTrack.duration || 180);
+  const trackCurrentTime = typeof currentTime === "number" && !isNaN(currentTime) ? currentTime : 0;
+  const trackProgress = typeof progress === "number" && !isNaN(progress) ? progress : 0;
 
   return (
     <>
@@ -214,7 +213,7 @@ export function PlayerBar() {
               )}
               {queue.map((track, i) => (
                 <li
-                  key={`${track.id}-${i}`}
+                  key={`${track.id || i}-${i}`}
                   onClick={() => playFromQueue(i)}
                   className={cn(
                     "flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs transition-colors cursor-pointer group",
@@ -226,16 +225,16 @@ export function PlayerBar() {
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <img
                       src={track.coverImage || "/logo.png"}
-                      alt={track.title}
+                      alt={track.title || "Track"}
                       className="h-9 w-9 rounded-lg object-cover flex-shrink-0 bg-[#121316] ring-1 ring-white/[0.06]"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = "/logo.png";
                       }}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{track.title}</p>
+                      <p className="truncate font-medium">{track.title || "Untitled"}</p>
                       <p className="truncate text-[11px] text-[#9ba1ad]">
-                        {track.artistName || "Local Artist"}
+                        {track.artistName || (track as any).artist || "Local Artist"}
                       </p>
                     </div>
                   </div>
@@ -298,8 +297,8 @@ export function PlayerBar() {
                 title="Expand Audiophile Console"
               >
                 <img
-                  src={currentTrack.coverImage || "/logo.png"}
-                  alt={currentTrack.title}
+                  src={coverImage}
+                  alt={trackTitle}
                   className="h-full w-full object-cover"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = "/logo.png";
@@ -313,17 +312,17 @@ export function PlayerBar() {
                     onClick={expandPlayer}
                     className="block truncate text-sm font-bold text-[#f2f3f5] hover:text-[#D99A2B] transition-colors text-left cursor-pointer tracking-tight"
                   >
-                    {currentTrack.title || "Untitled Master"}
+                    {trackTitle}
                   </button>
                 </div>
 
                 <div className="flex items-center gap-2 truncate mt-0.5">
                   <span className="text-xs text-[#9ba1ad] truncate font-medium">
-                    {currentTrack.artistName || "Local Artist"}
+                    {artistName}
                   </span>
-                  {currentTrack.albumName && (
+                  {albumName && (
                     <span className="hidden sm:inline text-[11px] text-[#6b7280] truncate">
-                      · {currentTrack.albumName}
+                      · {albumName}
                     </span>
                   )}
                 </div>
@@ -502,22 +501,22 @@ export function PlayerBar() {
           {/* 4. Precision Hardware Waveform Seekbar Strip */}
           <div className="flex w-full items-center gap-3 pt-1 border-t border-white/[0.04]">
             <span className="w-10 text-right font-mono text-[10px] font-semibold text-[#D99A2B]/90 tabular-nums">
-              {formatDuration(currentTime)}
+              {formatDuration(trackCurrentTime)}
             </span>
 
             <div className="relative flex-1">
               <Waveform
-                seed={currentTrack.id}
+                seed={currentTrack.id || trackTitle}
                 peaks={currentTrack.waveform}
-                progress={progress}
-                duration={duration}
+                progress={trackProgress}
+                duration={trackDuration}
                 onSeek={seek}
                 className="h-3 w-full"
               />
             </div>
 
             <span className="w-10 text-left font-mono text-[10px] text-[#9ba1ad] tabular-nums">
-              {formatDuration(duration)}
+              {formatDuration(trackDuration)}
             </span>
           </div>
         </div>
