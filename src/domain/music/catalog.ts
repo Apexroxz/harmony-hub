@@ -43,7 +43,8 @@ export const tracks: Track[] = [
     artistId: "neon-drifter",
     artistName: "Neon Drifter",
     coverImage: cover1,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    audioUrl:
+      "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/0a/de/fd/0adefd5b-145a-1cc9-f3b5-be89fd0232b9/mzaf_4322553693875273982.plus.aac.p.m4a",
     duration: 184,
     genre: "Synthwave",
     quality: "FLAC",
@@ -61,7 +62,8 @@ export const tracks: Track[] = [
     artistId: "neon-drifter",
     artistName: "Neon Drifter",
     coverImage: cover2,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    audioUrl:
+      "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/e7/f6/4f/e7f64f1a-d3f0-312d-f21c-2a452e8c2ea8/mzaf_1795728698622000596.plus.aac.p.m4a",
     duration: 226,
     genre: "Cyberpunk",
     quality: "WAV",
@@ -79,7 +81,8 @@ export const tracks: Track[] = [
     artistId: "solana-siren",
     artistName: "Solana Siren",
     coverImage: cover3,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+    audioUrl:
+      "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/04/13/7a/04137aba-99fa-6331-81d5-d69097ab97be/mzaf_3869073502048666760.plus.aac.p.m4a",
     duration: 198,
     genre: "Electropop",
     quality: "FLAC",
@@ -97,7 +100,8 @@ export const tracks: Track[] = [
     artistId: "solana-siren",
     artistName: "Solana Siren",
     coverImage: cover4,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+    audioUrl:
+      "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview116/v4/47/f4/41/47f44159-7512-2b78-658d-68d4c3da4462/mzaf_5567320952107506379.plus.aac.p.m4a",
     duration: 252,
     genre: "Alt-Pop",
     quality: "AAC",
@@ -114,7 +118,8 @@ export const tracks: Track[] = [
     artistId: "byte-bass",
     artistName: "Byte Bass",
     coverImage: cover5,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+    audioUrl:
+      "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview124/v4/30/05/1e/30051e57-a63a-3acc-4b30-42568293f5f7/mzaf_9447090529600498970.plus.aac.p.m4a",
     duration: 174,
     genre: "Bass",
     quality: "ALAC",
@@ -132,7 +137,8 @@ export const tracks: Track[] = [
     artistId: "byte-bass",
     artistName: "Byte Bass",
     coverImage: cover6,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
+    audioUrl:
+      "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/7e/34/0a/7e340a6b-c743-bc07-ee6c-f23eb9be4ba9/mzaf_17398322896582498263.plus.aac.p.m4a",
     duration: 241,
     genre: "Dubstep",
     quality: "MP3",
@@ -150,7 +156,19 @@ export function getArtistById(id: string): Artist | undefined {
 }
 
 export function getTrackById(id: string): Track | undefined {
-  return tracks.find((t) => t.id === id);
+  const match = tracks.find((t) => t.id === id);
+  if (match) return match;
+
+  // Friendly alias map for demo tracks
+  if (id === "subterranean-echoes" || id === "sample-flac") return tracks[0];
+  if (id === "ethereal-horizons" || id === "sample-wav") return tracks[1];
+  if (id === "quantum-drift" || id === "sample-alac") return tracks[2];
+
+  // Try case-insensitive matching
+  const ci = tracks.find((t) => t.id.toLowerCase() === id.toLowerCase());
+  if (ci) return ci;
+
+  return tracks[0];
 }
 
 export function getTracksByArtist(artistId: string): Track[] {

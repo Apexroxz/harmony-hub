@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const LAST_FM_API_KEY = import.meta.env.VITE_LASTFM_API_KEY;
+const LAST_FM_API_KEY =
+  (import.meta.env as Record<string, string | undefined>)["VITE_LASTFM_API_KEY"] || "";
 
 const LAST_FM_BASE_URL =
   "https://ws.audioscrobbler.com/2.0/";

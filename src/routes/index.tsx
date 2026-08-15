@@ -29,6 +29,7 @@ import { TrackCard } from "@/components/TrackCard";
 import { TrackGridSkeleton, LoadError } from "@/components/CatalogState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SonicMonolith } from "@/components/SonicMonolith";
 import { cn } from "@/lib/utils";
 import heroBg from "@/assets/hero-bg.jpg";
 
@@ -148,7 +149,7 @@ function OfflineHiFiDashboard() {
               onClick={() => {
                 if (currentTrack) {
                   expandPlayer();
-                } else if (localTracks.length > 0) {
+                } else if (localTracks.length > 0 && localTracks[0]) {
                   playTrack(localTracks[0], localTracks);
                 }
               }}
@@ -358,7 +359,9 @@ function OfflineHiFiDashboard() {
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <button
-                    onClick={() => playTrack(album.tracks[0], album.tracks)}
+                    onClick={() => {
+                      if (album.tracks[0]) playTrack(album.tracks[0], album.tracks);
+                    }}
                     className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     aria-label={`Play album ${album.name}`}
                   >
@@ -457,25 +460,75 @@ function OnlineHomePage() {
             <Button
               size="lg"
               onClick={() => {
-                if (tracks.length > 0) playTrack(tracks[0], tracks);
+                if (tracks.length > 0 && tracks[0]) playTrack(tracks[0], tracks);
               }}
-              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-8 h-12 shadow-xl shadow-primary/20 gap-2 cursor-pointer"
+              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-extrabold px-8 h-12 shadow-2xl shadow-primary/30 gap-2 cursor-pointer tap-active"
             >
               <Play className="h-4 w-4 fill-current ml-0.5" />
-              Start Listening
+              Start Master Playback
             </Button>
 
             <Button
               asChild
               variant="outline"
               size="lg"
-              className="rounded-full border-border/80 bg-surface text-foreground hover:bg-surface-raised font-bold px-8 h-12"
+              className="rounded-full border-white/15 bg-white/[0.04] hover:bg-white/[0.08] text-foreground font-bold px-8 h-12 backdrop-blur-md"
             >
-              <Link to="/store">
-                Explore Store
+              <Link to="/stream">
+                Explore Studio Catalog
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Symbolic Masterpiece: The Kinetic Sonic Monolith ── */}
+      <section className="mx-auto max-w-7xl px-4 pt-4 pb-12 sm:px-6 lg:px-8">
+        <SonicMonolith tracks={tracks} />
+      </section>
+
+      {/* ── The 4 Symbolic Pillars of Pure Sound ── */}
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="rounded-3xl border border-white/[0.06] bg-[#111215]/80 p-6 space-y-2 backdrop-blur-xl">
+            <div className="h-10 w-10 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-mono font-bold text-xs">
+              01
+            </div>
+            <h4 className="font-extrabold text-foreground text-sm">24/96 Bit-Perfect PCM</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Direct un-dithered 4,608 kbps master delivery preserving all 144 dB of dynamic headroom.
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/[0.06] bg-[#111215]/80 p-6 space-y-2 backdrop-blur-xl">
+            <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-mono font-bold text-xs">
+              02
+            </div>
+            <h4 className="font-extrabold text-foreground text-sm">Direct Creator Sovereignty</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Net-30 monthly distribution and transparent split contracts paying 85%+ directly to musicians.
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/[0.06] bg-[#111215]/80 p-6 space-y-2 backdrop-blur-xl">
+            <div className="h-10 w-10 rounded-2xl bg-amber/10 text-amber border border-amber/20 flex items-center justify-center font-mono font-bold text-xs">
+              03
+            </div>
+            <h4 className="font-extrabold text-foreground text-sm">3D Binaural Acoustic Stage</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Virtual studio control room and analog vinyl lounge DSP acoustics modeling true physical spaces.
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/[0.06] bg-[#111215]/80 p-6 space-y-2 backdrop-blur-xl">
+            <div className="h-10 w-10 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center font-mono font-bold text-xs">
+              04
+            </div>
+            <h4 className="font-extrabold text-foreground text-sm">True Offline Sovereignty</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Zero-DRM local FLAC/WAV streaming directly from your browser memory with zero tracking.
+            </p>
           </div>
         </div>
       </section>

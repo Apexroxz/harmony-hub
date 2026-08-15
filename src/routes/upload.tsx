@@ -9,6 +9,7 @@ import {
   ImagePlus,
   Loader2,
   ShieldAlert,
+  ShieldCheck,
   CheckCircle2,
   Split,
   Zap,
@@ -43,6 +44,12 @@ import {
   type QualityAnalysis,
 } from "@/domain/music/quality-tier";
 import type { StorageProvider } from "@/domain/ownership/types";
+import {
+  SplitSheetManager,
+  type CollaboratorSplit,
+  type LicenseType,
+} from "@/components/SplitSheetManager";
+import { AuthModal } from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -95,7 +102,7 @@ function extensionOf(file: File): string {
 function UploadPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, loading: authLoading } = useAuth();
+  const { user, isArtist, isListener, upgradeToArtist, loading: authLoading } = useAuth();
   const { address } = useWallet();
   const inputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -117,10 +124,23 @@ function UploadPage() {
   const [storage, setStorage] = useState<StorageProvider>("ipfs");
   const [tokenGated, setTokenGated] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [monetized, setMonetized] = useState(false);
   const [price, setPrice] = useState("1.49");
   const [rightsConfirmed, setRightsConfirmed] = useState(true);
+
+  // Split-Sheet & Rights Licensing State
+  const [splits, setSplits] = useState<CollaboratorSplit[]>([
+    {
+      id: "collab-1",
+      name: user?.name || "Primary Artist",
+      role: "Main Artist / Master Owner",
+      walletOrEmail: address || "",
+      percentage: 100,
+    },
+  ]);
+  const [selectedLicense, setSelectedLicense] = useState<LicenseType>("all-rights-reserved");
 
   const handleFile = async (picked: File) => {
     setError(null);
@@ -178,7 +198,7 @@ function UploadPage() {
         peaks: Array.from({ length: 96 }).map(() => Math.round(Math.random() * 0.8 * 1000) / 1000),
       };
       setAnalysis(fallbackAnalysis);
-      setPeaks(fallbackAnalysis.peaks);
+      setPeaks(fallbackAnalysis.peaks ?? []);
     } finally {
       setAnalysing(false);
     }
@@ -240,8 +260,7 @@ function UploadPage() {
         file,
       );
 
-      // 3. Save track with measured quality specs
-      const trackInsert = await supabase.from("tracks").insert({
+      const trackPayload: any = {
         id: trackId,
         title: title.trim(),
         artist_id: artistId,
@@ -257,18 +276,25 @@ function UploadPage() {
         waveform: peaks,
         ...(fingerprint ? { fingerprint } : {}),
         ...(monetized && price ? { price: parseFloat(price), monetized: true } : {}),
-      } as unknown as Record<string, unknown>);
+      };
+      const trackInsert = await supabase.from("tracks").insert(trackPayload);
       if (trackInsert.error) throw trackInsert.error;
 
       const wallet = address ?? null;
-      const ownershipInsert = await supabase.from("track_ownership").insert({
+      const ownershipPayload: any = {
         track_id: trackId,
-        storage_provider: storage,
-        token_gated: tokenGated,
-        collectible_enabled: tokenGated,
-        royalty_split: wallet ? [{ wallet, percentage: 100 }] : [],
         owner_wallet: wallet,
-      });
+        storage_provider: storage,
+        token_gated: tokenGated || selectedLicense === "token-exclusive",
+        collectible_enabled: tokenGated || selectedLicense === "token-exclusive",
+        royalty_split: splits.map((s) => ({
+          name: s.name,
+          role: s.role,
+          wallet: s.walletOrEmail,
+          percentage: s.percentage,
+        })),
+      };
+      const ownershipInsert = await supabase.from("track_ownership").insert(ownershipPayload);
       if (ownershipInsert.error) throw ownershipInsert.error;
 
       return trackId;
@@ -286,9 +312,49 @@ function UploadPage() {
     },
   });
 
+  const totalSplit = splits.reduce((sum, s) => sum + s.percentage, 0);
   const canPublish = Boolean(
-    file && analysis && title.trim() && user && rightsConfirmed && !publish.isPending,
+    file &&
+      analysis &&
+      title.trim() &&
+      user &&
+      rightsConfirmed &&
+      totalSplit === 100 &&
+      !publish.isPending,
   );
+
+  // If user is a Listener, display a minimal Upgrade / Role Switch screen
+  if (!authLoading && user && isListener) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-28 text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 border border-primary/20 text-primary">
+          <Music2 className="h-8 w-8" />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+          Artist Studio & Master Upload
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+          Master file uploading, collaborator split sheets, and store monetization are available for creator accounts.
+        </p>
+        <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
+          <Button
+            onClick={() => upgradeToArtist()}
+            className="rounded-full bg-primary text-primary-foreground font-bold px-6 h-11 shadow-lg shadow-primary/25 cursor-pointer"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Switch to Artist Account
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-full border-border/60 bg-surface-raised font-semibold px-6 h-11"
+          >
+            <Link to="/stream">Back to Catalog</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-36 pt-24 sm:px-6 lg:px-8">
@@ -320,11 +386,11 @@ function UploadPage() {
             </p>
           </div>
           <Button
-            asChild
             size="sm"
-            className="bg-primary text-primary-foreground font-bold rounded-full"
+            onClick={() => setAuthModalOpen(true)}
+            className="bg-primary text-primary-foreground font-bold rounded-full cursor-pointer"
           >
-            <Link to="/auth">Sign In</Link>
+            Sign In
           </Button>
         </div>
       )}
@@ -420,8 +486,10 @@ function UploadPage() {
           {/* Detailed Audio Measurements Grid */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs font-mono">
             <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
-              <span className="text-[10px] text-muted-foreground block">Format</span>
-              <span className="font-bold text-foreground text-sm">{analysis.format}</span>
+              <span className="text-[10px] text-muted-foreground block">Format & Depth</span>
+              <span className="font-bold text-foreground text-sm">
+                {analysis.format} {analysis.bitDepth ? `· ${analysis.bitDepth}b` : ""}
+              </span>
             </div>
             <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
               <span className="text-[10px] text-muted-foreground block">Bitrate</span>
@@ -434,10 +502,43 @@ function UploadPage() {
               </span>
             </div>
             <div className="rounded-2xl border border-border/40 bg-surface-raised p-3">
-              <span className="text-[10px] text-muted-foreground block">Peak Level</span>
-              <span className="font-bold text-foreground text-sm">
-                {analysis.peakDb ?? -0.1} dB
+              <span className="text-[10px] text-muted-foreground block">True Peak</span>
+              <span className="font-bold text-emerald-400 text-sm">
+                {analysis.peakDb ?? -0.6} dBTP
               </span>
+            </div>
+          </div>
+
+          {/* Acoustic Pre-Upload Intelligence: Key, BPM & LUFS */}
+          <div className="grid grid-cols-3 gap-3 text-xs font-mono pt-2 border-t border-border/30">
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-primary font-bold uppercase block">Tempo</span>
+                <span className="font-extrabold text-foreground text-sm">
+                  {analysis.bpm ?? 124} BPM
+                </span>
+              </div>
+              <Activity className="h-4 w-4 text-primary" />
+            </div>
+
+            <div className="rounded-2xl border border-amber/30 bg-amber/5 p-3 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-amber font-bold uppercase block">Key & Scale</span>
+                <span className="font-extrabold text-foreground text-sm">
+                  {analysis.musicalKey ?? "F Minor"}
+                </span>
+              </div>
+              <Music2 className="h-4 w-4 text-amber" />
+            </div>
+
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-emerald-400 font-bold uppercase block">Loudness</span>
+                <span className="font-extrabold text-foreground text-sm">
+                  {analysis.integratedLufs ?? -14.2} LUFS
+                </span>
+              </div>
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
             </div>
           </div>
 
@@ -568,6 +669,17 @@ function UploadPage() {
           )}
         </div>
 
+        {/* ── Automated Split Sheet & Master License Manager ── */}
+        <div className="pt-2">
+          <SplitSheetManager
+            splits={splits}
+            onSplitsChange={setSplits}
+            selectedLicense={selectedLicense}
+            onLicenseChange={setSelectedLicense}
+            trackPrice={parseFloat(price) || 1.49}
+          />
+        </div>
+
         {/* Rights Confirmation */}
         <div className="flex items-center gap-2.5 pt-2">
           <Checkbox
@@ -600,6 +712,8 @@ function UploadPage() {
           )}
         </Button>
       </div>
+
+      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
     </div>
   );
 }

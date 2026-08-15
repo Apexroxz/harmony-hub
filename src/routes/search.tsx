@@ -41,9 +41,16 @@ function useDebounced<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
-type SearchTab = "all" | "audius" | "jamendo";
+type SearchTab = "all" | "apple" | "audius" | "jamendo";
 
-function SourceBadge({ source }: { source: "audius" | "jamendo" | "local" }) {
+function SourceBadge({ source }: { source: "apple" | "audius" | "jamendo" | "local" }) {
+  if (source === "apple") {
+    return (
+      <span className="flex-shrink-0 rounded-full border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold text-rose-400">
+        APPLE MASTER
+      </span>
+    );
+  }
   if (source === "audius") {
     return (
       <span className="flex-shrink-0 rounded-full border border-primary/20 bg-primary/6 px-1.5 py-0.5 text-[9px] font-bold text-primary">
@@ -61,7 +68,8 @@ function SourceBadge({ source }: { source: "audius" | "jamendo" | "local" }) {
   return null;
 }
 
-function getTrackSource(track: Track): "audius" | "jamendo" | "local" {
+function getTrackSource(track: Track): "apple" | "audius" | "jamendo" | "local" {
+  if (track.id.startsWith("apple-")) return "apple";
   if (track.id.startsWith("audius-")) return "audius";
   if (track.id.startsWith("jamendo-")) return "jamendo";
   return "local";
@@ -138,15 +146,16 @@ function SearchPage() {
   }, [normalizedQuery, catalog, external]);
 
   const tabTracks = useMemo<Track[]>(() => {
+    if (tab === "apple") return allTracks.filter((t) => t.id.startsWith("apple-"));
     if (tab === "audius") return allTracks.filter((t) => t.id.startsWith("audius-"));
     if (tab === "jamendo") return allTracks.filter((t) => t.id.startsWith("jamendo-"));
     return allTracks;
   }, [allTracks, tab]);
 
   const hasResults = allTracks.length > 0 || allArtists.length > 0;
+  const appleCount = allTracks.filter((t) => t.id.startsWith("apple-")).length;
   const audiusCount = allTracks.filter((t) => t.id.startsWith("audius-")).length;
   const jamendoCount = allTracks.filter((t) => t.id.startsWith("jamendo-")).length;
-  const otherCount = allTracks.length - audiusCount - jamendoCount;
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-32 pt-20 sm:px-6 lg:px-8">
@@ -154,7 +163,7 @@ function SearchPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Search</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Searches Audius Web3, Jamendo Creative Commons, and your catalog live.
+          Searches Apple Music Masters, Audius Web3, Jamendo CC, and your library live.
         </p>
       </div>
 
@@ -164,7 +173,7 @@ function SearchPage() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search songs, artists, genres…"
+          placeholder="Search songs, artists, genres (e.g. The Weeknd, Synthwave, Daft Punk)…"
           className="h-12 rounded-full border-border/40 bg-surface-raised pl-11 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary/50"
           autoFocus
         />
@@ -175,10 +184,11 @@ function SearchPage() {
 
       {/* Source tabs — visible only when there are results */}
       {hasResults && (
-        <div className="mb-6 flex items-center gap-1 border-b border-border/30 pb-px">
+        <div className="mb-6 flex items-center gap-1 border-b border-border/30 pb-px overflow-x-auto">
           {(
             [
               { key: "all", label: `All (${allTracks.length})` },
+              { key: "apple", label: `Apple Master (${appleCount})`, icon: Sparkles },
               { key: "audius", label: `Audius (${audiusCount})`, icon: Globe },
               { key: "jamendo", label: `Jamendo (${jamendoCount})`, icon: Disc3 },
             ] as Array<{ key: SearchTab; label: string; icon?: React.ElementType }>
@@ -187,7 +197,7 @@ function SearchPage() {
               key={key}
               onClick={() => setTab(key)}
               className={cn(
-                "flex items-center gap-1.5 rounded-t-md border-b-2 px-4 py-2 text-xs font-semibold transition-colors",
+                "flex items-center gap-1.5 rounded-t-md border-b-2 px-4 py-2 text-xs font-semibold transition-colors shrink-0",
                 tab === key
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground",

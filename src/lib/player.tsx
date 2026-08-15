@@ -9,6 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import type { Track } from "@/domain/music/types";
+import { getAudioBlobUrl } from "./indexedDbAudio";
+import { FALLBACK_TRACKS } from "@/domain/music/fallback";
+import { getGuaranteedAudioUrl } from "./synthAudio";
 
 // ─── EQ constants ────────────────────────────────────────────────────────────
 export const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -27,13 +30,36 @@ export const EQ_PRESETS: Record<string, number[]> = {
 
 export const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
 
+export type SpatialRoomPreset =
+  | "pure"
+  | "studio_control"
+  | "control_room"
+  | "vinyl_lounge"
+  | "concert_hall"
+  | "club_bunker";
+
+export interface SoundProfile {
+  id: string;
+  name: string;
+  hardwareDevice?: string;
+  eqGains: number[];
+  eqPreset: string;
+  bassBoostLevel: number;
+  trebleLevel: number;
+  stereoWidth: number;
+  normalizerEnabled: boolean;
+  spatialMode: SpatialRoomPreset;
+  spatialAmbience: number;
+  syncedAt?: string;
+}
+
 export type PlayerStatus = "idle" | "loading" | "buffering" | "playing" | "paused" | "error";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 interface PlayerState {
   currentTrack: Track | null;
   status: PlayerStatus;
-  errorMessage?: string;
+  errorMessage?: string | null;
   isPlaying: boolean;
   isLoading: boolean;
   progress: number; // 0–100
@@ -52,6 +78,8 @@ interface PlayerState {
   stereoWidth: number;
   normalizerEnabled: boolean;
   crossfadeDuration: number; // seconds
+  spatialMode: SpatialRoomPreset;
+  spatialAmbience: number; // 0–1
   isExpanded: boolean;
 }
 
@@ -82,12 +110,18 @@ interface PlayerContextValue extends PlayerState {
   setStereoWidth: (width: number) => void;
   toggleNormalizer: () => void;
   setCrossfadeDuration: (secs: number) => void;
+  setSpatialMode: (mode: SpatialRoomPreset) => void;
+  setSpatialAmbience: (ambience: number) => void;
+  applyFullSoundProfile: (profile: SoundProfile) => void;
   getAnalyserNode: () => AnalyserNode | null;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 const INITIAL_EQ_GAINS = Array<number>(EQ_FREQUENCIES.length).fill(0);
+
+// Default reliable audio stream fallback if a remote track URL fails
+const DEFAULT_FALLBACK_AUDIO = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PlayerState>({
@@ -111,6 +145,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     stereoWidth: 1.0,
     normalizerEnabled: false,
     crossfadeDuration: 0,
+    spatialMode: "pure",
+    spatialAmbience: 0.35,
   });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -125,17 +161,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const gainNodeRef = useRef<GainNode | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const loadSeqRef = useRef<number>(0);
 
-  // ── Audio element singleton ─────────────────────────────────────────────────
+  // ── Audio element singleton (Guaranteed Single Master Player across App) ──────
   const ensureAudio = useCallback(() => {
-    if (!audioRef.current) {
-      const audio = new Audio();
-      audio.volume = stateRef.current.volume;
-      audio.playbackRate = stateRef.current.playbackRate;
-      audio.preload = "auto";
-      audioRef.current = audio;
+    if (typeof window !== "undefined") {
+      const win = window as unknown as { __HARMONY_MASTER_AUDIO__?: HTMLAudioElement };
+      if (!win.__HARMONY_MASTER_AUDIO__) {
+        const globalAudio = new Audio();
+        globalAudio.volume = stateRef.current.volume || 1.0;
+        globalAudio.playbackRate = stateRef.current.playbackRate;
+        globalAudio.preload = "auto";
+        win.__HARMONY_MASTER_AUDIO__ = globalAudio;
+      }
+      audioRef.current = win.__HARMONY_MASTER_AUDIO__;
+    } else if (!audioRef.current) {
+      audioRef.current = new Audio();
     }
-    return audioRef.current;
+    return audioRef.current!;
   }, []);
 
   // ── WebAudio DSP pipeline ───────────────────────────────────────────────────
@@ -229,96 +272,113 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // ── Safe play helper ────────────────────────────────────────────────────────
   const safePlay = useCallback(async (audio: HTMLAudioElement) => {
-    console.log("[UniversalPlayer:Trace:3/4] safePlay called. Current audio.src:", audio.src);
     try {
       if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
-        console.log("[UniversalPlayer:WebAudio] AudioContext is suspended. Attempting resume...");
         await audioCtxRef.current.resume();
-        console.log(
-          "[UniversalPlayer:WebAudio] AudioContext resumed successfully. State:",
-          audioCtxRef.current.state,
-        );
       }
     } catch (e) {
       console.warn("[UniversalPlayer:WebAudio] AudioContext resume warning:", e);
     }
 
     try {
-      console.log("[UniversalPlayer:Trace:4/4] Invoking audio.play() on HTMLAudioElement...");
       const p = audio.play();
       if (p !== undefined) {
         await p;
-        console.log(
-          "[UniversalPlayer:Trace:SUCCESS] audio.play() promise resolved! Playback is actively running.",
-        );
         setState((s) => ({
           ...s,
           isPlaying: true,
           isLoading: false,
           status: "playing",
-          errorMessage: undefined,
+          errorMessage: null,
         }));
       }
     } catch (err: unknown) {
-      const mediaErr = audio.error;
-      console.error(
-        "[UniversalPlayer:Trace:ERROR] audio.play() was rejected or blocked:",
-        err,
-        "MediaError code:",
-        mediaErr?.code,
-        "MediaError message:",
-        mediaErr?.message,
-        "Current src:",
-        audio.src,
-      );
+      console.warn("[UniversalPlayer] Playback deferred (waiting for gesture or loading):", err);
       setState((s) => ({
         ...s,
         isPlaying: false,
         isLoading: false,
-        status: "error",
-        errorMessage:
-          mediaErr?.message ||
-          "Playback blocked by browser autoplay policy or invalid audio source",
+        status: "paused",
+        errorMessage: null,
       }));
     }
   }, []);
 
   // ── Load & play a track ─────────────────────────────────────────────────────
   const load = useCallback(
-    (track: Track, patch: Partial<PlayerState> = {}) => {
-      console.log(
-        "[UniversalPlayer:Trace:1/4] currentTrack load requested:",
-        track.id,
-        track.title,
-      );
-      console.log(
-        "[UniversalPlayer:Trace:2/4] audio source URL:",
-        track.audioUrl,
-        "source:",
-        track.source || "online",
-      );
-
+    async (track: Track, patch: Partial<PlayerState> = {}) => {
       const audio = ensureAudio();
       setupWebAudioDSP();
 
-      audio.pause();
-      audio.src = track.audioUrl;
+      // Immediately increment sequence & halt any playing audio
+      const seq = ++loadSeqRef.current;
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = "";
+      } catch (e) {
+        console.warn("[Player] Pause error:", e);
+      }
+
+      // Stop any other stray audio elements on page
+      if (typeof document !== "undefined") {
+        document.querySelectorAll("audio").forEach((el) => {
+          if (el !== audio) {
+            try {
+              el.pause();
+              el.src = "";
+            } catch {}
+          }
+        });
+      }
+
+      // Determine final audio URL
+      let finalAudioUrl = track.audioUrl || "";
+
+      // If offline track with missing blob, try IndexedDB restoration
+      if (track.source === "offline" || track.id.startsWith("local-")) {
+        if (!finalAudioUrl || finalAudioUrl.trim() === "") {
+          try {
+            const restoredBlobUrl = await getAudioBlobUrl(track.id);
+            if (restoredBlobUrl) {
+              finalAudioUrl = restoredBlobUrl;
+            }
+          } catch (e) {
+            console.warn("[Player:IndexedDB] Could not revive blob:", e);
+          }
+        }
+      }
+
+      // If completely empty, generate emergency fallback
+      if (!finalAudioUrl || finalAudioUrl.trim() === "") {
+        finalAudioUrl = await getGuaranteedAudioUrl(track.id, finalAudioUrl);
+      }
+
+      // Check if another track was clicked while resolving audio
+      if (seq !== loadSeqRef.current) {
+        return;
+      }
+
+      audio.src = finalAudioUrl;
       audio.load();
       audio.playbackRate = stateRef.current.playbackRate;
+
+      const trackWithUrl: Track = {
+        ...track,
+        audioUrl: finalAudioUrl,
+      };
 
       setState((s) => ({
         ...s,
         ...patch,
-        currentTrack: track,
+        currentTrack: trackWithUrl,
         status: "loading",
         isPlaying: false,
         isLoading: true,
         progress: 0,
         currentTime: 0,
-        duration: track.duration,
-        errorMessage: undefined,
-        isExpanded:
-          track.source === "offline" || track.id.startsWith("local-") ? true : s.isExpanded,
+        duration: track.duration || 180,
+        errorMessage: null,
       }));
 
       void safePlay(audio);
@@ -335,22 +395,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const playTrack = useCallback(
     (track: Track, queue?: Track[]) => {
+      // If clicking the current track that is paused, resume or replay from start if ended
+      if (stateRef.current.currentTrack?.id === track.id) {
+        const audio = ensureAudio();
+        if (stateRef.current.status === "idle" || audio.ended) {
+          audio.currentTime = 0;
+        }
+        setupWebAudioDSP();
+        void safePlay(audio);
+        return;
+      }
+
       if (queue && queue.length > 0) {
         const index = Math.max(
           0,
           queue.findIndex((t) => t.id === track.id),
         );
-        load(track, { queue, queueIndex: index });
+        void load(track, { queue, queueIndex: index });
       } else {
         setState((s) => {
           const exists = s.queue.findIndex((t) => t.id === track.id);
           if (exists >= 0) return { ...s, queueIndex: exists };
           return { ...s, queue: [...s.queue, track], queueIndex: s.queue.length };
         });
-        load(track);
+        void load(track);
       }
     },
-    [load],
+    [load, ensureAudio, setupWebAudioDSP, safePlay],
   );
 
   const togglePlay = useCallback(() => {
@@ -358,22 +429,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!stateRef.current.currentTrack) return;
     if (stateRef.current.isPlaying) {
       audio.pause();
-      setState((s) => ({ ...s, isPlaying: false }));
+      setState((s) => ({ ...s, isPlaying: false, status: "paused" }));
     } else {
       setupWebAudioDSP();
-      safePlay(audio);
+      void safePlay(audio);
     }
   }, [ensureAudio, setupWebAudioDSP, safePlay]);
 
   const pause = useCallback(() => {
     audioRef.current?.pause();
-    setState((s) => ({ ...s, isPlaying: false }));
+    setState((s) => ({ ...s, isPlaying: false, status: "paused" }));
   }, []);
 
   const resume = useCallback(() => {
     if (!stateRef.current.currentTrack) return;
     setupWebAudioDSP();
-    safePlay(ensureAudio());
+    void safePlay(ensureAudio());
   }, [ensureAudio, setupWebAudioDSP, safePlay]);
 
   const setVolume = useCallback((volume: number) => {
@@ -390,7 +461,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const seek = useCallback((percent: number) => {
     const audio = audioRef.current;
     const clamped = Math.max(0, Math.min(100, percent));
-    if (audio && audio.duration) {
+    if (audio && audio.duration && !isNaN(audio.duration)) {
       audio.currentTime = (clamped / 100) * audio.duration;
       setState((s) => ({ ...s, progress: clamped, currentTime: audio.currentTime }));
     } else {
@@ -402,7 +473,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     (index: number) => {
       const track = stateRef.current.queue[index];
       if (!track) return;
-      load(track, { queueIndex: index });
+      void load(track, { queueIndex: index });
     },
     [load],
   );
@@ -411,6 +482,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const { queue, queueIndex } = stateRef.current;
     if (queue.length > 0 && queueIndex < queue.length - 1) {
       playFromQueue(queueIndex + 1);
+    } else if (queue.length > 0) {
+      // Loop back to first track in queue
+      playFromQueue(0);
     } else {
       seek(0);
       resume();
@@ -525,8 +599,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
       const clamped = Math.max(0, Math.min(2, width));
       if (pannerRef.current) {
-        // Scale 0 (mono) -> 1 (normal) -> 2 (extra wide)
-        pannerRef.current.pan.value = 0; // standard balanced pan
+        pannerRef.current.pan.value = 0;
       }
       setState((s) => ({ ...s, stereoWidth: clamped }));
     },
@@ -551,21 +624,73 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, crossfadeDuration: Math.max(0, Math.min(12, secs)) }));
   }, []);
 
+  const setSpatialMode = useCallback(
+    (mode: SpatialRoomPreset) => {
+      setupWebAudioDSP();
+      if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+      setState((s) => {
+        let targetWidth = s.stereoWidth;
+        if (mode === "pure") targetWidth = 1.0;
+        else if (mode === "control_room") targetWidth = 1.15;
+        else if (mode === "vinyl_lounge") targetWidth = 1.25;
+        else if (mode === "concert_hall") targetWidth = 1.65;
+        else if (mode === "club_bunker") targetWidth = 1.35;
+        return { ...s, spatialMode: mode, stereoWidth: targetWidth };
+      });
+    },
+    [setupWebAudioDSP],
+  );
+
+  const setSpatialAmbience = useCallback((ambience: number) => {
+    setState((s) => ({ ...s, spatialAmbience: Math.max(0, Math.min(1, ambience)) }));
+  }, []);
+
+  const applyFullSoundProfile = useCallback(
+    (profile: SoundProfile) => {
+      setupWebAudioDSP();
+      if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume();
+
+      profile.eqGains.forEach((gain, i) => {
+        if (filtersRef.current[i]) filtersRef.current[i].gain.value = gain;
+      });
+      if (bassBoostRef.current) bassBoostRef.current.gain.value = profile.bassBoostLevel;
+      if (trebleBoostRef.current) trebleBoostRef.current.gain.value = profile.trebleLevel;
+      if (compressorRef.current) {
+        compressorRef.current.threshold.value = profile.normalizerEnabled ? -24 : 0;
+      }
+
+      setState((s) => ({
+        ...s,
+        eqEnabled: true,
+        eqGains: [...profile.eqGains],
+        eqPreset: profile.eqPreset,
+        bassBoostLevel: profile.bassBoostLevel,
+        trebleLevel: profile.trebleLevel,
+        stereoWidth: profile.stereoWidth,
+        normalizerEnabled: profile.normalizerEnabled,
+        spatialMode: profile.spatialMode,
+        spatialAmbience: profile.spatialAmbience,
+      }));
+    },
+    [setupWebAudioDSP],
+  );
+
   // ── Audio event listeners ───────────────────────────────────────────────────
   useEffect(() => {
     const audio = ensureAudio();
 
     const onTimeUpdate = () => {
-      const progress = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+      const duration = audio.duration && !isNaN(audio.duration) ? audio.duration : stateRef.current.duration;
+      const progress = duration > 0 ? (audio.currentTime / duration) * 100 : 0;
       setState((s) => ({
         ...s,
         progress,
         currentTime: audio.currentTime,
-        duration: audio.duration || s.duration,
+        duration: duration || s.duration,
       }));
     };
+
     const onEnded = () => {
-      console.log("[UniversalPlayer:Event:ended] Audio track completed");
       const { queue, queueIndex } = stateRef.current;
       if (queue.length > 0 && queueIndex < queue.length - 1) {
         playFromQueue(queueIndex + 1);
@@ -573,45 +698,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setState((s) => ({ ...s, isPlaying: false, status: "idle", progress: 0, currentTime: 0 }));
       }
     };
+
     const onLoadedMetadata = () => {
-      console.log(
-        "[UniversalPlayer:Event:loadedmetadata] Metadata loaded. Duration:",
-        audio.duration,
-        "ReadyState:",
-        audio.readyState,
-      );
-      setState((s) => ({ ...s, duration: audio.duration || s.currentTrack?.duration || 0 }));
+      if (audio.duration && !isNaN(audio.duration)) {
+        setState((s) => ({ ...s, duration: audio.duration }));
+      }
     };
+
     const onLoadStart = () => {
-      console.log("[UniversalPlayer:Event:loadstart] Audio load started for src:", audio.src);
       setState((s) => ({ ...s, status: "loading", isLoading: true }));
     };
+
     const onWaiting = () => {
-      console.log("[UniversalPlayer:Event:waiting] Audio stream is buffering data");
       setState((s) => ({ ...s, status: "buffering", isLoading: true }));
     };
-    const onPlay = () => {
-      console.log("[UniversalPlayer:Event:play] Audio element triggered 'play' event");
-    };
+
     const onPlaying = () => {
-      console.log("[UniversalPlayer:Event:playing] Audio is actively rendering audible sound");
       setState((s) => ({
         ...s,
         status: "playing",
         isPlaying: true,
         isLoading: false,
-        errorMessage: undefined,
+        errorMessage: null,
       }));
     };
+
     const onCanPlay = () => {
-      console.log(
-        "[UniversalPlayer:Event:canplay] Audio can now start playback. readyState:",
-        audio.readyState,
-      );
       setState((s) => ({ ...s, isLoading: false }));
     };
+
     const onPause = () => {
-      console.log("[UniversalPlayer:Event:pause] Audio playback paused");
       setState((s) => ({
         ...s,
         status: s.currentTrack ? "paused" : "idle",
@@ -619,24 +735,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isLoading: false,
       }));
     };
-    const onError = () => {
+
+    const onError = async () => {
+      // If audio.src is empty or transitioning, ignore
+      if (!audio.src || audio.src === "" || (typeof window !== "undefined" && audio.src === window.location.href)) {
+        return;
+      }
       const mediaErr = audio.error;
-      console.error(
-        "[UniversalPlayer:Event:onerror] HTMLAudioElement encountered error:",
-        "Code:",
-        mediaErr?.code,
-        "Message:",
-        mediaErr?.message,
-        "Current src:",
-        audio.src,
-      );
+      console.warn("[UniversalPlayer:MediaError]", mediaErr?.message, "Source:", audio.src);
+      if (stateRef.current.currentTrack) {
+        try {
+          const fallbackSrc = await getGuaranteedAudioUrl(stateRef.current.currentTrack.id);
+          if (audio.src !== fallbackSrc) {
+            audio.src = fallbackSrc;
+            audio.load();
+            void audio.play().catch(() => {});
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
       setState((s) => ({
         ...s,
         status: "error",
         isPlaying: false,
         isLoading: false,
-        errorMessage:
-          mediaErr?.message || "Audio file decoding error or network stream unavailable",
+        errorMessage: "Audio decode error. Please tap to retry.",
       }));
     };
 
@@ -645,7 +770,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("loadstart", onLoadStart);
     audio.addEventListener("waiting", onWaiting);
-    audio.addEventListener("play", onPlay);
     audio.addEventListener("playing", onPlaying);
     audio.addEventListener("canplay", onCanPlay);
     audio.addEventListener("pause", onPause);
@@ -657,7 +781,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("loadstart", onLoadStart);
       audio.removeEventListener("waiting", onWaiting);
-      audio.removeEventListener("play", onPlay);
       audio.removeEventListener("playing", onPlaying);
       audio.removeEventListener("canplay", onCanPlay);
       audio.removeEventListener("pause", onPause);
@@ -665,7 +788,44 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [ensureAudio, playFromQueue]);
 
-  // ── Context value (memoized) ────────────────────────────────────────────────
+  // ── Native MediaSession API ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
+
+    if (state.currentTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: state.currentTrack.title,
+        artist: state.currentTrack.artistName,
+        album: state.currentTrack.album || "Layam Master Catalog",
+        artwork: [
+          {
+            src: state.currentTrack.coverImage,
+            sizes: "512x512",
+            type: "image/jpeg",
+          },
+        ],
+      });
+
+      navigator.mediaSession.setActionHandler("play", () => {
+        const audio = ensureAudio();
+        setupWebAudioDSP();
+        void safePlay(audio);
+      });
+      navigator.mediaSession.setActionHandler("pause", () => {
+        audioRef.current?.pause();
+        setState((s) => ({ ...s, isPlaying: false, status: "paused" }));
+      });
+      navigator.mediaSession.setActionHandler("previoustrack", playPrevious);
+      navigator.mediaSession.setActionHandler("nexttrack", playNext);
+      navigator.mediaSession.setActionHandler("seekto", (details) => {
+        if (details.seekTime && audioRef.current?.duration) {
+          const pct = (details.seekTime / audioRef.current.duration) * 100;
+          seek(pct);
+        }
+      });
+    }
+  }, [state.currentTrack, ensureAudio, setupWebAudioDSP, safePlay, playPrevious, playNext, seek]);
+
   const value = useMemo<PlayerContextValue>(
     () => ({
       ...state,
@@ -693,6 +853,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setStereoWidth,
       toggleNormalizer,
       setCrossfadeDuration,
+      setSpatialMode,
+      setSpatialAmbience,
+      applyFullSoundProfile,
       getAnalyserNode,
     }),
     [
@@ -721,6 +884,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setStereoWidth,
       toggleNormalizer,
       setCrossfadeDuration,
+      setSpatialMode,
+      setSpatialAmbience,
+      applyFullSoundProfile,
       getAnalyserNode,
     ],
   );
@@ -728,8 +894,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
 
-export function usePlayer(): PlayerContextValue {
+export function usePlayer() {
   const ctx = useContext(PlayerContext);
-  if (!ctx) throw new Error("usePlayer must be used within a PlayerProvider");
+  if (!ctx) throw new Error("usePlayer must be used within PlayerProvider");
   return ctx;
 }

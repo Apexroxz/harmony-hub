@@ -18,6 +18,7 @@ import { WalletProvider } from "../lib/wallet";
 import { PlayerProvider } from "../lib/player";
 import { LibraryProvider } from "../lib/library";
 import { ModeProvider } from "../lib/mode";
+import { I18nProvider } from "../lib/i18n";
 
 import { Header } from "../components/Header";
 import { PlayerBar } from "../components/PlayerBar";
@@ -45,7 +46,7 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+  console.error("[RootErrorComponent]", error);
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
@@ -58,7 +59,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {error?.message || "Something went wrong on our end. You can try refreshing or head back home."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -66,7 +67,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 cursor-pointer"
           >
             Try again
           </button>
@@ -101,12 +102,12 @@ class AppErrorBoundary extends Component<EBProps, EBState> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
+  override componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
     reportLovableError(error, { boundary: "react_error_boundary" });
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -168,6 +169,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "icon", href: "/logo.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/logo.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -193,34 +195,44 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        // SW registration fallback
+      });
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <WalletProvider>
-          <ModeProvider>
-            <LibraryProvider>
-              <PlayerProvider>
-                <Toaster
-                  position="bottom-right"
-                  richColors
-                  toastOptions={{
-                    className: "bg-card text-foreground border-border",
-                  }}
-                />
-                <div className="flex min-h-screen flex-col">
-                  <Header />
-                  <main className="flex-1">
-                    <AppErrorBoundary>
-                      <Outlet />
-                    </AppErrorBoundary>
-                  </main>
-                  <PlayerBar />
-                </div>
-              </PlayerProvider>
-            </LibraryProvider>
-          </ModeProvider>
-        </WalletProvider>
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <WalletProvider>
+            <ModeProvider>
+              <LibraryProvider>
+                <PlayerProvider>
+                  <Toaster
+                    position="bottom-right"
+                    richColors
+                    toastOptions={{
+                      className: "bg-card text-foreground border-border",
+                    }}
+                  />
+                  <div className="flex min-h-screen flex-col bg-background text-foreground">
+                    <Header />
+                    <main className="flex-1 pb-32 sm:pb-36">
+                      <AppErrorBoundary>
+                        <Outlet />
+                      </AppErrorBoundary>
+                    </main>
+                    <PlayerBar />
+                  </div>
+                </PlayerProvider>
+              </LibraryProvider>
+            </ModeProvider>
+          </WalletProvider>
+        </AuthProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }

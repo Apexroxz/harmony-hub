@@ -9,9 +9,10 @@ import {
 } from "react";
 import { toast } from "sonner";
 import type { Track, AudioFormat } from "@/domain/music/types";
-import { extractAudioMetadata } from "./tagExtractor";
-import { getAudioFormatName } from "@/domain/music/quality-tier";
+import { extractAudioMetadata, type ExtractedMetadata } from "./tagExtractor";
+import { getAudioFormatName, SUPPORTED_AUDIO_EXTENSIONS } from "@/domain/music/quality-tier";
 import { tracks as catalogTracks } from "@/domain/music/catalog";
+import { storeAudioBlob, getAudioBlobUrl, deleteAudioBlob } from "./indexedDbAudio";
 import cover1 from "@/assets/covers/cover-1.jpg";
 import cover2 from "@/assets/covers/cover-2.jpg";
 import cover3 from "@/assets/covers/cover-3.jpg";
@@ -191,6 +192,10 @@ interface ModeContextValue {
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
   rescanLibrary: () => void;
   clearOfflineCache: () => void;
+  saveTrackOffline: (track: Track) => Promise<void>;
+  removeDownloadedTrack: (trackId: string) => void;
+  isTrackDownloaded: (trackId: string) => boolean;
+  downloadedTracks: LocalTrack[];
 }
 
 const ModeContext = createContext<ModeContextValue | null>(null);
@@ -199,6 +204,7 @@ const STORAGE_KEY = "layam_app_mode";
 const LOCAL_TRACKS_KEY = "layam_imported_tracks";
 const PLAYLISTS_KEY = "layam_local_playlists";
 const SETTINGS_KEY = "layam_offline_settings";
+const OFFLINE_DOWNLOADS_KEY = "layam_offline_downloads";
 
 export function ModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<AppMode>(() => {
@@ -213,6 +219,18 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(LOCAL_TRACKS_KEY);
+        if (saved) return JSON.parse(saved) as LocalTrack[];
+      } catch {
+        // ignore
+      }
+    }
+    return [];
+  });
+
+  const [downloadedTracks, setDownloadedTracks] = useState<LocalTrack[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(OFFLINE_DOWNLOADS_KEY);
         if (saved) return JSON.parse(saved) as LocalTrack[];
       } catch {
         // ignore
@@ -260,7 +278,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 
   const [sampleTracks, setSampleTracks] = useState<LocalTrack[]>(LOCAL_SAMPLE_TRACKS);
 
-  // Sync state to localStorage
+  // Sync state to localStorage & revive Blob URLs from IndexedDB
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, mode);
@@ -269,6 +287,34 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     }
   }, [mode]);
 
+  // Restore active Blob URLs for all imported tracks on mount/refresh
+  useEffect(() => {
+    let active = true;
+    async function restoreBlobs() {
+      if (importedTracks.length === 0) return;
+      let hasUpdates = false;
+      const updatedTracks = await Promise.all(
+        importedTracks.map(async (track) => {
+          if (track.id.startsWith("local-custom-")) {
+            const blobUrl = await getAudioBlobUrl(track.id);
+            if (blobUrl && blobUrl !== track.audioUrl) {
+              hasUpdates = true;
+              return { ...track, audioUrl: blobUrl };
+            }
+          }
+          return track;
+        }),
+      );
+      if (active && hasUpdates) {
+        setImportedTracks(updatedTracks);
+      }
+    }
+    void restoreBlobs();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_TRACKS_KEY, JSON.stringify(importedTracks));
@@ -276,6 +322,14 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       // ignore
     }
   }, [importedTracks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(OFFLINE_DOWNLOADS_KEY, JSON.stringify(downloadedTracks));
+    } catch {
+      // ignore
+    }
+  }, [downloadedTracks]);
 
   useEffect(() => {
     try {
@@ -298,8 +352,22 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     toast.success("Offline settings saved");
   }, []);
 
+  const handleRouteRedirectOnModeChange = useCallback((targetMode: AppMode) => {
+    if (typeof window === "undefined") return;
+    const path = window.location.pathname;
+    if (targetMode === "offline") {
+      // If user is on an online route, shift immediately to the Offline Player
+      const onlineRoutes = ["/feed", "/stream", "/radio", "/store", "/artists", "/upload", "/dashboard"];
+      if (onlineRoutes.some((r) => path.startsWith(r)) || path === "/") {
+        window.history.pushState(null, "", "/library");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }
+    }
+  }, []);
+
   const setMode = useCallback((newMode: AppMode) => {
     setModeState(newMode);
+    handleRouteRedirectOnModeChange(newMode);
     toast.info(
       `Switched to ${newMode === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`,
       {
@@ -309,11 +377,12 @@ export function ModeProvider({ children }: { children: ReactNode }) {
             : "Full streaming catalog, store, and creator features active.",
       },
     );
-  }, []);
+  }, [handleRouteRedirectOnModeChange]);
 
   const toggleMode = useCallback(() => {
     setModeState((prev) => {
       const next = prev === "online" ? "offline" : "online";
+      handleRouteRedirectOnModeChange(next);
       toast.info(
         `Switched to ${next === "offline" ? "Offline Hi-Fi Player" : "Online Streaming Mode"}`,
         {
@@ -325,7 +394,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       );
       return next;
     });
-  }, []);
+  }, [handleRouteRedirectOnModeChange]);
 
   // Sync Purchased Store Music into Offline Library
   const purchasedLocalTracks = useMemo<LocalTrack[]>(() => {
@@ -389,33 +458,34 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 
     for (let i = 0; i < validAudioFiles.length; i++) {
       const file = validAudioFiles[i];
+      if (!file) continue;
       try {
         const format = getAudioFormatName(file.name);
         const isLossless = ["FLAC", "WAV", "AIFF", "ALAC"].includes(format);
         const objectUrl = URL.createObjectURL(file);
-        console.log(
-          `[OfflineImport:3/5] Generated audioUrl via createObjectURL for [${file.name}]:`,
-          objectUrl,
-        );
+        const trackId = `local-custom-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+
+        // Permanently persist the raw audio Blob in browser IndexedDB
+        await storeAudioBlob(trackId, file, file.name);
 
         // Extract embedded ID3 tags
-        const metadata = await extractAudioMetadata(file).catch(() => ({
+        const metadata: ExtractedMetadata = await extractAudioMetadata(file).catch(() => ({
           title: file.name.replace(/\.[^/.]+$/, ""),
           artist: "Local Device",
           album: "Local Audio",
           folderPath: "Imported Tracks",
         }));
 
-        const coverFallback = fallbackCovers[i % fallbackCovers.length];
+        const coverFallback = fallbackCovers[i % fallbackCovers.length] || cover1;
 
         const track: LocalTrack = {
-          id: `local-custom-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+          id: trackId,
           title: metadata.title || file.name.replace(/\.[^/.]+$/, ""),
           artistId: "local-artist",
           artistName: metadata.artist || "Local Device",
           artist: metadata.artist || "Local Device",
           album: metadata.album || "Local Audio",
-          coverImage: metadata.coverImage || coverFallback,
+          coverImage: metadata.coverImage || coverFallback || cover1,
           audioUrl: objectUrl,
           source: "offline",
           format,
@@ -424,7 +494,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
           quality: format as AudioFormat,
           bitrate: isLossless ? (format === "WAV" ? 4608 : 1411) : 320,
           sampleRate: format === "WAV" ? 96000 : 44100,
-          bitDepth: format === "WAV" ? 24 : isLossless ? 16 : undefined,
+          bitDepth: format === "WAV" ? 24 : isLossless ? 16 : null,
           playCount: 0,
           likes: 0,
           comments: 0,
@@ -434,7 +504,6 @@ export function ModeProvider({ children }: { children: ReactNode }) {
           fileSizeBytes: file.size || 45000000,
         };
 
-        console.log(`[OfflineImport:4/5] Created Track Object for [${file.name}]:`, track);
         newTracks.push(track);
       } catch (err) {
         console.error("[OfflineImport:Error] Failed to import single file:", file.name, err);
@@ -442,21 +511,15 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     }
 
     if (newTracks.length > 0) {
-      console.log(
-        `[OfflineImport:5/5] Updating state with ${newTracks.length} new track(s). Total imported tracks will be updated.`,
-      );
-      setImportedTracks((prev) => {
-        const updated = [...newTracks, ...prev];
-        console.log("[OfflineImport:State] importedTracks state is now:", updated);
-        return updated;
-      });
-      toast.success(`Imported ${newTracks.length} local master(s)`, {
-        description: "Parsed ID3 tags & ready in Local Hi-Fi Library",
+      setImportedTracks((prev) => [...newTracks, ...prev]);
+      toast.success(`Imported & saved ${newTracks.length} local master(s)`, {
+        description: "Cached in permanent local database. Playable anytime.",
       });
     }
   }, []);
 
   const removeLocalTrack = useCallback((id: string) => {
+    void deleteAudioBlob(id);
     setImportedTracks((prev) => prev.filter((t) => t.id !== id));
     toast.info("Removed local track from library");
   }, []);
@@ -513,23 +576,73 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 
   const clearOfflineCache = useCallback(() => {
     setImportedTracks([]);
+    setDownloadedTracks([]);
     try {
       localStorage.removeItem(LOCAL_TRACKS_KEY);
+      localStorage.removeItem(OFFLINE_DOWNLOADS_KEY);
     } catch {
       // ignore
     }
-    toast.success("Cleared imported audio cache");
+    toast.success("Cleared all imported and cached audio files");
   }, []);
 
-  // All local tracks = Sample local tracks + User imported tracks + Purchased Store masters
+  const isTrackDownloaded = useCallback(
+    (trackId: string) => {
+      return downloadedTracks.some((t) => t.id === trackId);
+    },
+    [downloadedTracks],
+  );
+
+  const saveTrackOffline = useCallback(
+    async (track: Track) => {
+      if (downloadedTracks.some((t) => t.id === track.id)) {
+        toast.info(`"${track.title}" is already saved for offline listening.`);
+        return;
+      }
+
+      const toastId = toast.loading(`Saving "${track.title}" for offline playback...`);
+      try {
+        const localTrack: LocalTrack = {
+          ...track,
+          source: "offline",
+          format: track.quality,
+          artist: track.artistName || track.artist || "Artist",
+          folderPath: "Downloads/Offline Streams",
+          album: track.album || "Cached Streams",
+          fileSizeBytes: Math.round(track.duration * (track.bitrate || 320) * 125),
+        };
+
+        setDownloadedTracks((prev) => [localTrack, ...prev]);
+        toast.success(`Saved "${track.title}" to offline library!`, {
+          id: toastId,
+          description: "Available in Offline Mode without an internet connection.",
+        });
+      } catch (err) {
+        toast.error("Failed to cache audio stream.", { id: toastId });
+      }
+    },
+    [downloadedTracks],
+  );
+
+  const removeDownloadedTrack = useCallback((trackId: string) => {
+    setDownloadedTracks((prev) => prev.filter((t) => t.id !== trackId));
+    toast.info("Track removed from offline cache.");
+  }, []);
+
+  // All local tracks = Sample tracks + Imported tracks + Purchased masters + Offline Stream Cache
   const allLocalTracks = useMemo(() => {
-    const combined = [...importedTracks, ...purchasedLocalTracks, ...sampleTracks];
+    const combined = [
+      ...downloadedTracks,
+      ...importedTracks,
+      ...purchasedLocalTracks,
+      ...sampleTracks,
+    ];
     const unique = new Map<string, LocalTrack>();
     for (const t of combined) {
       unique.set(t.id, t);
     }
     return Array.from(unique.values());
-  }, [importedTracks, purchasedLocalTracks, sampleTracks]);
+  }, [downloadedTracks, importedTracks, purchasedLocalTracks, sampleTracks]);
 
   // Derived Storage calculation in MB
   const storageUsedMb = useMemo(() => {
@@ -625,6 +738,10 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       removeTrackFromPlaylist,
       rescanLibrary,
       clearOfflineCache,
+      saveTrackOffline,
+      removeDownloadedTrack,
+      isTrackDownloaded,
+      downloadedTracks,
     }),
     [
       mode,
@@ -648,6 +765,10 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       removeTrackFromPlaylist,
       rescanLibrary,
       clearOfflineCache,
+      saveTrackOffline,
+      removeDownloadedTrack,
+      isTrackDownloaded,
+      downloadedTracks,
     ],
   );
 

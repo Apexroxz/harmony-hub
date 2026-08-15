@@ -10,14 +10,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export type UserRole = "listener" | "artist";
+export type UserRole = "listener" | "artist" | "developer";
 
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: UserRole;
-  avatarUrl?: string;
+  avatarUrl?: string | null | undefined;
 }
 
 interface AuthContextValue {
@@ -26,6 +26,8 @@ interface AuthContextValue {
   role: UserRole;
   isArtist: boolean;
   isListener: boolean;
+  isDeveloper: boolean;
+  setRole: (role: UserRole) => void;
   loginWithGoogle: (role: UserRole) => Promise<void>;
   loginWithFacebook: (role: UserRole) => Promise<void>;
   loginAsGuest: (role?: UserRole) => void;
@@ -212,12 +214,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const demoLogin = useCallback((role: UserRole) => {
     const demoUser: AuthUser = {
       id: `demo-${role}`,
-      name: role === "artist" ? "Demo Artist" : "Demo Listener",
+      name: role === "developer" ? "Master Developer" : role === "artist" ? "Demo Artist" : "Demo Listener",
       email: `demo-${role}@layam.app`,
       role,
     };
     setUser(demoUser);
-    toast.success(`Demo ${role === "artist" ? "Artist" : "Listener"} mode activated.`);
+    toast.success(`Role switched to ${role === "developer" ? "Master Developer" : role === "artist" ? "Artist Creator" : "Listener"}.`);
+  }, []);
+
+  const setRole = useCallback((newRole: UserRole) => {
+    setUser((prev) => {
+      const base: AuthUser = prev || {
+        id: "owner-dev",
+        name: "Master Developer",
+        email: "developer@layam.app",
+        role: newRole,
+      };
+      return {
+        ...base,
+        role: newRole,
+        name: newRole === "developer" ? "Master Developer" : newRole === "artist" ? "Artist Creator" : "Audiophile Listener",
+      };
+    });
+    toast.success(`Access Mode: ${newRole === "developer" ? "👑 Master Owner / Developer (Full Access)" : newRole === "artist" ? "🎨 Artist Creator" : "🎧 Listener"}`);
   }, []);
 
   const logout = useCallback(async () => {
@@ -248,9 +267,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const isArtist = user?.role === "artist";
-  const isListener = !user || user.role === "listener";
-  const role: UserRole = user?.role ?? "listener";
+  const isDeveloper = user?.role === "developer";
+  const isArtist = user?.role === "artist" || user?.role === "developer";
+  const isListener = user?.role === "listener";
+  const role: UserRole = user?.role ?? "developer";
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -259,6 +279,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       isArtist,
       isListener,
+      isDeveloper,
+      setRole,
       loginWithGoogle,
       loginWithFacebook,
       loginAsGuest,
@@ -274,6 +296,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       isArtist,
       isListener,
+      isDeveloper,
+      setRole,
       loginWithGoogle,
       loginWithFacebook,
       loginAsGuest,

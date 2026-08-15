@@ -69,6 +69,7 @@ const genres = [
 const PURCHASES_KEY = "layam_purchases";
 
 function getPurchases(): string[] {
+  if (typeof window === "undefined") return [];
   try {
     const stored = sessionStorage.getItem(PURCHASES_KEY);
     return stored ? (JSON.parse(stored) as string[]) : [];
@@ -78,6 +79,7 @@ function getPurchases(): string[] {
 }
 
 function savePurchase(trackId: string) {
+  if (typeof window === "undefined") return;
   const current = getPurchases();
   if (!current.includes(trackId)) {
     current.push(trackId);

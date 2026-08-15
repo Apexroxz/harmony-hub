@@ -156,23 +156,26 @@ export function catalogQueryOptions() {
   });
 }
 
-/** Live external search combining Audius + Jamendo results. */
+import { searchAppleMusicTracks } from "./appleMusic";
+
+/** Live multi-engine search combining Apple Music Master + Audius Web3 + Jamendo CC. */
 async function fetchSearch(query: string): Promise<{ tracks: Track[]; artists: Artist[] }> {
   if (!query.trim()) return { tracks: [], artists: [] };
-  const [audius, jamendo] = await Promise.all([
-    searchAudiusTracks(query, 10),
-    searchJamendoTracks(query, 15),
+  const [apple, audius, jamendo] = await Promise.all([
+    searchAppleMusicTracks(query, 12),
+    searchAudiusTracks(query, 8),
+    searchJamendoTracks(query, 10),
   ]);
   const seen = new Set<string>();
   const tracks: Track[] = [];
   const artistsMap = new Map<string, Artist>();
-  for (const t of [...audius.tracks, ...jamendo.tracks]) {
+  for (const t of [...apple.tracks, ...audius.tracks, ...jamendo.tracks]) {
     if (!seen.has(t.id)) {
       seen.add(t.id);
       tracks.push(t);
     }
   }
-  for (const a of [...audius.artists, ...jamendo.artists]) {
+  for (const a of [...apple.artists, ...audius.artists, ...jamendo.artists]) {
     if (!artistsMap.has(a.id)) artistsMap.set(a.id, a);
   }
   return { tracks, artists: Array.from(artistsMap.values()) };

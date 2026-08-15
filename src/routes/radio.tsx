@@ -13,6 +13,10 @@ import {
   Sparkles,
   Layers,
   Sliders,
+  Users,
+  Crown,
+  MessageSquare,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +24,7 @@ import { catalogQueryOptions } from "@/domain/music/queries";
 import { tracks as fallbackCatalogTracks, artists as catalogArtists } from "@/domain/music/catalog";
 import { formatNumber, type Track, type AudioFormat } from "@/domain/music/types";
 import { usePlayer } from "@/lib/player";
+import { ListeningRoomModal, type ListeningRoomData } from "@/components/ListeningRoomModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -199,6 +204,39 @@ const REAL_RADIO_STATIONS: RadioStation[] = [
   },
 ];
 
+const INITIAL_ROOMS: ListeningRoomData[] = [
+  {
+    id: "room-cyberpunk",
+    title: "⚡ Cyberpunk & Dark Synth Underground",
+    djName: "Neon Drifter",
+    djAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80",
+    genre: "Synthwave / Cyberpunk",
+    listenersCount: 54,
+    currentTrack: fallbackCatalogTracks[0]!,
+    qualityBadge: "24-bit / 96kHz Lossless",
+  },
+  {
+    id: "room-siren-lounge",
+    title: "🌙 Solana Siren Late Night Chill Lounge",
+    djName: "Solana Siren",
+    djAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
+    genre: "Ambient / Electropop",
+    listenersCount: 78,
+    currentTrack: fallbackCatalogTracks[2] || fallbackCatalogTracks[0]!,
+    qualityBadge: "24-bit / 96kHz Lossless",
+  },
+  {
+    id: "room-bass-bunker",
+    title: "🔥 Warehouse Sub-Bass & Heavy Dubs",
+    djName: "Byte Bass",
+    djAvatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80",
+    genre: "Bass & Underground",
+    listenersCount: 42,
+    currentTrack: fallbackCatalogTracks[1] || fallbackCatalogTracks[0]!,
+    qualityBadge: "FLAC 1411 kbps",
+  },
+];
+
 function RadioPage() {
   const { data } = useQuery(catalogQueryOptions());
   const allTracks: Track[] =
@@ -206,9 +244,12 @@ function RadioPage() {
   const { playTrack, currentTrack, isPlaying } = usePlayer();
 
   const [activeStationId, setActiveStationId] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<"all" | "live_web" | "genre" | "artist">(
-    "all",
-  );
+  const [selectedCategory, setSelectedCategory] = useState<
+    "rooms" | "all" | "live_web" | "genre" | "artist"
+  >("rooms");
+  const [activeRoom, setActiveRoom] = useState<ListeningRoomData | null>(null);
+  const [roomModalOpen, setRoomModalOpen] = useState(false);
+  const [rooms, setRooms] = useState<ListeningRoomData[]>(INITIAL_ROOMS);
 
   const handleTuneIn = (station: RadioStation) => {
     setActiveStationId(station.id);
@@ -230,7 +271,7 @@ function RadioPage() {
         playCount: 0,
         likes: 0,
         comments: 0,
-        createdAt: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString().split("T")[0] ?? "2026-08-01",
       };
 
       playTrack(liveTrack, [liveTrack]);
@@ -259,7 +300,9 @@ function RadioPage() {
     }
 
     const firstTrack = stationQueue[0];
-    playTrack(firstTrack, stationQueue);
+    if (firstTrack) {
+      playTrack(firstTrack, stationQueue);
+    }
 
     toast.success(`Tuned in to ${station.title}`, {
       description: `Continuous stream (${stationQueue.length} station tracks in queue).`,
@@ -273,15 +316,15 @@ function RadioPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 pb-36 pt-24 sm:px-6 lg:px-8">
       {/* ── Header Banner ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-border/40 bg-card p-8 sm:p-12 mb-10">
-        <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-primary/10 via-amber/5 to-transparent pointer-events-none" />
+      <div className="relative overflow-hidden rounded-[2.5rem] border border-white/[0.09] bg-gradient-to-b from-[#151619] via-[#0e0f11] to-[#080809] p-8 sm:p-12 mb-10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] backdrop-blur-2xl">
+        <div className="pointer-events-none absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-primary/15 via-amber/5 to-transparent blur-3xl" />
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-bold text-primary mb-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-mono font-bold text-primary tracking-wider uppercase mb-4">
             <Radio className="h-3.5 w-3.5 animate-pulse" />
-            <span>UNIVERSAL RADIO HUB</span>
+            <span>UNIVERSAL HIGH-FIDELITY RADIO HUB</span>
           </div>
 
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+          <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-5xl">
             Live Web & Genre Radio, <br />
             <span className="text-gradient glow-text">Zero Interruption.</span>
           </h1>
@@ -293,7 +336,8 @@ function RadioPage() {
 
           <div className="mt-6 flex flex-wrap gap-2.5">
             {[
-              { id: "all" as const, label: "All Stations" },
+              { id: "rooms" as const, label: "📻 Live Listening Rooms (Active)" },
+              { id: "all" as const, label: "All Frequencies" },
               { id: "live_web" as const, label: "🌐 Live FM & Web Radio" },
               { id: "genre" as const, label: "⚡ Genre Radio" },
               { id: "artist" as const, label: "🎨 Artist Radios" },
@@ -304,10 +348,10 @@ function RadioPage() {
                 size="sm"
                 onClick={() => setSelectedCategory(cat.id)}
                 className={cn(
-                  "rounded-full text-xs font-bold transition-all",
+                  "rounded-full text-xs font-bold transition-all h-9 px-4 cursor-pointer tap-active",
                   selectedCategory === cat.id
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "border-border/60 bg-glass text-muted-foreground hover:text-foreground",
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                    : "border-white/[0.08] bg-[#121316] text-muted-foreground hover:text-foreground hover:bg-white/[0.05]",
                 )}
               >
                 {cat.label}
@@ -317,6 +361,129 @@ function RadioPage() {
         </div>
       </div>
 
+      {/* ── Synchronized Live Listening Rooms Section ── */}
+      {(selectedCategory === "rooms" || selectedCategory === "all") && (
+        <div className="mb-12 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
+            <div>
+              <div className="flex items-center gap-2 text-primary text-xs font-bold mb-1">
+                <Users className="h-4 w-4" />
+                <span>SYNCHRONIZED LIVE DJ ROOMS</span>
+              </div>
+              <h2 className="text-2xl font-extrabold text-foreground">
+                Live Community Listening Rooms
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Tune in to the exact same bit-perfect audio stream, vote on the DJ queue, and chat in
+                real time.
+              </p>
+            </div>
+
+            <Button
+              size="sm"
+              onClick={() => {
+                const newRoom: ListeningRoomData = {
+                  id: `room-${Date.now()}`,
+                  title: "🎧 My Live Audiophile Session",
+                  djName: "You (Host DJ)",
+                  djAvatar:
+                    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
+                  genre: "Universal Hi-Fi",
+                  listenersCount: 1,
+                  currentTrack: allTracks[0]!,
+                  qualityBadge: "24-bit / 96kHz Master",
+                };
+                setRooms((prev) => [newRoom, ...prev]);
+                setActiveRoom(newRoom);
+                setRoomModalOpen(true);
+                toast.success("Created your live listening room! You are now Host DJ.");
+              }}
+              className="rounded-full bg-primary text-primary-foreground font-bold text-xs h-9 px-5 gap-2 cursor-pointer shadow-md"
+            >
+              <Plus className="h-4 w-4" /> Host a Listening Room
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {rooms.map((room) => (
+              <div
+                key={room.id}
+                onClick={() => {
+                  setActiveRoom(room);
+                  setRoomModalOpen(true);
+                }}
+                className="group relative overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#121316]/90 p-6 shadow-2xl transition-all duration-500 hover:border-primary/50 hover:bg-[#16181d] hover:shadow-primary/10 cursor-pointer flex flex-col justify-between space-y-5 backdrop-blur-xl"
+              >
+                {/* Room Top Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <img
+                        src={room.djAvatar}
+                        alt={room.djName}
+                        className="h-12 w-12 rounded-2xl object-cover border border-white/10 shadow-sm"
+                      />
+                      <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                        <Crown className="h-2.5 w-2.5" />
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                        Host DJ
+                      </span>
+                      <h4 className="text-sm font-extrabold text-foreground truncate max-w-[140px]">
+                        {room.djName}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px] font-mono font-bold px-2 py-0.5 gap-1.5 animate-pulse">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    LIVE SYNC
+                  </Badge>
+                </div>
+
+                {/* Room Title & Currently Playing */}
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground group-hover:text-primary transition-colors leading-snug tracking-tight">
+                    {room.title}
+                  </h3>
+                  <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/[0.03] p-3 border border-white/[0.06]">
+                    <img
+                      src={room.currentTrack.coverImage}
+                      alt={room.currentTrack.title}
+                      className="h-9 w-9 rounded-xl object-cover border border-white/10"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[9px] text-muted-foreground font-mono">NOW PLAYING</p>
+                      <p className="text-xs font-bold text-foreground truncate">
+                        {room.currentTrack.title}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Room Footer Status & Enter Trigger */}
+                <div className="flex items-center justify-between border-t border-white/[0.06] pt-3 text-xs">
+                  <span className="font-mono text-muted-foreground flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-primary" />
+                    <strong className="text-foreground">{room.listenersCount}</strong> listening
+                  </span>
+
+                  <Button
+                    size="sm"
+                    className="rounded-full h-8 px-4 text-xs font-bold bg-primary text-primary-foreground group-hover:scale-105 transition-transform cursor-pointer tap-active"
+                  >
+                    Enter Room
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Stations Grid ── */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {filteredStations.map((station) => {
@@ -325,25 +492,25 @@ function RadioPage() {
             <div
               key={station.id}
               className={cn(
-                "group relative overflow-hidden rounded-2xl border p-5 transition-all flex flex-col justify-between",
+                "group relative overflow-hidden rounded-[2rem] border p-6 transition-all duration-500 flex flex-col justify-between backdrop-blur-xl",
                 isTunedIn
-                  ? "border-primary bg-primary/5 shadow-xl shadow-primary/5"
-                  : "border-border/40 bg-card hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5",
+                  ? "border-primary bg-primary/10 shadow-2xl shadow-primary/10 ring-1 ring-primary/30"
+                  : "border-white/[0.08] bg-[#121316]/90 hover:border-primary/50 hover:bg-[#16181d] hover:shadow-[0_15px_40px_rgba(0,0,0,0.8)]",
               )}
             >
               <div>
                 {/* Station Cover & Live Badge */}
-                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-muted mb-4">
+                <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black/50 border border-white/[0.08] mb-4 shadow-inner">
                   <img
                     src={station.coverImage}
                     alt={station.title}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   <div
                     className={cn("absolute inset-0 bg-gradient-to-t opacity-70", station.color)}
                   />
 
-                  <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold text-white">
+                  <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/80 backdrop-blur-md px-2.5 py-1 text-[10px] font-mono font-bold text-white border border-white/10 shadow-md">
                     <Signal className="h-3 w-3 text-primary animate-pulse" />
                     <span>
                       {station.category === "live_web" ? "LIVE BROADCAST" : "CONTINUOUS STREAM"}
@@ -352,17 +519,17 @@ function RadioPage() {
 
                   <button
                     onClick={() => handleTuneIn(station)}
-                    className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]"
                     aria-label={`Tune in to ${station.title}`}
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-110">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl transition-transform hover:scale-110">
                       <Play className="h-6 w-6 fill-current ml-0.5" />
                     </div>
                   </button>
                 </div>
 
                 {/* Station Info */}
-                <div className="flex items-center gap-2 text-primary text-xs font-bold mb-1">
+                <div className="flex items-center gap-2 text-primary text-xs font-mono font-bold mb-1.5">
                   {station.category === "live_web" ? (
                     <Globe2 className="h-3.5 w-3.5" />
                   ) : station.category === "genre" ? (
@@ -379,22 +546,22 @@ function RadioPage() {
                   </span>
                 </div>
 
-                <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+                <h3 className="text-lg font-black text-foreground group-hover:text-primary transition-colors tracking-tight">
                   {station.title}
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
                   {station.locationOrGenre}
                 </p>
-                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
                   {station.description}
                 </p>
               </div>
 
               {/* Action Bar */}
-              <div className="mt-5 pt-3 border-t border-border/30 flex items-center justify-between">
+              <div className="mt-5 pt-3.5 border-t border-white/[0.06] flex items-center justify-between">
                 <Badge
                   variant="outline"
-                  className="border-border/60 text-[10px] text-muted-foreground font-mono"
+                  className="border-white/10 bg-black/40 text-[10px] text-muted-foreground font-mono"
                 >
                   {station.bitrateLabel}
                 </Badge>
@@ -403,10 +570,10 @@ function RadioPage() {
                   size="sm"
                   onClick={() => handleTuneIn(station)}
                   className={cn(
-                    "h-8 text-xs font-bold gap-1.5 rounded-full",
+                    "h-8 text-xs font-bold gap-1.5 rounded-full px-4 cursor-pointer tap-active",
                     isTunedIn
-                      ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90",
+                      ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-md shadow-emerald-500/20"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20",
                   )}
                 >
                   {isTunedIn ? (
@@ -426,6 +593,13 @@ function RadioPage() {
           );
         })}
       </div>
+
+      {/* Synchronized Listening Room Modal */}
+      <ListeningRoomModal
+        room={activeRoom}
+        open={roomModalOpen}
+        onClose={() => setRoomModalOpen(false)}
+      />
     </div>
   );
 }

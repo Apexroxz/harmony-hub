@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Library,
   Music2,
@@ -14,6 +14,7 @@ import {
   Sliders,
   Users,
   ListMusic,
+  ListPlus,
   Plus,
   Edit3,
   Trash2,
@@ -21,10 +22,11 @@ import {
   Folder,
   Check,
   Zap,
-  ListPlus,
   Search,
   MoreVertical,
   X,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLibrary } from "@/lib/library";
@@ -41,6 +43,8 @@ import { formatDuration, qualityLabel, type Track } from "@/domain/music/types";
 import { QualityBadge } from "@/components/QualityBadge";
 import { AudioConsoleModal } from "@/components/AudioConsoleModal";
 import { TrackCard } from "@/components/TrackCard";
+import { SmartPlaylistGenerator } from "@/components/SmartPlaylistGenerator";
+import { PlaylistBackupModal } from "@/components/PlaylistBackupModal";
 import { tracks as storeCatalogTracks } from "@/domain/music/catalog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,8 +66,9 @@ interface LibrarySearchParams {
 
 export const Route = createFileRoute("/library")({
   validateSearch: (search: Record<string, unknown>): LibrarySearchParams => {
+    const rawTab = search["tab"];
     return {
-      tab: typeof search.tab === "string" ? search.tab : undefined,
+      ...(typeof rawTab === "string" ? { tab: rawTab } : {}),
     };
   },
   head: () => ({
@@ -78,8 +83,17 @@ export const Route = createFileRoute("/library")({
   component: LibraryPage,
 });
 
-type OfflineTab = "tracks" | "folders" | "albums" | "artists" | "playlists" | "tags" | "store";
-type OnlineTab = "purchased" | "liked" | "local";
+type OfflineTab =
+  | "tracks"
+  | "folders"
+  | "albums"
+  | "artists"
+  | "playlists"
+  | "smart"
+  | "tags"
+  | "store"
+  | "cleaner";
+type OnlineTab = "purchased" | "liked" | "local" | "smart";
 
 function LibraryPage() {
   const search = useSearch({ from: "/library" });
@@ -116,9 +130,48 @@ function LibraryPage() {
   const [editAlbum, setEditAlbum] = useState("");
   const [editGenre, setEditGenre] = useState("");
 
+  // Duplicate Track Detection logic
+  const duplicateGroups = useMemo(() => {
+    const map = new Map<string, LocalTrack[]>();
+    for (const track of localTracks) {
+      const normTitle = track.title.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normArtist = (track.artistName || track.artist || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+      const key = `${normTitle}::${normArtist}`;
+      const group = map.get(key) ?? [];
+      group.push(track);
+      map.set(key, group);
+    }
+    return Array.from(map.values()).filter((group) => group.length > 1);
+  }, [localTracks]);
+
+  const handleAutoCleanDuplicates = () => {
+    let cleanedCount = 0;
+    for (const group of duplicateGroups) {
+      const sorted = [...group].sort((a, b) => {
+        const aLossless = ["FLAC", "WAV", "AIFF", "ALAC"].includes(a.quality || "");
+        const bLossless = ["FLAC", "WAV", "AIFF", "ALAC"].includes(b.quality || "");
+        if (aLossless && !bLossless) return -1;
+        if (!aLossless && bLossless) return 1;
+        return (b.bitrate || 0) - (a.bitrate || 0);
+      });
+
+      for (let i = 1; i < sorted.length; i++) {
+        const dupe = sorted[i];
+        if (dupe) {
+          removeLocalTrack(dupe.id);
+          cleanedCount++;
+        }
+      }
+    }
+    toast.success(`Removed ${cleanedCount} duplicate track(s). Kept highest quality masters!`);
+  };
+
   // Manage Playlist Dialog state
   const [managePlaylist, setManagePlaylist] = useState<LocalPlaylist | null>(null);
   const [playlistTrackSearch, setPlaylistTrackSearch] = useState("");
+  const [backupModalOpen, setBackupModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -146,6 +199,7 @@ function LibraryPage() {
   };
 
   const getPurchasedTracks = (): Track[] => {
+    if (typeof window === "undefined") return [];
     try {
       const stored = sessionStorage.getItem("layam_purchases");
       if (!stored) return [];
@@ -174,7 +228,7 @@ function LibraryPage() {
     updateLocalTrackMetadata(selectedTrackForEdit.id, {
       title: editTitle.trim() || selectedTrackForEdit.title,
       artistName: editArtist.trim() || selectedTrackForEdit.artistName,
-      album: editAlbum.trim() || selectedTrackForEdit.album,
+      album: editAlbum.trim() || selectedTrackForEdit.album || "",
       genre: editGenre.trim() || selectedTrackForEdit.genre,
     });
     setSelectedTrackForEdit(null);
@@ -460,7 +514,13 @@ function LibraryPage() {
                   label: `Playlists (${localPlaylists.length})`,
                   icon: ListMusic,
                 },
+                { id: "smart" as const, label: "Smart Mix Engine", icon: Sparkles },
                 { id: "tags" as const, label: "Tag Editor", icon: Edit3 },
+                {
+                  id: "cleaner" as const,
+                  label: `Duplicate Cleaner ${duplicateGroups.length > 0 ? `(${duplicateGroups.length})` : ""}`,
+                  icon: ShieldCheck,
+                },
                 { id: "store" as const, label: "Buy Store Masters", icon: ShoppingBag },
               ].map((tabItem) => (
                 <button
@@ -495,6 +555,11 @@ function LibraryPage() {
                   id: "local" as const,
                   label: `Local Files (${localTracks.length})`,
                   icon: FolderOpen,
+                },
+                {
+                  id: "smart" as const,
+                  label: "Smart Mix Generator",
+                  icon: Sparkles,
                 },
               ].map((tabItem) => (
                 <button
@@ -584,7 +649,9 @@ function LibraryPage() {
                     <div className="mt-5 pt-3 border-t border-border/30 flex items-center justify-between">
                       <Button
                         size="sm"
-                        onClick={() => playTrack(folder.tracks[0], folder.tracks)}
+                        onClick={() => {
+                          if (folder.tracks[0]) playTrack(folder.tracks[0], folder.tracks);
+                        }}
                         className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 h-8 text-xs font-bold gap-1.5 w-full"
                       >
                         <Play className="h-3.5 w-3.5 fill-current" /> Play Folder
@@ -610,7 +677,9 @@ function LibraryPage() {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <button
-                        onClick={() => playTrack(album.tracks[0], album.tracks)}
+                        onClick={() => {
+                          if (album.tracks[0]) playTrack(album.tracks[0], album.tracks);
+                        }}
                         className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
                         aria-label={`Play album ${album.name}`}
                       >
@@ -656,7 +725,9 @@ function LibraryPage() {
 
                     <Button
                       size="sm"
-                      onClick={() => playTrack(artist.tracks[0], artist.tracks)}
+                      onClick={() => {
+                        if (artist.tracks[0]) playTrack(artist.tracks[0], artist.tracks);
+                      }}
                       className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 h-8 text-xs font-bold gap-1 shrink-0"
                     >
                       <Play className="h-3 w-3 fill-current" /> Play
@@ -692,6 +763,15 @@ function LibraryPage() {
                     className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1"
                   >
                     <Plus className="h-3.5 w-3.5" /> Create Playlist
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setBackupModalOpen(true)}
+                    className="rounded-full border-border/60 text-xs font-bold gap-1.5 ml-auto"
+                  >
+                    <Download className="h-3.5 w-3.5 text-primary" /> M3U8 / JSON Backup & Migrate
                   </Button>
                 </div>
 
@@ -785,7 +865,9 @@ function LibraryPage() {
                             <Button
                               size="sm"
                               disabled={plTracks.length === 0}
-                              onClick={() => playTrack(plTracks[0], plTracks)}
+                              onClick={() => {
+                                if (plTracks[0]) playTrack(plTracks[0], plTracks);
+                              }}
                               className="flex-1 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1.5 h-9 shadow-md shadow-emerald-500/20 disabled:opacity-50"
                             >
                               <Play className="h-3.5 w-3.5 fill-current" /> Play Playlist
@@ -1038,6 +1120,131 @@ function LibraryPage() {
                 </div>
               </div>
             )}
+
+            {/* 7.5 Smart Mix Generator View */}
+            {offlineTab === "smart" && (
+              <SmartPlaylistGenerator onPlaylistCreated={() => setOfflineTab("playlists")} />
+            )}
+
+            {/* 8. Duplicate Detection & Cleaner View */}
+            {offlineTab === "cleaner" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-border/40 bg-card p-6 sm:p-8">
+                  <div>
+                    <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold mb-1">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>ACOUSTIC & METADATA DEDUPLICATION ENGINE</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">
+                      Local Library Duplicate Cleaner
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                      Scans your local library for identical songs across folders, compares audio
+                      bitrates and losslessness, and cleans redundant lower-quality copies while
+                      preserving your highest-fidelity masters.
+                    </p>
+                  </div>
+
+                  {duplicateGroups.length > 0 && (
+                    <Button
+                      onClick={handleAutoCleanDuplicates}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full gap-2 text-xs shadow-lg shadow-emerald-500/20 cursor-pointer shrink-0"
+                    >
+                      <Zap className="h-4 w-4" />
+                      Clean All ({duplicateGroups.reduce((acc: number, g: LocalTrack[]) => acc + (g.length - 1), 0)} dupes)
+                    </Button>
+                  )}
+                </div>
+
+                {duplicateGroups.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 bg-surface-raised/40 p-12 text-center">
+                    <ShieldCheck className="h-12 w-12 text-emerald-400 mb-3" />
+                    <h4 className="text-lg font-bold text-foreground">No duplicates detected</h4>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                      Your local audiophile library is cleanly organized with zero redundant files.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {duplicateGroups.map((group: LocalTrack[], gIdx: number) => (
+                      <div
+                        key={gIdx}
+                        className="rounded-3xl border border-border/60 bg-card/80 p-5 overflow-hidden shadow-lg"
+                      >
+                        <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-3">
+                          <div>
+                            <span className="font-bold text-foreground text-sm">
+                              {group[0]?.title}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              by {group[0]?.artistName || group[0]?.artist}
+                            </span>
+                          </div>
+                          <Badge className="bg-amber/15 text-amber border-amber/30 text-[10px] font-mono font-bold">
+                            {group.length} COPIES FOUND
+                          </Badge>
+                        </div>
+
+                        <div className="divide-y divide-border/20">
+                          {group.map((t: LocalTrack, tIdx: number) => {
+                            const isBest = tIdx === 0;
+                            return (
+                              <div
+                                key={t.id}
+                                className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-2"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "font-mono text-[10px] font-bold px-2 py-0.5",
+                                      isBest
+                                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                                        : "border-border/60 text-muted-foreground",
+                                    )}
+                                  >
+                                    {t.quality} · {t.bitrate} kbps
+                                  </Badge>
+                                  <div className="text-xs">
+                                    <span className="font-mono text-muted-foreground truncate block max-w-[280px]">
+                                      📁 {t.folderPath || "Root"}
+                                    </span>
+                                  </div>
+                                  {isBest && (
+                                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                                      ★ Recommended Master
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => playTrack(t)}
+                                    className="h-7 text-xs gap-1 rounded-full text-foreground hover:bg-surface-raised"
+                                  >
+                                    <Play className="h-3 w-3" /> Preview
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => removeLocalTrack(t.id)}
+                                    className="h-7 text-xs text-destructive hover:bg-destructive/10 rounded-full"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1091,12 +1298,28 @@ function LibraryPage() {
                 {localTracks.map((track) => renderTrackRow(track, localTracks))}
               </div>
             )}
+
+            {onlineTab === "smart" && (
+              <SmartPlaylistGenerator onPlaylistCreated={() => setOnlineTab("local")} />
+            )}
           </div>
         )}
       </div>
 
       {/* Audio Console Modal */}
       <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
+
+      {/* Playlist Backup & Migration Modal */}
+      <PlaylistBackupModal
+        playlists={localPlaylists}
+        allTracks={allTracks}
+        onImportPlaylist={(newPl) => {
+          createPlaylist(newPl.name);
+          newPl.trackIds.forEach((tId) => addTrackToPlaylist(newPl.id, tId));
+        }}
+        open={backupModalOpen}
+        onClose={() => setBackupModalOpen(false)}
+      />
     </>
   );
 }

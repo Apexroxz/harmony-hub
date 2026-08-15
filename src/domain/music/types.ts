@@ -44,7 +44,7 @@ export interface Track {
   /** Sample rate in Hz, e.g. 44100 or 96000. */
   sampleRate: number;
   /** Bit depth for lossless masters. */
-  bitDepth?: number;
+  bitDepth?: number | null | undefined;
   playCount: number;
   likes: number;
   comments: number;

@@ -19,6 +19,7 @@ import { formatNumber, type CreatorTier, type Track } from "@/domain/music/types
 import { useWallet } from "@/lib/wallet";
 import { useAuth } from "@/lib/auth";
 import { TrackCard } from "@/components/TrackCard";
+import { FanTipModal, getArtistTips, type TipRecord } from "@/components/FanTipModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -77,6 +78,7 @@ const DEFAULT_TIERS: CreatorTier[] = [
 ];
 
 function getSubscriptions(): Record<string, string> {
+  if (typeof window === "undefined") return {};
   try {
     const stored = sessionStorage.getItem("layam_artist_subscriptions");
     return stored ? JSON.parse(stored) : {};
@@ -86,6 +88,7 @@ function getSubscriptions(): Record<string, string> {
 }
 
 function saveSubscription(artistId: string, tierId: string) {
+  if (typeof window === "undefined") return;
   const current = getSubscriptions();
   current[artistId] = tierId;
   sessionStorage.setItem("layam_artist_subscriptions", JSON.stringify(current));
@@ -101,16 +104,21 @@ function ArtistPage() {
   const [followerCount, setFollowerCount] = useState(artist.followers || 12400);
   const [subModalOpen, setSubModalOpen] = useState(false);
   const [tipModalOpen, setTipModalOpen] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<CreatorTier>(DEFAULT_TIERS[0]);
-  const [tipAmount, setTipAmount] = useState("5.00");
+  const [selectedTier, setSelectedTier] = useState<CreatorTier>(DEFAULT_TIERS[0] as CreatorTier);
   const [subscribing, setSubscribing] = useState(false);
-  const [tipping, setTipping] = useState(false);
   const [activeTierId, setActiveTierId] = useState<string | null>(null);
+  const [artistTips, setArtistTips] = useState<TipRecord[]>(() => getArtistTips(artist.id));
+
+  useEffect(() => {
+    setArtistTips(getArtistTips(artist.id));
+  }, [artist.id]);
+
+  const totalTipsUsd = artistTips.reduce((acc, t) => acc + t.amountUsd, 0);
 
   useEffect(() => {
     const subs = getSubscriptions();
     if (subs[artist.id]) {
-      setActiveTierId(subs[artist.id]);
+      setActiveTierId(subs[artist.id] ?? null);
     }
   }, [artist.id]);
 
@@ -143,21 +151,7 @@ function ArtistPage() {
     }, 900);
   };
 
-  const handleSendTip = () => {
-    const amt = parseFloat(tipAmount);
-    if (isNaN(amt) || amt <= 0) {
-      toast.error("Please enter a valid tip amount.");
-      return;
-    }
-    setTipping(true);
-    setTimeout(() => {
-      setTipping(false);
-      setTipModalOpen(false);
-      toast.success(`Tip sent to ${artist.name}!`, {
-        description: `Thank you for supporting independent music with $${amt.toFixed(2)}.`,
-      });
-    }, 800);
-  };
+  const isOwner = Boolean(user && (user.id === artist.id || (artist as any).owner_id === user.id));
 
   return (
     <>
@@ -177,7 +171,12 @@ function ArtistPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-3xl font-bold text-foreground sm:text-4xl">{artist.name}</h1>
                   {artist.verified && <CheckCircle2 className="h-6 w-6 text-primary" />}
-                  {activeTierId && (
+                  {isOwner && (
+                    <Badge className="bg-primary/20 text-primary border-primary/40 text-xs font-bold">
+                      MY ARTIST PROFILE
+                    </Badge>
+                  )}
+                  {activeTierId && !isOwner && (
                     <Badge className="bg-amber text-black font-bold flex items-center gap-1">
                       <Crown className="h-3 w-3 fill-current" />
                       {activeTierId === "vip" ? "VIP MEMBER" : "SUPPORTER"}
@@ -188,35 +187,59 @@ function ArtistPage() {
               </div>
 
               <div className="flex flex-wrap gap-2.5">
-                <Button
-                  onClick={handleToggleFollow}
-                  variant={following ? "outline" : "default"}
-                  className={cn(
-                    "font-bold transition-all",
-                    following
-                      ? "border-border/60 text-muted-foreground"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90",
-                  )}
-                >
-                  {following ? "Following" : "Follow"}
-                </Button>
+                {isOwner ? (
+                  <>
+                    <Button
+                      asChild
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold gap-2 shadow-lg shadow-primary/25"
+                    >
+                      <a href="/dashboard">
+                        <span>🎨 Open Studio Dashboard</span>
+                      </a>
+                    </Button>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="border-border/60 bg-surface-raised font-bold text-foreground hover:text-primary gap-1.5"
+                    >
+                      <a href="/upload">
+                        <span>Upload New Master</span>
+                      </a>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleToggleFollow}
+                      variant={following ? "outline" : "default"}
+                      className={cn(
+                        "font-bold transition-all",
+                        following
+                          ? "border-border/60 text-muted-foreground"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90",
+                      )}
+                    >
+                      {following ? "Following" : "Follow"}
+                    </Button>
 
-                <Button
-                  onClick={() => setSubModalOpen(true)}
-                  className="bg-gradient-to-r from-amber to-orange text-black font-bold hover:opacity-90 gap-1.5 shadow-md"
-                >
-                  <Crown className="h-4 w-4 fill-current" />
-                  {activeTierId ? "Manage Club" : "Join Fan Club"}
-                </Button>
+                    <Button
+                      onClick={() => setSubModalOpen(true)}
+                      className="bg-gradient-to-r from-amber to-orange text-black font-bold hover:opacity-90 gap-1.5 shadow-md"
+                    >
+                      <Crown className="h-4 w-4 fill-current" />
+                      {activeTierId ? "Manage Club" : "Join Fan Club"}
+                    </Button>
 
-                <Button
-                  onClick={() => setTipModalOpen(true)}
-                  variant="outline"
-                  className="border-border/60 bg-glass text-foreground hover:text-primary gap-1"
-                >
-                  <Gift className="h-4 w-4" />
-                  Tip
-                </Button>
+                    <Button
+                      onClick={() => setTipModalOpen(true)}
+                      variant="outline"
+                      className="border-border/60 bg-glass text-foreground hover:text-primary gap-1"
+                    >
+                      <Gift className="h-4 w-4" />
+                      Tip
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -348,6 +371,85 @@ function ArtistPage() {
             </div>
           )}
         </section>
+
+        {/* ── Top Supporters & Patronage Leaderboard ── */}
+        <section className="mt-16 rounded-3xl border border-border/50 bg-card p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-6 mb-6">
+            <div>
+              <div className="flex items-center gap-2 text-primary text-xs font-bold mb-1">
+                <Sparkles className="h-4 w-4" />
+                <span>DIRECT FAN PATRONAGE & LEADERBOARD</span>
+              </div>
+              <h3 className="text-xl font-bold text-foreground">Top Backers & Supporters</h3>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-xl">
+                Fans directly funding independent studio releases. 100% of micro-tips flow
+                straight to {artist.name}'s verified treasury.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden sm:block">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold block">
+                  Total Fan Support
+                </span>
+                <span className="font-mono text-xl font-extrabold text-emerald-400">
+                  ${totalTipsUsd.toFixed(2)}
+                </span>
+              </div>
+
+              <Button
+                onClick={() => setTipModalOpen(true)}
+                className="bg-primary text-primary-foreground font-bold text-xs rounded-full gap-1.5 h-10 px-5 shadow-lg shadow-primary/20"
+              >
+                <Gift className="h-4 w-4" /> Send Tip / Boost
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {artistTips.map((tip, idx) => (
+              <div
+                key={tip.id}
+                className="rounded-2xl border border-border/40 bg-surface-raised/60 p-4 space-y-3 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={tip.donorAvatar}
+                        alt={tip.donorName}
+                        className="h-8 w-8 rounded-full object-cover border border-border/60"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-foreground block truncate max-w-[130px]">
+                          {tip.donorName}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">{tip.createdAt}</span>
+                      </div>
+                    </div>
+
+                    <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-xs font-mono font-bold">
+                      +${tip.amountUsd.toFixed(2)}
+                    </Badge>
+                  </div>
+
+                  {tip.message && (
+                    <p className="mt-3 text-xs text-foreground/90 italic bg-card/60 p-2.5 rounded-xl border border-border/30">
+                      "{tip.message}"
+                    </p>
+                  )}
+                </div>
+
+                <div className="pt-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground border-t border-border/20">
+                  <span>Method: {tip.paymentMethod === "sol" ? "Solana Web3" : "Direct Card"}</span>
+                  <span className="text-primary font-bold">
+                    {idx === 0 ? "★ Top Backer" : `Backer #${idx + 1}`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
       {/* Subscription Modal */}
@@ -409,60 +511,15 @@ function ArtistPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Tip Modal */}
-      <Dialog open={tipModalOpen} onOpenChange={setTipModalOpen}>
-        <DialogContent className="max-w-sm rounded-3xl border-border/60 bg-background/95 p-6 backdrop-blur-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-              <Gift className="h-5 w-5 text-primary" />
-              <span>Tip {artist.name}</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 pt-2">
-            <p className="text-xs text-muted-foreground">
-              Send an instant direct donation to show appreciation for their music.
-            </p>
-
-            <div className="grid grid-cols-4 gap-2">
-              {["2.00", "5.00", "10.00", "25.00"].map((amt) => (
-                <Button
-                  key={amt}
-                  type="button"
-                  variant={tipAmount === amt ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setTipAmount(amt)}
-                  className={cn(
-                    "text-xs font-bold",
-                    tipAmount === amt ? "bg-primary text-primary-foreground" : "border-border/60",
-                  )}
-                >
-                  ${amt}
-                </Button>
-              ))}
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1 border-border/60"
-                onClick={() => setTipModalOpen(false)}
-                disabled={tipping}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
-                onClick={handleSendTip}
-                disabled={tipping}
-              >
-                {tipping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {tipping ? "Sending..." : `Tip $${tipAmount}`}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Fan Tip Modal */}
+      <FanTipModal
+        open={tipModalOpen}
+        onOpenChange={setTipModalOpen}
+        artistId={artist.id}
+        artistName={artist.name}
+        artistAvatar={artist.avatar}
+        onTipSuccess={() => setArtistTips(getArtistTips(artist.id))}
+      />
     </>
   );
 }

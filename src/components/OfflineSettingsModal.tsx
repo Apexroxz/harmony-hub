@@ -137,7 +137,9 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
                 max={12}
                 step={1}
                 value={[crossfadeDuration]}
-                onValueChange={([val]) => setCrossfadeDuration(val)}
+                onValueChange={([val]) => {
+                  if (typeof val === "number") setCrossfadeDuration(val);
+                }}
                 className="my-3"
               />
               <p className="text-[11px] text-muted-foreground">

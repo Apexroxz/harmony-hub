@@ -28,7 +28,7 @@ export function WalletButton() {
   return (
     <Button
       size="sm"
-      onClick={connect}
+      onClick={() => connect()}
       className="bg-gradient-to-r from-violet to-cyan text-primary-foreground hover:opacity-90"
     >
       <Wallet className="mr-2 h-4 w-4" />

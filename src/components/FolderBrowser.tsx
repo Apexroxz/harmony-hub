@@ -105,9 +105,9 @@ export function FolderBrowser({ localTracks }: FolderBrowserProps) {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => tracks.forEach((t) => addToUpNext(t))}
+                    onClick={() => tracks.forEach((t) => addToQueue(t))}
                     title="Add folder to Up Next"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
                   >
                     <ListPlus className="h-4 w-4" />
                   </Button>

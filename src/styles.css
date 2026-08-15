@@ -148,8 +148,15 @@
     border-radius: 9999px;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.35 0.012 55);
+  /* Accessible focus indicators (WCAG 2.1 AA) */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-md);
+  }
+
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
   }
 }
 
@@ -204,4 +211,11 @@
     background: var(--color-surface-sunken);
     border: 1px solid var(--color-border);
   }
+
+  /* Tactile interactive press feedback */
+  .tap-active:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease-out;
+  }
 }
+
