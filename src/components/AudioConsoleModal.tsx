@@ -1,21 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sliders,
-  Volume2,
   Sparkles,
-  Zap,
-  Activity,
   X,
   RotateCcw,
   AudioWaveform,
-  Disc3,
   Flame,
+  Activity,
   Layers,
   Radio,
   Box,
   Compass,
   Headphones,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   usePlayer,
@@ -23,9 +21,6 @@ import {
   EQ_PRESETS,
   type SpatialRoomPreset,
 } from "@/lib/player";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface AudioConsoleModalProps {
@@ -83,10 +78,10 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
 
       ctx.clearRect(0, 0, width, height);
 
-      // Background grid
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+      // Precision hardware background grid
+      ctx.strokeStyle = "rgba(217, 154, 43, 0.08)";
       ctx.lineWidth = 1;
-      for (let y = 0; y < height; y += 20) {
+      for (let y = 0; y < height; y += 18) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
@@ -97,38 +92,38 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
         if (visualizerMode === "bars") {
           analyser.getByteFrequencyData(dataArray);
 
-          const barCount = 32;
-          const barWidth = width / barCount - 2;
+          const barCount = 36;
+          const barWidth = width / barCount - 2.5;
           const step = Math.floor(bufferLength / barCount);
 
           for (let i = 0; i < barCount; i++) {
             const val = dataArray[i * step] || 0;
-            const barHeight = (val / 255) * (height - 10);
-            const x = i * (barWidth + 2);
+            const barHeight = (val / 255) * (height - 8);
+            const x = i * (barWidth + 2.5);
             const y = height - barHeight;
 
-            // Gradient bar
+            // Luxury metallic gold gradient
             const grad = ctx.createLinearGradient(0, height, 0, 0);
-            grad.addColorStop(0, "rgba(229, 158, 56, 0.4)");
-            grad.addColorStop(0.5, "rgba(245, 158, 11, 0.8)");
-            grad.addColorStop(1, "rgba(252, 211, 77, 1)");
+            grad.addColorStop(0, "rgba(179, 122, 26, 0.3)");
+            grad.addColorStop(0.6, "rgba(217, 154, 43, 0.85)");
+            grad.addColorStop(1, "rgba(245, 184, 76, 1)");
 
             ctx.fillStyle = grad;
-            ctx.shadowColor = "rgba(229, 158, 56, 0.5)";
-            ctx.shadowBlur = 8;
+            ctx.shadowColor = "rgba(217, 154, 43, 0.4)";
+            ctx.shadowBlur = 6;
             ctx.fillRect(x, y, barWidth, barHeight);
 
-            // Peak cap
+            // Precision peak cap
             ctx.fillStyle = "#ffffff";
-            ctx.fillRect(x, y - 2, barWidth, 2);
+            ctx.fillRect(x, y - 2, barWidth, 1.5);
           }
         } else {
           // Oscilloscope wave
           analyser.getByteTimeDomainData(dataArray);
           ctx.lineWidth = 2;
-          ctx.strokeStyle = "#e59e38";
-          ctx.shadowColor = "rgba(229, 158, 56, 0.6)";
-          ctx.shadowBlur = 6;
+          ctx.strokeStyle = "#D99A2B";
+          ctx.shadowColor = "rgba(217, 154, 43, 0.7)";
+          ctx.shadowBlur = 8;
           ctx.beginPath();
 
           const sliceWidth = width / bufferLength;
@@ -151,8 +146,8 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
           ctx.stroke();
         }
       } else {
-        // Idle ambient line
-        ctx.strokeStyle = "rgba(229, 158, 56, 0.3)";
+        // Idle resting telemetry line
+        ctx.strokeStyle = "rgba(217, 154, 43, 0.25)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(0, height / 2);
@@ -187,68 +182,73 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-        {/* Solid Backdrop */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        {/* Solid Dark Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/85 backdrop-blur-md"
+          className="fixed inset-0 bg-[#000000]/88 backdrop-blur-sm"
         />
 
-        {/* Audiophile Console Hardware Panel */}
+        {/* ── Solid Obsidian Audiophile Hardware Rack ── */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 15 }}
+          initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 15 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="relative z-10 w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-white/[0.1] bg-[#111216] p-6 sm:p-8 shadow-2xl text-foreground"
+          exit={{ opacity: 0, scale: 0.97, y: 12 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
           style={{
-            backgroundColor: "#111216",
-            boxShadow: "0 25px 80px rgba(0, 0, 0, 0.95)",
+            backgroundColor: "#08090B",
+            borderColor: "rgba(217, 154, 43, 0.25)",
+            boxShadow: "0 30px 100px rgba(0, 0, 0, 0.96)",
           }}
+          className="relative z-10 w-full max-w-4xl max-h-[94vh] overflow-y-auto rounded-2xl border bg-[#08090B] p-5 sm:p-7 text-[#f2f3f5] shadow-2xl"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-5 mb-6">
+          {/* Header Bar */}
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 mb-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#16181e] text-[#e59e38] border border-[#e59e38]/30 shadow-[0_0_15px_rgba(229,158,56,0.15)]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0D0E12] text-[#D99A2B] border border-[#D99A2B]/35 shadow-[0_0_18px_rgba(217,154,43,0.18)]">
                 <Sliders className="h-5 w-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-black tracking-tight text-foreground">
-                    Hardware DSP Console
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-base sm:text-lg font-bold tracking-tight text-[#f2f3f5]">
+                    Layam DSP Hardware Console
                   </h2>
-                  <Badge
-                    variant="outline"
-                    className="font-mono text-[10px] uppercase font-bold text-[#e59e38] border-[#e59e38]/30 bg-[#e59e38]/10"
-                  >
-                    64-Bit Float PCM
-                  </Badge>
+                  <span className="font-mono text-[10px] uppercase font-bold text-[#D99A2B] border border-[#D99A2B]/30 bg-[#D99A2B]/10 px-2 py-0.5 rounded-md">
+                    64-BIT FLOAT PCM
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  10-Band Graphic Parametric Equalizer & Dynamic Range Processor
+                <p className="text-xs text-[#9ba1ad] font-mono mt-0.5">
+                  10-Band Graphic Equalizer · Dynamic Range Limiter · Spatial Acoustic Engine
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
+              {/* EQ Active / Bypass Hardware Switch */}
               <button
                 onClick={toggleEq}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider uppercase border transition-all cursor-pointer",
+                  "px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider uppercase border transition-all cursor-pointer flex items-center gap-1.5",
                   eqEnabled
-                    ? "bg-[#e59e38] text-[#090a0c] border-[#e59e38] shadow-[0_0_15px_rgba(229,158,56,0.3)]"
-                    : "bg-[#16181e] text-muted-foreground border-white/[0.08] hover:text-foreground"
+                    ? "bg-[#D99A2B] text-[#08090B] border-[#f5b84c] shadow-[0_0_18px_rgba(217,154,43,0.4)]"
+                    : "bg-[#0D0E12] text-[#9ba1ad] border-white/[0.08] hover:text-[#f2f3f5] hover:border-white/[0.15]"
                 )}
               >
-                {eqEnabled ? "EQ Active" : "EQ Bypass"}
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    eqEnabled ? "bg-[#08090B] animate-pulse" : "bg-[#9ba1ad]"
+                  )}
+                />
+                {eqEnabled ? "EQ ACTIVE" : "EQ BYPASS"}
               </button>
 
               <button
                 onClick={onClose}
-                className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-white/[0.05] transition-colors cursor-pointer"
+                className="p-2 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg hover:bg-white/[0.05] transition-colors cursor-pointer border border-transparent hover:border-white/[0.08]"
                 title="Close (Esc)"
               >
                 <X className="h-5 w-5" />
@@ -257,22 +257,22 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
           </div>
 
           {/* Real-time Spectrum Visualizer Screen */}
-          <div className="relative mb-6 overflow-hidden rounded-xl border border-white/[0.08] bg-[#07080a] p-3">
+          <div className="relative mb-5 overflow-hidden rounded-xl border border-white/[0.08] bg-[#060709] p-3 shadow-inner">
             <div className="flex items-center justify-between mb-2 px-1">
               <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[#e59e38] animate-pulse" />
-                <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Master Output Spectrum
+                <span className="h-2 w-2 rounded-full bg-[#D99A2B] animate-pulse" />
+                <span className="font-mono text-[10px] font-bold text-[#9ba1ad] uppercase tracking-wider">
+                  Master Output Spectrum Readout
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setVisualizerMode("bars")}
                   className={cn(
-                    "px-2 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer",
+                    "px-2.5 py-0.5 rounded text-[10px] font-mono transition-all cursor-pointer",
                     visualizerMode === "bars"
-                      ? "bg-[#e59e38]/20 text-[#e59e38] font-bold border border-[#e59e38]/30"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-[#D99A2B]/20 text-[#D99A2B] font-bold border border-[#D99A2B]/40 shadow-sm"
+                      : "text-[#9ba1ad] hover:text-[#f2f3f5] bg-white/[0.02] border border-white/[0.05]"
                   )}
                 >
                   FFT Bars
@@ -280,10 +280,10 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                 <button
                   onClick={() => setVisualizerMode("wave")}
                   className={cn(
-                    "px-2 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer",
+                    "px-2.5 py-0.5 rounded text-[10px] font-mono transition-all cursor-pointer",
                     visualizerMode === "wave"
-                      ? "bg-[#e59e38]/20 text-[#e59e38] font-bold border border-[#e59e38]/30"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-[#D99A2B]/20 text-[#D99A2B] font-bold border border-[#D99A2B]/40 shadow-sm"
+                      : "text-[#9ba1ad] hover:text-[#f2f3f5] bg-white/[0.02] border border-white/[0.05]"
                   )}
                 >
                   Oscilloscope
@@ -293,37 +293,38 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
 
             <canvas
               ref={canvasRef}
-              width={760}
-              height={90}
-              className="w-full h-20 rounded bg-black/40"
+              width={780}
+              height={85}
+              className="w-full h-[80px] rounded bg-[#040405]"
             />
           </div>
 
-          {/* EQ Presets Bar */}
-          <div className="mb-6">
+          {/* Sound Profiles & Preset Selection */}
+          <div className="mb-5">
             <div className="flex items-center justify-between mb-2">
-              <label className="font-mono text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Sound Profiles & Presets
+              <label className="font-mono text-xs font-bold text-[#9ba1ad] uppercase tracking-wider flex items-center gap-1.5">
+                <SlidersHorizontal className="h-3.5 w-3.5 text-[#D99A2B]" />
+                Audiophile EQ Presets
               </label>
               <button
                 onClick={() => setEqPreset("Flat")}
-                className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground hover:text-[#e59e38] transition-colors cursor-pointer"
+                className="flex items-center gap-1 text-[11px] font-mono text-[#9ba1ad] hover:text-[#D99A2B] transition-colors cursor-pointer"
               >
                 <RotateCcw className="h-3 w-3" />
                 Reset Flat
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {Object.keys(EQ_PRESETS).map((preset) => (
                 <button
                   key={preset}
                   onClick={() => setEqPreset(preset)}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border",
+                    "px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer border",
                     eqPreset === preset
-                      ? "bg-[#e59e38]/15 text-[#e59e38] border-[#e59e38]/40 shadow-sm"
-                      : "bg-[#16181e] text-muted-foreground border-white/[0.06] hover:text-foreground hover:bg-[#1a1d24]"
+                      ? "bg-[#D99A2B]/15 text-[#D99A2B] border-[#D99A2B]/50 shadow-[0_0_12px_rgba(217,154,43,0.2)] font-bold"
+                      : "bg-[#0D0E12] text-[#9ba1ad] border-white/[0.06] hover:text-[#f2f3f5] hover:bg-[#14161C]"
                   )}
                 >
                   {preset}
@@ -332,19 +333,42 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
             </div>
           </div>
 
-          {/* 10-Band Parametric Graphic Sliders */}
-          <div className="mb-8 rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4 sm:p-6">
+          {/* 10-Band Parametric Hardware Fader Rack */}
+          <div className="mb-6 rounded-xl border border-white/[0.08] bg-[#0D0E12] p-4 sm:p-5 shadow-inner">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.05]">
+              <span className="font-mono text-xs font-bold text-[#9ba1ad] uppercase tracking-wider">
+                10-Band Hardware Fader Rack (±12 dB)
+              </span>
+              <span className="font-mono text-[10px] text-[#D99A2B]">
+                CENTER DETENT: 0.0 dB
+              </span>
+            </div>
+
             <div className="grid grid-cols-10 gap-1 sm:gap-2">
               {EQ_FREQUENCIES.map((freq, idx) => {
                 const gain = eqGains[idx] ?? 0;
                 const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
                 return (
-                  <div key={freq} className="flex flex-col items-center gap-2">
-                    <span className="font-mono text-[10px] text-muted-foreground">
+                  <div key={freq} className="flex flex-col items-center gap-1.5">
+                    {/* Active dB Readout */}
+                    <span
+                      className={cn(
+                        "font-mono text-[10px] font-bold tabular-nums",
+                        gain > 0
+                          ? "text-[#D99A2B]"
+                          : gain < 0
+                          ? "text-[#9ba1ad]"
+                          : "text-[#6b7280]"
+                      )}
+                    >
                       {gain > 0 ? `+${gain.toFixed(0)}` : `${gain.toFixed(0)}`}
                     </span>
 
-                    <div className="h-36 flex items-center justify-center py-2">
+                    {/* Vertical Fader Track with Center Detent */}
+                    <div className="relative h-36 w-full flex items-center justify-center py-2">
+                      {/* Zero dB Center Detent Line */}
+                      <div className="absolute left-1/2 top-1/2 w-4 -translate-x-1/2 -translate-y-1/2 h-[1px] bg-[#D99A2B]/40 pointer-events-none z-0" />
+
                       <input
                         type="range"
                         min={-12}
@@ -352,12 +376,14 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                         step={0.5}
                         value={gain}
                         onChange={(e) => setEqGain(idx, parseFloat(e.target.value))}
-                        className="h-32 -rotate-90 appearance-none bg-transparent cursor-pointer accent-[#e59e38] w-24"
+                        className="h-28 -rotate-90 appearance-none bg-transparent cursor-pointer w-24 accent-[#D99A2B] z-10"
                         style={{ transformOrigin: "center" }}
+                        title={`${label}Hz: ${gain > 0 ? `+${gain}` : gain} dB`}
                       />
                     </div>
 
-                    <span className="font-mono text-[11px] font-bold text-foreground mt-1">
+                    {/* Frequency Axis Label */}
+                    <span className="font-mono text-[10px] font-bold text-[#f2f3f5] tracking-tight mt-1">
                       {label}Hz
                     </span>
                   </div>
@@ -367,16 +393,16 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
           </div>
 
           {/* DSP Dynamics, Ambience & Enhancement Controls */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {/* Bass Boost */}
-            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-4">
+            {/* Sub-Bass Driver */}
+            <div className="rounded-xl border border-white/[0.08] bg-[#0D0E12] p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Flame className="h-3.5 w-3.5 text-[#e59e38]" />
+                <span className="text-xs font-bold text-[#f2f3f5] flex items-center gap-1.5">
+                  <Flame className="h-3.5 w-3.5 text-[#D99A2B]" />
                   Sub-Bass Driver
                 </span>
-                <span className="font-mono text-xs font-bold text-[#e59e38]">
-                  {bassBoostLevel > 0 ? `+${bassBoostLevel.toFixed(1)} dB` : "Off"}
+                <span className="font-mono text-xs font-bold text-[#D99A2B]">
+                  {bassBoostLevel > 0 ? `+${bassBoostLevel.toFixed(1)} dB` : "OFF"}
                 </span>
               </div>
               <input
@@ -386,22 +412,22 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                 step={0.5}
                 value={bassBoostLevel}
                 onChange={(e) => setBassBoostLevel(parseFloat(e.target.value))}
-                className="w-full appearance-none bg-transparent cursor-pointer accent-[#e59e38]"
+                className="w-full appearance-none bg-transparent cursor-pointer accent-[#D99A2B]"
               />
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-[10px] text-[#9ba1ad] font-mono">
                 60Hz low-shelf sub-harmonic punch
               </p>
             </div>
 
             {/* Treble Sparkle */}
-            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4">
+            <div className="rounded-xl border border-white/[0.08] bg-[#0D0E12] p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-[#e59e38]" />
+                <span className="text-xs font-bold text-[#f2f3f5] flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-[#D99A2B]" />
                   Air & Clarity
                 </span>
-                <span className="font-mono text-xs font-bold text-[#e59e38]">
-                  {trebleLevel > 0 ? `+${trebleLevel.toFixed(1)} dB` : "Off"}
+                <span className="font-mono text-xs font-bold text-[#D99A2B]">
+                  {trebleLevel > 0 ? `+${trebleLevel.toFixed(1)} dB` : "OFF"}
                 </span>
               </div>
               <input
@@ -411,21 +437,21 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                 step={0.5}
                 value={trebleLevel}
                 onChange={(e) => setTrebleLevel(parseFloat(e.target.value))}
-                className="w-full appearance-none bg-transparent cursor-pointer accent-[#e59e38]"
+                className="w-full appearance-none bg-transparent cursor-pointer accent-[#D99A2B]"
               />
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-[10px] text-[#9ba1ad] font-mono">
                 12kHz high-shelf top-end detail
               </p>
             </div>
 
             {/* Stereo Width */}
-            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4">
+            <div className="rounded-xl border border-white/[0.08] bg-[#0D0E12] p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <AudioWaveform className="h-3.5 w-3.5 text-[#e59e38]" />
+                <span className="text-xs font-bold text-[#f2f3f5] flex items-center gap-1.5">
+                  <AudioWaveform className="h-3.5 w-3.5 text-[#D99A2B]" />
                   Soundstage Expansion
                 </span>
-                <span className="font-mono text-xs font-bold text-[#e59e38]">
+                <span className="font-mono text-xs font-bold text-[#D99A2B]">
                   {Math.round(stereoWidth * 100)}%
                 </span>
               </div>
@@ -436,30 +462,30 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                 step={0.1}
                 value={stereoWidth}
                 onChange={(e) => setStereoWidth(parseFloat(e.target.value))}
-                className="w-full appearance-none bg-transparent cursor-pointer accent-[#e59e38]"
+                className="w-full appearance-none bg-transparent cursor-pointer accent-[#D99A2B]"
               />
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-[10px] text-[#9ba1ad] font-mono">
                 Binaural stereo acoustic panning
               </p>
             </div>
           </div>
 
           {/* Spatial Room Ambience & Normalizer */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0D0E12] p-4">
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={toggleNormalizer}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer",
+                  "px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all cursor-pointer",
                   normalizerEnabled
-                    ? "bg-[#e59e38]/15 text-[#e59e38] border-[#e59e38]/40"
-                    : "bg-[#16181e] text-muted-foreground border-white/[0.06]"
+                    ? "bg-[#D99A2B]/15 text-[#D99A2B] border-[#D99A2B]/50 shadow-sm"
+                    : "bg-[#14161C] text-[#9ba1ad] border-white/[0.06] hover:text-[#f2f3f5]"
                 )}
               >
                 Dynamic Normalizer: {normalizerEnabled ? "ON" : "OFF"}
               </button>
-              <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                EBU R128 Peak Limiter
+              <span className="text-[10px] text-[#9ba1ad] font-mono hidden sm:inline">
+                EBU R128 True Peak Limiter
               </span>
             </div>
 
@@ -476,10 +502,10 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                   key={mode}
                   onClick={() => setSpatialMode(mode)}
                   className={cn(
-                    "px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer",
+                    "px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold transition-all cursor-pointer border",
                     spatialMode === mode
-                      ? "bg-[#e59e38] text-[#090a0c] font-bold"
-                      : "bg-[#16181e] text-muted-foreground hover:text-foreground"
+                      ? "bg-[#D99A2B] text-[#08090B] border-[#f5b84c] shadow-[0_0_12px_rgba(217,154,43,0.3)] font-bold"
+                      : "bg-[#14161C] text-[#9ba1ad] border-white/[0.06] hover:text-[#f2f3f5] hover:bg-white/[0.04]"
                   )}
                 >
                   {mode}
