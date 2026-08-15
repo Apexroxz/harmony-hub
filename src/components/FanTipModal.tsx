@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/lib/wallet";
 import { useGamification } from "@/lib/gamification";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface TipRecord {
   id: string;
@@ -44,6 +44,49 @@ export function getArtistTips(artistId: string): TipRecord[] {
   } catch {
     return getDefaultArtistTips(artistId);
   }
+}
+
+export async function fetchArtistTips(artistId: string): Promise<TipRecord[]> {
+  try {
+    const { data: dbTips, error } = await supabase
+      .from("artist_tips")
+      .select("id, sender_id, amount, payment_method, message, created_at")
+      .eq("artist_id", artistId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    if (dbTips && dbTips.length > 0) {
+      const senderIds = dbTips.map((t) => t.sender_id).filter(Boolean) as string[];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .in("id", senderIds);
+
+      const profMap = new Map(profiles?.map((p) => [p.id, p]) ?? []);
+
+      const formatted: TipRecord[] = dbTips.map((t) => {
+        const prof = t.sender_id ? profMap.get(t.sender_id) : undefined;
+        return {
+          id: t.id,
+          artistId,
+          artistName: "Artist",
+          donorName: prof?.display_name || "Layam Patron",
+          donorAvatar: prof?.avatar_url || undefined,
+          amountUsd: Number(t.amount),
+          paymentMethod: (t.payment_method as "fiat" | "sol") || "fiat",
+          message: t.message || undefined,
+          createdAt: t.created_at?.slice(0, 10) || "Just now",
+        };
+      });
+
+      return formatted;
+    }
+  } catch (err) {
+    console.warn("[FanTipModal] Supabase tips note:", err);
+  }
+
+  return getArtistTips(artistId);
 }
 
 function getDefaultArtistTips(artistId: string): TipRecord[] {
@@ -84,16 +127,49 @@ function getDefaultArtistTips(artistId: string): TipRecord[] {
   ];
 }
 
-export function saveArtistTip(tip: TipRecord): void {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = localStorage.getItem(TIPS_STORAGE_KEY);
-    const map = raw ? (JSON.parse(raw) as Record<string, TipRecord[]>) : {};
-    const list = map[tip.artistId] ?? getDefaultArtistTips(tip.artistId);
-    map[tip.artistId] = [tip, ...list];
-    localStorage.setItem(TIPS_STORAGE_KEY, JSON.stringify(map));
-  } catch {
-    // ignore
+export function saveArtistTip(tip: TipRecord, senderUserId?: string): void {
+  // 1. Save locally for optimistic UI
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(TIPS_STORAGE_KEY);
+      const map = raw ? (JSON.parse(raw) as Record<string, TipRecord[]>) : {};
+      const list = map[tip.artistId] ?? getDefaultArtistTips(tip.artistId);
+      map[tip.artistId] = [tip, ...list];
+      localStorage.setItem(TIPS_STORAGE_KEY, JSON.stringify(map));
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Persist to database if authenticated
+  if (senderUserId && !senderUserId.startsWith("demo-")) {
+    void supabase
+      .from("artist_tips")
+      .insert({
+        sender_id: senderUserId,
+        artist_id: tip.artistId,
+        amount: tip.amountUsd,
+        currency: "USD",
+        payment_method: tip.paymentMethod,
+        message: tip.message,
+      })
+      .catch((err) => console.warn("[FanTipModal] Supabase tip insert note:", err));
+
+    // Also write to immutable royalty ledger
+    void supabase
+      .from("royalty_transactions")
+      .insert({
+        creator_id: tip.artistId,
+        event_type: "tip",
+        amount: tip.amountUsd,
+        currency: "USD",
+        metadata: {
+          donorName: tip.donorName,
+          paymentMethod: tip.paymentMethod,
+          message: tip.message,
+        },
+      })
+      .catch(() => {});
   }
 }
 

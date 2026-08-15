@@ -1,50 +1,21 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import {
+  WalletAdapterFactory,
+  SUPPORTED_WALLET_PROVIDERS,
+} from "@/domain/web3/wallet-factory";
+import type {
+  WalletProviderInfo,
+  SignedMessageResult,
+  ChainType,
+} from "@/domain/web3/wallet.types";
 
-export interface WalletProviderInfo {
-  id: string;
-  name: string;
-  chain: string;
-  description: string;
-  gradient: string;
-  badge?: string;
-}
-
-export const WALLET_PROVIDERS: WalletProviderInfo[] = [
-  {
-    id: "phantom",
-    name: "Phantom",
-    chain: "Solana Mainnet-Beta",
-    description: "Connect with Solana Phantom Wallet",
-    gradient: "from-purple-500 to-indigo-600",
-    badge: "Popular",
-  },
-  {
-    id: "solflare",
-    name: "Solflare",
-    chain: "Solana Mainnet-Beta",
-    description: "Solana non-custodial browser wallet",
-    gradient: "from-amber-500 to-orange-600",
-  },
-  {
-    id: "metamask",
-    name: "MetaMask / Web3",
-    chain: "Ethereum / Polygon",
-    description: "Ethereum & EVM Web3 provider",
-    gradient: "from-orange-500 to-red-600",
-  },
-  {
-    id: "demo",
-    name: "Layam Audiophile Pass",
-    chain: "Solana Devnet",
-    description: "Instant demo wallet with 25.00 SOL testnet credits",
-    gradient: "from-emerald-500 to-teal-600",
-    badge: "Instant",
-  },
-];
+export { SUPPORTED_WALLET_PROVIDERS as WALLET_PROVIDERS, type WalletProviderInfo };
 
 export interface WalletState {
   connected: boolean;
   address: string | null;
+  publicKey: string | null;
+  chainType: ChainType | null;
   balance: number;
   avatar: string | null;
   providerName: string | null;
@@ -54,20 +25,22 @@ export interface WalletState {
 }
 
 export interface WalletContextValue extends WalletState {
-  connect: (providerId?: string) => Promise<void> | void;
-  disconnect: () => void;
+  connect: (providerId?: string) => Promise<void>;
+  disconnect: () => Promise<void>;
+  signMessage: (message: string) => Promise<SignedMessageResult>;
+  verifySignature: (message: string, signature: string, publicKey: string) => Promise<boolean>;
   openModal: () => void;
   closeModal: () => void;
 }
 
 const WalletContext = createContext<WalletContextValue | null>(null);
 
-const MOCK_ADDRESS = "7xKXtg2CW87d97TXJSDpbD5jBkheTuwA";
-
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WalletState>({
     connected: false,
     address: null,
+    publicKey: null,
+    chainType: null,
     balance: 0,
     avatar: null,
     providerName: null,
@@ -75,6 +48,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     isConnecting: false,
     connectingProvider: null,
   });
+
+  const [activeProviderId, setActiveProviderId] = useState<string>("phantom");
 
   const openModal = useCallback(() => {
     setState((s) => ({ ...s, isModalOpen: true }));
@@ -84,41 +59,79 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, isModalOpen: false }));
   }, []);
 
-  const connect = useCallback((providerId?: string) => {
-    const provider = WALLET_PROVIDERS.find((p) => p.id === providerId) ?? WALLET_PROVIDERS[0]!;
+  const connect = useCallback(async (providerId = "phantom") => {
+    const providerInfo =
+      SUPPORTED_WALLET_PROVIDERS.find((p) => p.id === providerId) ??
+      SUPPORTED_WALLET_PROVIDERS[0]!;
+
+    setActiveProviderId(providerId);
     setState((s) => ({
       ...s,
       isConnecting: true,
-      connectingProvider: provider.name,
+      connectingProvider: providerInfo.name,
     }));
 
-    setTimeout(() => {
+    try {
+      const adapter = WalletAdapterFactory.getAdapter(providerId);
+      const res = await adapter.connect();
+
       setState((s) => ({
         ...s,
         connected: true,
-        address: MOCK_ADDRESS,
-        balance: 24.5,
-        avatar: null,
-        providerName: provider.name,
+        address: res.address,
+        publicKey: res.publicKey,
+        chainType: res.chainType,
+        balance: res.balance,
+        providerName: providerInfo.name,
         isConnecting: false,
         connectingProvider: null,
         isModalOpen: false,
       }));
-    }, 400);
+    } catch (err) {
+      console.warn("[WalletProvider] Connection error:", err);
+      setState((s) => ({
+        ...s,
+        isConnecting: false,
+        connectingProvider: null,
+      }));
+    }
   }, []);
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
+    try {
+      const adapter = WalletAdapterFactory.getAdapter(activeProviderId);
+      await adapter.disconnect();
+    } catch {}
+
     setState((s) => ({
       ...s,
       connected: false,
       address: null,
+      publicKey: null,
+      chainType: null,
       balance: 0,
       avatar: null,
       providerName: null,
       isConnecting: false,
       connectingProvider: null,
     }));
-  }, []);
+  }, [activeProviderId]);
+
+  const signMessage = useCallback(
+    async (message: string): Promise<SignedMessageResult> => {
+      const adapter = WalletAdapterFactory.getAdapter(activeProviderId);
+      return adapter.signMessage(message);
+    },
+    [activeProviderId],
+  );
+
+  const verifySignature = useCallback(
+    async (message: string, signature: string, publicKey: string): Promise<boolean> => {
+      const adapter = WalletAdapterFactory.getAdapter(activeProviderId);
+      return adapter.verifySignature(message, signature, publicKey);
+    },
+    [activeProviderId],
+  );
 
   return (
     <WalletContext.Provider
@@ -126,6 +139,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         ...state,
         connect,
         disconnect,
+        signMessage,
+        verifySignature,
         openModal,
         closeModal,
       }}

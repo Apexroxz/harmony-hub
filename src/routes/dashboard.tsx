@@ -30,6 +30,8 @@ import { usePlayer } from "@/lib/player";
 import { useGamification } from "@/lib/gamification";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
+import { CreatorAnalyticsService } from "@/domain/creator/creator-analytics.service";
+import type { CreatorEarningsSummary } from "@/domain/creator/creator-economy.types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard")({
@@ -120,12 +122,26 @@ function ArtistDashboardPage() {
   const initialRoyalty = totalStreams * 0.004;
 
   const [royaltyBalance, setRoyaltyBalance] = useState<number>(initialRoyalty);
+  const [earningsSummary, setEarningsSummary] = useState<CreatorEarningsSummary | null>(null);
   const [cashoutModalOpen, setCashoutModalOpen] = useState(false);
   const [gamificationOpen, setGamificationOpen] = useState(false);
 
   useEffect(() => {
-    setRoyaltyBalance(initialRoyalty);
-  }, [initialRoyalty]);
+    let active = true;
+    if (user?.id) {
+      void CreatorAnalyticsService.getEarningsSummary(user.id).then((summary) => {
+        if (active && summary) {
+          setEarningsSummary(summary);
+          setRoyaltyBalance(summary.availableBalanceUsd);
+        }
+      });
+    } else {
+      setRoyaltyBalance(initialRoyalty);
+    }
+    return () => {
+      active = false;
+    };
+  }, [user?.id, initialRoyalty]);
 
   // Listener Gate: If not an artist, show exclusive Creator Portal Gateway
   if (!isArtist) {

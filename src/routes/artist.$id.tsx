@@ -78,6 +78,8 @@ const DEFAULT_TIERS: CreatorTier[] = [
   },
 ];
 
+import { supabase } from "@/integrations/supabase/client";
+
 function getSubscriptions(): Record<string, string> {
   if (typeof window === "undefined") return {};
   try {
@@ -88,11 +90,43 @@ function getSubscriptions(): Record<string, string> {
   }
 }
 
-function saveSubscription(artistId: string, tierId: string) {
-  if (typeof window === "undefined") return;
-  const current = getSubscriptions();
-  current[artistId] = tierId;
-  sessionStorage.setItem("layam_artist_subscriptions", JSON.stringify(current));
+function saveSubscription(artistId: string, tierId: string, userId?: string, priceMonthly = 9.99) {
+  if (typeof window !== "undefined") {
+    const current = getSubscriptions();
+    current[artistId] = tierId;
+    sessionStorage.setItem("layam_artist_subscriptions", JSON.stringify(current));
+  }
+
+  // Persist to database if authenticated
+  if (userId && !userId.startsWith("demo-")) {
+    void supabase
+      .from("artist_subscriptions")
+      .upsert(
+        {
+          user_id: userId,
+          artist_id: artistId,
+          tier: tierId,
+          status: "active",
+        },
+        { onConflict: "user_id,artist_id" },
+      )
+      .catch((err) => console.warn("[ArtistSubscription] Supabase note:", err));
+
+    // Write to royalty ledger for creator
+    void supabase
+      .from("royalty_transactions")
+      .insert({
+        creator_id: artistId,
+        event_type: "subscription",
+        amount: priceMonthly,
+        currency: "USD",
+        metadata: {
+          tier: tierId,
+          subscriberId: userId,
+        },
+      })
+      .catch(() => {});
+  }
 }
 
 function ArtistPage() {
@@ -141,7 +175,7 @@ function ArtistPage() {
   const handleSubscribe = () => {
     setSubscribing(true);
     setTimeout(() => {
-      saveSubscription(artist.id, selectedTier.id);
+      saveSubscription(artist.id, selectedTier.id, user?.id, selectedTier.priceMonthly);
       setActiveTierId(selectedTier.id);
       setSubscribing(false);
       setSubModalOpen(false);

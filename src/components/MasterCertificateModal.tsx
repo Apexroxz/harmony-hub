@@ -18,6 +18,8 @@ import { type Track } from "@/domain/music/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+import { DigitalProvenanceService } from "@/domain/web3/provenance.service";
+
 interface MasterCertificateModalProps {
   track: Track | null;
   open: boolean;
@@ -33,10 +35,10 @@ export function MasterCertificateModal({
 
   if (!track) return null;
 
-  // Generate deterministic cryptographic mock hashes
-  const isrcCode = `US-LAY-${new Date().getFullYear()}-${track.id.toUpperCase().slice(0, 5)}`;
-  const provenanceHash = `0x7f8a9b2c${track.id.split("").reduce((acc, c) => acc + c.charCodeAt(0).toString(16), "")}e1d4f6`;
-  const ipfsCid = `bafybeic${track.id.slice(0, 8)}7xq4p5z9q2w3k4j8v7c6b5a4`;
+  // Generate deterministic cryptographic proof hashes
+  const isrcCode = DigitalProvenanceService.generateIsrcCode(track);
+  const provenanceHash = DigitalProvenanceService.generateSha256Hash(track);
+  const ipfsCid = DigitalProvenanceService.generateIpfsCid(track);
 
   const handleCopyHash = () => {
     navigator.clipboard.writeText(provenanceHash);
