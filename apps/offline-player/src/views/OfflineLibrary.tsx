@@ -89,11 +89,13 @@ export function OfflineLibrary() {
 
   // Unified Toggle/Play logic
   const handleTrackClick = (track: LocalTrack, trackList?: LocalTrack[]) => {
+    console.log("TRACK CLICKED", track);
     if (currentTrack?.id === track.id) {
       togglePlay();
     } else {
       playTrack(track, trackList || localTracks);
     }
+    console.log("AFTER PLAY CALL");
   };
 
   // Hidden inputs for header & hero actions

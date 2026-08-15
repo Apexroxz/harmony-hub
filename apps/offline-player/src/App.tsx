@@ -125,7 +125,10 @@ function OfflinePlayerLayout() {
       </main>
       
       {/* Floating Transport Bar (renders when currentTrack !== null) */}
-      <PlayerBar />
+      {(() => {
+        console.log("OFFLINE LAYOUT RENDERING PLAYERBAR");
+        return <PlayerBar />;
+      })()}
       
       {/* Top-Level Global Modals (Mounted Independently) */}
       <AudioConsoleModal open={isConsoleOpen} onClose={closeConsole} />
