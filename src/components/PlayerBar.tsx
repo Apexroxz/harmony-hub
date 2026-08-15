@@ -94,27 +94,38 @@ export function PlayerBar() {
     [importLocalFiles],
   );
 
-  // Never render if there is no active track or when in fullscreen mode
-  if (!currentTrack || isExpanded) return null;
+  // Never render in fullscreen mode (mutually exclusive)
+  if (isExpanded) return null;
 
-  // Defensive field extraction with safe fallbacks
-  const trackTitle = currentTrack.title || "Master Track";
-  const artistName = currentTrack.artistName || (currentTrack as any).artist || "Local Artist";
-  const albumName = currentTrack.albumName || (currentTrack as any).album || "";
-  const coverImage = currentTrack.coverImage || "/logo.png";
-  const formatLabel = currentTrack.quality || (currentTrack as any).format || "FLAC";
-  const rawSampleRate = currentTrack.sampleRate;
+  // Defensive field extraction with safe fallbacks (supporting both active and resting/standby states)
+  const hasActiveTrack = Boolean(currentTrack);
+  const trackTitle = currentTrack?.title || (queue.length > 0 ? "Ready to Play" : "No Master Selected");
+  const artistName = currentTrack?.artistName || (currentTrack as any)?.artist || (queue.length > 0 ? `${queue.length} track(s) in queue` : "Select a track or drop audio files");
+  const albumName = currentTrack?.albumName || (currentTrack as any)?.album || "";
+  const coverImage = currentTrack?.coverImage || "/logo.png";
+  const formatLabel = currentTrack?.quality || (currentTrack as any)?.format || "FLAC";
+  const rawSampleRate = currentTrack?.sampleRate;
   const sampleRateLabel = rawSampleRate
     ? Number(rawSampleRate) >= 1000
       ? `${(Number(rawSampleRate) / 1000).toFixed(1)} kHz`
       : `${rawSampleRate} Hz`
     : "96.0 kHz";
-  const bitDepthLabel = currentTrack.bitDepth
+  const bitDepthLabel = currentTrack?.bitDepth
     ? `${currentTrack.bitDepth}-BIT`
     : "24-BIT";
-  const trackDuration = typeof duration === "number" && !isNaN(duration) && duration > 0 ? duration : (currentTrack.duration || 180);
+  const trackDuration = typeof duration === "number" && !isNaN(duration) && duration > 0 ? duration : (currentTrack?.duration || 180);
   const trackCurrentTime = typeof currentTime === "number" && !isNaN(currentTime) ? currentTime : 0;
   const trackProgress = typeof progress === "number" && !isNaN(progress) ? progress : 0;
+
+  const handlePlayClick = () => {
+    if (hasActiveTrack) {
+      togglePlay();
+    } else if (queue.length > 0) {
+      playFromQueue(0);
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
 
   return (
     <>
@@ -292,9 +303,9 @@ export function PlayerBar() {
             {/* 1. Physical Album Cartridge & Track Info */}
             <div className="flex min-w-0 items-center gap-3.5 md:w-[30%]">
               <button
-                onClick={expandPlayer}
+                onClick={hasActiveTrack ? expandPlayer : undefined}
                 className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#111216] group text-left cursor-pointer transition-transform hover:scale-[1.02] ring-1 ring-[#D99A2B]/30 shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
-                title="Expand Audiophile Console"
+                title={hasActiveTrack ? "Expand Audiophile Console" : "Layam Hi-Fi Vault"}
               >
                 <img
                   src={coverImage}
@@ -309,7 +320,7 @@ export function PlayerBar() {
               <div className="min-w-0 flex-1 flex flex-col justify-center">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={expandPlayer}
+                    onClick={hasActiveTrack ? expandPlayer : undefined}
                     className="block truncate text-sm font-bold text-[#f2f3f5] hover:text-[#D99A2B] transition-colors text-left cursor-pointer tracking-tight"
                   >
                     {trackTitle}
@@ -370,7 +381,8 @@ export function PlayerBar() {
                   size="icon"
                   aria-label="Previous track"
                   onClick={playPrevious}
-                  className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-white/[0.04] rounded-full transition-transform active:scale-95 cursor-pointer"
+                  disabled={!hasActiveTrack && queue.length === 0}
+                  className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-white/[0.04] rounded-full transition-transform active:scale-95 cursor-pointer disabled:opacity-30"
                 >
                   <SkipBack className="h-4 w-4 fill-current" />
                 </Button>
@@ -379,7 +391,7 @@ export function PlayerBar() {
                 <motion.div whileTap={{ scale: 0.93 }}>
                   <button
                     aria-label={isPlaying ? "Pause" : "Play"}
-                    onClick={togglePlay}
+                    onClick={handlePlayClick}
                     className="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-gradient-to-b from-[#f5b84c] via-[#D99A2B] to-[#b37a1a] text-[#08090B] shadow-[0_0_20px_rgba(217,154,43,0.35)] hover:shadow-[0_0_30px_rgba(217,154,43,0.55)] active:scale-95 transition-all flex items-center justify-center cursor-pointer border border-[#fbd38d]/40"
                   >
                     {status === "loading" || status === "buffering" ? (
@@ -397,7 +409,8 @@ export function PlayerBar() {
                   size="icon"
                   aria-label="Next track"
                   onClick={playNext}
-                  className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-white/[0.04] rounded-full transition-transform active:scale-95 cursor-pointer"
+                  disabled={!hasActiveTrack && queue.length === 0}
+                  className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-white/[0.04] rounded-full transition-transform active:scale-95 cursor-pointer disabled:opacity-30"
                 >
                   <SkipForward className="h-4 w-4 fill-current" />
                 </Button>
@@ -463,8 +476,9 @@ export function PlayerBar() {
                 variant="ghost"
                 size="icon"
                 aria-label="Expand Audiophile Player"
-                onClick={expandPlayer}
-                className="h-8 w-8 rounded-lg text-[#9ba1ad] hover:text-[#f2f3f5] cursor-pointer border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06]"
+                onClick={hasActiveTrack ? expandPlayer : undefined}
+                disabled={!hasActiveTrack}
+                className="h-8 w-8 rounded-lg text-[#9ba1ad] hover:text-[#f2f3f5] cursor-pointer border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] disabled:opacity-30"
                 title="Expand Full Audiophile Cockpit"
               >
                 <Maximize2 className="h-4 w-4" />
@@ -506,11 +520,11 @@ export function PlayerBar() {
 
             <div className="relative flex-1">
               <Waveform
-                seed={currentTrack.id || trackTitle}
-                peaks={currentTrack.waveform}
+                seed={currentTrack?.id || "layam-resting"}
+                peaks={currentTrack?.waveform}
                 progress={trackProgress}
                 duration={trackDuration}
-                onSeek={seek}
+                onSeek={hasActiveTrack ? seek : undefined}
                 className="h-3 w-full"
               />
             </div>
