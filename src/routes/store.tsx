@@ -21,7 +21,11 @@ import {
   formatNumber,
   type Track,
 } from "@/domain/music/types";
-import { recordTrackPurchase } from "@/domain/music/purchases";
+import {
+  getPurchasedTrackIds,
+  recordTrackPurchase,
+  isTrackPurchased,
+} from "@/domain/music/purchases";
 import { usePlayer } from "@/lib/player";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
@@ -65,28 +69,6 @@ const genres = [
   "Acoustic",
 ];
 
-// ── Purchase state (persisted in sessionStorage for V0) ───────────────────────
-const PURCHASES_KEY = "layam_purchases";
-
-function getPurchases(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = sessionStorage.getItem(PURCHASES_KEY);
-    return stored ? (JSON.parse(stored) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function savePurchase(trackId: string) {
-  if (typeof window === "undefined") return;
-  const current = getPurchases();
-  if (!current.includes(trackId)) {
-    current.push(trackId);
-    sessionStorage.setItem(PURCHASES_KEY, JSON.stringify(current));
-  }
-}
-
 // ── Store page ────────────────────────────────────────────────────────────────
 function StorePage() {
   const { data, isPending } = useQuery(catalogQueryOptions());
@@ -97,7 +79,7 @@ function StorePage() {
   const [query, setQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [buyingTrack, setBuyingTrack] = useState<Track | null>(null);
-  const [purchased, setPurchased] = useState<string[]>(getPurchases);
+  const [purchased, setPurchased] = useState<string[]>(getPurchasedTrackIds);
   const [processing, setProcessing] = useState(false);
 
   const tracks = data?.tracks ?? [];
@@ -117,7 +99,7 @@ function StorePage() {
   }, [tracks, query, selectedGenre]);
 
   const handleBuy = (track: Track) => {
-    if (purchased.includes(track.id)) {
+    if (isTrackPurchased(track.id) || purchased.includes(track.id)) {
       toast.info("Already purchased", {
         description: `You already own "${track.title}".`,
       });
@@ -132,9 +114,8 @@ function StorePage() {
 
     setProcessing(true);
     setTimeout(() => {
-      savePurchase(buyingTrack.id);
       recordTrackPurchase(buyingTrack);
-      setPurchased((prev) => [...prev, buyingTrack.id]);
+      setPurchased(getPurchasedTrackIds());
       setProcessing(false);
       setBuyingTrack(null);
       toast.success(`Purchased "${buyingTrack.title}"!`, {

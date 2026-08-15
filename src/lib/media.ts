@@ -1,16 +1,24 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/** Signed links live long enough for a listening session. */
+export const PUBLIC_BUCKETS = ["covers", "previews"] as const;
+export const PRIVATE_BUCKETS = ["audio", "stems", "vault"] as const;
+
+export type MediaBucket =
+  | (typeof PUBLIC_BUCKETS)[number]
+  | (typeof PRIVATE_BUCKETS)[number];
+
+/** Signed links TTL for private streaming sessions (6 hours default). */
 const SIGNED_TTL_SECONDS = 60 * 60 * 6;
 
 const memo = new Map<string, string>();
 
 /**
- * Resolves storage object paths to signed URLs in one round trip per bucket.
- * Both media buckets are private, so every playable/renderable URL is signed.
+ * Resolves storage object paths to accessible URLs.
+ * - Public buckets ("covers", "previews"): uses fast public CDN URLs.
+ * - Private buckets ("audio", "stems", "vault"): generates cryptographically signed URLs.
  */
 export async function signedUrls(
-  bucket: "covers" | "audio",
+  bucket: MediaBucket,
   paths: string[],
 ): Promise<Map<string, string>> {
   const resolved = new Map<string, string>();
@@ -24,14 +32,30 @@ export async function signedUrls(
   }
 
   if (missing.length > 0) {
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .createSignedUrls(missing, SIGNED_TTL_SECONDS);
-    if (error) throw error;
-    for (const entry of data ?? []) {
-      if (entry.path && entry.signedUrl) {
-        memo.set(`${bucket}:${entry.path}`, entry.signedUrl);
-        resolved.set(entry.path, entry.signedUrl);
+    if (bucket === "covers" || bucket === "previews") {
+      // Fast path for public buckets
+      for (const path of missing) {
+        const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+        if (data?.publicUrl) {
+          memo.set(`${bucket}:${path}`, data.publicUrl);
+          resolved.set(path, data.publicUrl);
+        }
+      }
+    } else {
+      // Private bucket batch signed URL generation
+      try {
+        const { data, error } = await supabase.storage
+          .from(bucket)
+          .createSignedUrls(missing, SIGNED_TTL_SECONDS);
+        if (error) throw error;
+        for (const entry of data ?? []) {
+          if (entry.path && entry.signedUrl) {
+            memo.set(`${bucket}:${entry.path}`, entry.signedUrl);
+            resolved.set(entry.path, entry.signedUrl);
+          }
+        }
+      } catch (err) {
+        console.warn(`[MediaService] Error signing URLs for bucket "${bucket}":`, err);
       }
     }
   }
@@ -39,9 +63,11 @@ export async function signedUrls(
   return resolved;
 }
 
-/** Uploads a file and returns its storage path. */
+/**
+ * Uploads a media asset to the designated public or private storage bucket.
+ */
 export async function uploadMedia(
-  bucket: "covers" | "audio",
+  bucket: MediaBucket,
   path: string,
   file: File,
 ): Promise<string> {

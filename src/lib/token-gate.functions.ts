@@ -22,7 +22,7 @@ export interface TokenGateAccessResult {
 }
 
 export const verifyTokenGateAccess = createServerFn({ method: "POST" })
-  .inputValidator((input) => VerifyTokenGateSchema.parse(input))
+  .validator((input) => VerifyTokenGateSchema.parse(input))
   .handler(async ({ data }): Promise<TokenGateAccessResult> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

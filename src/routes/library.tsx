@@ -39,6 +39,7 @@ import {
   type LocalFolderGroup,
   type LocalPlaylist,
 } from "@/lib/mode";
+import { PurchaseService } from "@/domain/music/purchases";
 import { formatDuration, qualityLabel, type Track } from "@/domain/music/types";
 import { QualityBadge } from "@/components/QualityBadge";
 import { AudioConsoleModal } from "@/components/AudioConsoleModal";
@@ -198,19 +199,7 @@ function LibraryPage() {
     e.target.value = "";
   };
 
-  const getPurchasedTracks = (): Track[] => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = sessionStorage.getItem("layam_purchases");
-      if (!stored) return [];
-      const purchaseIds = JSON.parse(stored) as string[];
-      return allTracks.filter((track) => purchaseIds.includes(track.id));
-    } catch {
-      return [];
-    }
-  };
-
-  const purchasedTracks = getPurchasedTracks();
+  const purchasedTracks = PurchaseService.getPurchasedTracks(allTracks);
   const likedTracks = allTracks.filter((track) => likedIds.includes(track.id));
 
   const handleStartEdit = (track: LocalTrack) => {

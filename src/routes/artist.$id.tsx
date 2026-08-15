@@ -14,7 +14,7 @@ import {
   Gift,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getArtistById, getTracksByArtist } from "@/domain/music/catalog";
+import { CatalogService } from "@/domain/music/catalog.service";
 import { formatNumber, type CreatorTier, type Track } from "@/domain/music/types";
 import { useWallet } from "@/lib/wallet";
 import { useAuth } from "@/lib/auth";
@@ -26,10 +26,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/artist/$id")({
-  loader: ({ params }) => {
-    const artist = getArtistById(params.id);
+  loader: async ({ params }) => {
+    const artist = await CatalogService.getArtistById(params.id);
     if (!artist) throw notFound();
-    return { artist };
+    const discography = await CatalogService.getTracksByArtist(artist.id);
+    return { artist, discography };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -95,8 +96,7 @@ function saveSubscription(artistId: string, tierId: string) {
 }
 
 function ArtistPage() {
-  const { artist } = Route.useLoaderData();
-  const discography = getTracksByArtist(artist.id);
+  const { artist, discography } = Route.useLoaderData();
   const { user } = useAuth();
   const wallet = useWallet();
 

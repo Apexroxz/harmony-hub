@@ -53,97 +53,12 @@ function toPeaks(value: unknown): number[] | undefined {
   return peaks.length > 0 ? peaks : undefined;
 }
 
-/** The music catalog plus the social counters kept outside the Track model. */
-export interface Catalog {
-  tracks: Track[];
-  artists: Artist[];
-  repostCounts: Record<string, number>;
-}
+import { CatalogService, type CatalogData } from "./catalog.service";
+
+export type Catalog = CatalogData;
 
 async function fetchCatalog(): Promise<Catalog> {
-  try {
-    const [artistsResult, tracksResult] = await Promise.all([
-      supabase
-        .from("artists")
-        .select(sel(ARTIST_COLUMNS))
-        .order("followers", { ascending: false })
-        .returns<ArtistRow[]>(),
-      supabase
-        .from("tracks")
-        .select(sel(TRACK_COLUMNS))
-        .order("created_at", { ascending: false })
-        .returns<TrackRow[]>(),
-    ]);
-
-    if (artistsResult.error) throw artistsResult.error;
-    if (tracksResult.error) throw tracksResult.error;
-
-    const artistRows = artistsResult.data ?? [];
-    const trackRows = tracksResult.data ?? [];
-
-    const [coverLinks, audioLinks] = await Promise.all([
-      signedUrls("covers", [
-        ...artistRows.flatMap((a) => (a.avatar_path ? [a.avatar_path] : [])),
-        ...trackRows.flatMap((t) => (t.cover_path ? [t.cover_path] : [])),
-      ]),
-      signedUrls(
-        "audio",
-        trackRows.flatMap((t) => (t.audio_path ? [t.audio_path] : [])),
-      ),
-    ]);
-
-    const artists: Artist[] = artistRows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      handle: row.handle,
-      avatar: (row.avatar_path ? coverLinks.get(row.avatar_path) : null) ?? row.avatar_url ?? "",
-      bio: row.bio,
-      followers: row.followers,
-      verified: row.verified,
-    }));
-
-    const namesById = new Map(artists.map((a) => [a.id, a.name]));
-
-    const tracks: Track[] = trackRows.map((row) => {
-      const peaks = toPeaks(row.waveform);
-      return {
-        id: row.id,
-        title: row.title,
-        artistId: row.artist_id,
-        artistName: namesById.get(row.artist_id) ?? "Unknown artist",
-        coverImage: (row.cover_path ? coverLinks.get(row.cover_path) : null) ?? row.cover_url ?? "",
-        audioUrl: (row.audio_path ? audioLinks.get(row.audio_path) : null) ?? row.audio_url ?? "",
-        duration: row.duration,
-        genre: row.genre,
-        quality: row.quality as AudioFormat,
-        bitrate: row.bitrate,
-        sampleRate: row.sample_rate,
-        ...(row.bit_depth != null ? { bitDepth: row.bit_depth } : {}),
-        playCount: row.play_count,
-        likes: row.like_count,
-        comments: row.comment_count,
-        createdAt: row.created_at,
-        ...(peaks ? { waveform: peaks } : {}),
-        uploaderId: row.uploader_id,
-      };
-    });
-
-    // Always merge fallback tracks so the catalog is never empty
-    const supabaseIds = new Set(tracks.map((t) => t.id));
-    const merged = [...tracks, ...FALLBACK_TRACKS.filter((t) => !supabaseIds.has(t.id))];
-
-    const repostCounts: Record<string, number> = {};
-    for (const row of trackRows) repostCounts[row.id] = row.repost_count;
-
-    return { tracks: merged, artists, repostCounts };
-  } catch {
-    // Supabase unreachable — return fallback catalog
-    return {
-      tracks: FALLBACK_TRACKS,
-      artists: [],
-      repostCounts: {},
-    };
-  }
+  return CatalogService.getCatalog();
 }
 
 export const catalogQueryKey = ["catalog"] as const;

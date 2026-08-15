@@ -45,7 +45,7 @@ const RecordPlaySchema = z.object({
 });
 
 export const recordPlay = createServerFn({ method: "POST" })
-  .inputValidator((input) => RecordPlaySchema.parse(input))
+  .validator((input) => RecordPlaySchema.parse(input))
   .handler(async ({ data }) => {
     const now = Date.now();
     cleanupStaleRecords(now);

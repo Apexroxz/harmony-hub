@@ -5,7 +5,8 @@ import { usePlayer } from "@/lib/player";
 import { useAuth } from "@/lib/auth";
 import {
   getCommentsForTrack,
-  addCommentToTrack,
+  fetchCommentsForTrack,
+  postCommentToTrack,
   likeTrackComment,
   type TrackComment,
 } from "@/lib/comments";
@@ -34,9 +35,20 @@ export function WaveformComments({ track }: WaveformCommentsProps) {
   const [commentText, setCommentText] = useState("");
   const [hoveredComment, setHoveredComment] = useState<TrackComment | null>(null);
 
-  // Sync comments if track changes
+  // Sync comments from database with local cache fallback
   useEffect(() => {
+    let active = true;
     setComments(getCommentsForTrack(track.id));
+
+    void fetchCommentsForTrack(track.id).then((fetched) => {
+      if (active && fetched && fetched.length > 0) {
+        setComments(fetched);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
   }, [track.id]);
 
   // Find currently active popup comment matching the playback time
@@ -52,7 +64,7 @@ export function WaveformComments({ track }: WaveformCommentsProps) {
     seek(seconds / trackDuration);
   };
 
-  const handlePostComment = (e: React.FormEvent) => {
+  const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
 
@@ -62,19 +74,36 @@ export function WaveformComments({ track }: WaveformCommentsProps) {
       user?.avatarUrl ||
       "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80";
 
-    const newComment = addCommentToTrack(
-      track.id,
-      postTimestamp,
-      commentText.trim(),
-      authorName,
-      authorAvatar,
-    );
+    const optimisticComment: TrackComment = {
+      id: `temp-${Date.now()}`,
+      trackId: track.id,
+      userId: user?.id || `anon-${Date.now()}`,
+      userName: authorName,
+      userAvatar: authorAvatar,
+      timestampSeconds: Math.max(0, Math.round(postTimestamp)),
+      content: commentText.trim(),
+      createdAt: new Date().toISOString().slice(0, 10),
+      likes: 0,
+    };
 
     setComments((prev) =>
-      [...prev, newComment].sort((a, b) => a.timestampSeconds - b.timestampSeconds),
+      [...prev, optimisticComment].sort((a, b) => a.timestampSeconds - b.timestampSeconds),
     );
     setCommentText("");
     toast.success(`Comment pinned at ${formatDuration(postTimestamp)}!`);
+
+    const persisted = await postCommentToTrack(
+      track.id,
+      postTimestamp,
+      optimisticComment.content,
+      user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl || undefined } : undefined,
+    );
+
+    if (persisted && persisted.id !== optimisticComment.id) {
+      setComments((prev) =>
+        prev.map((c) => (c.id === optimisticComment.id ? persisted : c)),
+      );
+    }
   };
 
   const handleLike = (commentId: string) => {

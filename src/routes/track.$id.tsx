@@ -12,7 +12,7 @@ import {
   WifiOff,
   Gift,
 } from "lucide-react";
-import { getTrackById, getArtistById, tracks } from "@/domain/music/catalog";
+import { CatalogService } from "@/domain/music/catalog.service";
 import { formatDuration, type Track } from "@/domain/music/types";
 import { usePlayer } from "@/lib/player";
 import { useAppMode } from "@/lib/mode";
@@ -33,10 +33,18 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/track/$id")({
-  loader: ({ params }) => {
-    const track = getTrackById(params.id);
+  loader: async ({ params }) => {
+    const track = await CatalogService.getTrackById(params.id);
     if (!track) throw notFound();
-    return { track };
+    const artist = await CatalogService.getArtistById(track.artistId);
+    const catalog = await CatalogService.getCatalog();
+    const similar = catalog.tracks
+      .filter(
+        (t) => t.id !== track.id && (t.genre === track.genre || t.artistId === track.artistId),
+      )
+      .slice(0, 3);
+
+    return { track, artist, similar };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -57,8 +65,7 @@ export const Route = createFileRoute("/track/$id")({
 });
 
 function TrackPage() {
-  const { track } = Route.useLoaderData();
-  const artist = getArtistById(track.artistId);
+  const { track, artist, similar } = Route.useLoaderData();
   const { currentTrack, isPlaying, playTrack } = usePlayer();
   const { isOnline, saveTrackOffline, removeDownloadedTrack, isTrackDownloaded } = useAppMode();
   const [buyModalOpen, setBuyModalOpen] = useState(false);
@@ -70,13 +77,6 @@ function TrackPage() {
   const isCurrent = currentTrack?.id === track.id;
   const purchased = isTrackPurchased(track.id);
   const price = track.price ?? 1.49;
-
-  const similar = tracks
-    .filter(
-      (t: typeof track) =>
-        t.id !== track.id && (t.genre === track.genre || t.artistId === track.artistId),
-    )
-    .slice(0, 3);
 
   const handleShare = () => {
     if (navigator.clipboard) {
