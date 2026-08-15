@@ -16,25 +16,16 @@ import {
   Box,
   Compass,
   Headphones,
-  Cloud,
-  UploadCloud,
-  CheckCircle2,
-  Trash2,
-  Plus,
 } from "lucide-react";
 import {
   usePlayer,
   EQ_FREQUENCIES,
   EQ_PRESETS,
   type SpatialRoomPreset,
-  type SoundProfile,
 } from "@/lib/player";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { GearCalibrationModal } from "./GearCalibrationModal";
 import { cn } from "@/lib/utils";
 
 interface AudioConsoleModalProps {
@@ -62,7 +53,6 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
     toggleNormalizer,
     setSpatialMode,
     setSpatialAmbience,
-    applyFullSoundProfile,
     getAnalyserNode,
     isPlaying,
     currentTrack,
@@ -71,101 +61,6 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const [visualizerMode, setVisualizerMode] = useState<"bars" | "wave">("bars");
-  const [newProfileName, setNewProfileName] = useState("");
-  const [newProfileDevice, setNewProfileDevice] = useState("");
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [gearModalOpen, setGearModalOpen] = useState(false);
-
-  // Cloud Sound Profiles with local storage persistence
-  const [profiles, setProfiles] = useState<SoundProfile[]>(() => {
-    try {
-      const saved = localStorage.getItem("layam_cloud_sound_profiles");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [
-      {
-        id: "sennheiser-ref",
-        name: "Sennheiser HD650 Neutral",
-        hardwareDevice: "Planar / Dynamic Open-Back",
-        eqGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        eqPreset: "Flat",
-        bassBoostLevel: 0,
-        trebleLevel: 0,
-        stereoWidth: 1,
-        normalizerEnabled: false,
-        spatialMode: "studio_control",
-        spatialAmbience: 0.25,
-        syncedAt: new Date().toISOString(),
-      },
-      {
-        id: "audeze-warm",
-        name: "Audeze Planar Warmth",
-        hardwareDevice: "USB-C External DAC",
-        eqGains: [4, 3, 2, 1, 0, -1, 0, 1, 2, 3],
-        eqPreset: "Warm",
-        bassBoostLevel: 4,
-        trebleLevel: 2,
-        stereoWidth: 1.3,
-        normalizerEnabled: false,
-        spatialMode: "vinyl_lounge",
-        spatialAmbience: 0.45,
-        syncedAt: new Date().toISOString(),
-      },
-      {
-        id: "club-subbass",
-        name: "Club Bunker Immersion",
-        hardwareDevice: "Hi-Res Reference Monitors",
-        eqGains: [6, 5, 3, 1, 0, 1, 2, 3, 4, 5],
-        eqPreset: "Bass Boost",
-        bassBoostLevel: 8,
-        trebleLevel: 3,
-        stereoWidth: 1.5,
-        normalizerEnabled: true,
-        spatialMode: "club_bunker",
-        spatialAmbience: 0.7,
-        syncedAt: new Date().toISOString(),
-      },
-    ];
-  });
-
-  const saveCustomProfile = () => {
-    if (!newProfileName.trim()) return;
-    setIsSyncing(true);
-
-    const newProfile: SoundProfile = {
-      id: `profile-${Date.now()}`,
-      name: newProfileName.trim(),
-      hardwareDevice: "Custom Cloud Preset",
-      eqGains: [...eqGains],
-      eqPreset,
-      bassBoostLevel,
-      trebleLevel,
-      stereoWidth,
-      normalizerEnabled,
-      spatialMode,
-      spatialAmbience,
-      syncedAt: new Date().toISOString(),
-    };
-
-    const updated = [newProfile, ...profiles];
-    setProfiles(updated);
-    localStorage.setItem("layam_cloud_sound_profiles", JSON.stringify(updated));
-    setNewProfileName("");
-
-    setTimeout(() => {
-      setIsSyncing(false);
-      toast.success(`Saved "${newProfile.name}" to Cloud Sound Profiles!`, {
-        description: "Synchronized across all your audiophile listening devices.",
-      });
-    }, 400);
-  };
-
-  const deleteProfile = (id: string, name: string) => {
-    const filtered = profiles.filter((p) => p.id !== id);
-    setProfiles(filtered);
-    localStorage.setItem("layam_cloud_sound_profiles", JSON.stringify(filtered));
-    toast.info(`Deleted profile "${name}"`);
-  };
 
   // Real-time FFT spectrum visualizer loop
   useEffect(() => {
@@ -188,7 +83,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
 
       ctx.clearRect(0, 0, width, height);
 
-      // Background grid / oscilloscope lines
+      // Background grid
       ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
       ctx.lineWidth = 1;
       for (let y = 0; y < height; y += 20) {
@@ -214,12 +109,12 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
 
             // Gradient bar
             const grad = ctx.createLinearGradient(0, height, 0, 0);
-            grad.addColorStop(0, "rgba(255, 107, 0, 0.4)");
-            grad.addColorStop(0.5, "rgba(255, 165, 0, 0.8)");
-            grad.addColorStop(1, "rgba(255, 220, 100, 1)");
+            grad.addColorStop(0, "rgba(229, 158, 56, 0.4)");
+            grad.addColorStop(0.5, "rgba(245, 158, 11, 0.8)");
+            grad.addColorStop(1, "rgba(252, 211, 77, 1)");
 
             ctx.fillStyle = grad;
-            ctx.shadowColor = "rgba(255, 140, 0, 0.5)";
+            ctx.shadowColor = "rgba(229, 158, 56, 0.5)";
             ctx.shadowBlur = 8;
             ctx.fillRect(x, y, barWidth, barHeight);
 
@@ -231,16 +126,16 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
           // Oscilloscope wave
           analyser.getByteTimeDomainData(dataArray);
           ctx.lineWidth = 2;
-          ctx.strokeStyle = "#ff9900";
-          ctx.shadowColor = "rgba(255, 140, 0, 0.8)";
-          ctx.shadowBlur = 10;
+          ctx.strokeStyle = "#e59e38";
+          ctx.shadowColor = "rgba(229, 158, 56, 0.6)";
+          ctx.shadowBlur = 6;
           ctx.beginPath();
 
           const sliceWidth = width / bufferLength;
           let x = 0;
 
           for (let i = 0; i < bufferLength; i++) {
-            const v = (dataArray[i] ?? 128) / 128.0;
+            const v = dataArray[i]! / 128.0;
             const y = (v * height) / 2;
 
             if (i === 0) {
@@ -248,21 +143,21 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
             } else {
               ctx.lineTo(x, y);
             }
+
             x += sliceWidth;
           }
+
           ctx.lineTo(width, height / 2);
           ctx.stroke();
         }
       } else {
-        // Idle ambient pulse
-        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-        ctx.font = "11px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(
-          isPlaying ? "CONNECTING DSP ENGINE..." : "PLAYBACK PAUSED — DSP READY",
-          width / 2,
-          height / 2 + 4,
-        );
+        // Idle ambient line
+        ctx.strokeStyle = "rgba(229, 158, 56, 0.3)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+        ctx.stroke();
       }
     };
 
@@ -275,121 +170,120 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
     };
   }, [open, isPlaying, visualizerMode, getAnalyserNode]);
 
+  // Global Escape key listener
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex justify-end">
-        {/* Backdrop */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        {/* Solid Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 bg-black/85 backdrop-blur-md"
         />
 
-        {/* Slide-out Drawer Panel */}
+        {/* Audiophile Console Hardware Panel */}
         <motion.div
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", stiffness: 350, damping: 32 }}
-          className="relative z-10 h-full w-full max-w-2xl overflow-y-auto border-l border-white/15 bg-[#0e0f13]/98 p-6 shadow-[-20px_0_60px_rgba(0,0,0,0.9)] backdrop-blur-2xl sm:p-8"
+          initial={{ opacity: 0, scale: 0.96, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 15 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="relative z-10 w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-white/[0.1] bg-[#111216] p-6 sm:p-8 shadow-2xl text-foreground"
+          style={{
+            backgroundColor: "#111216",
+            boxShadow: "0 25px 80px rgba(0, 0, 0, 0.95)",
+          }}
         >
           {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/40 pb-6">
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-5 mb-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary shadow-inner">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#16181e] text-[#e59e38] border border-[#e59e38]/30 shadow-[0_0_15px_rgba(229,158,56,0.15)]">
                 <Sliders className="h-5 w-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
-                    Audiophile Audio Console
+                  <h2 className="text-lg font-black tracking-tight text-foreground">
+                    Hardware DSP Console
                   </h2>
-                  <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] font-mono">
-                    10-BAND DSP
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[10px] uppercase font-bold text-[#e59e38] border-[#e59e38]/30 bg-[#e59e38]/10"
+                  >
+                    64-Bit Float PCM
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Real-time WebAudio parametric equalization, dynamics compression, and harmonic
-                  acoustics.
+                <p className="text-xs text-muted-foreground">
+                  10-Band Graphic Parametric Equalizer & Dynamic Range Processor
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setGearModalOpen(true)}
-                className="h-8 rounded-full text-xs font-bold gap-1.5 border-primary/40 text-primary hover:bg-primary/10 transition-all cursor-pointer shadow-sm"
-              >
-                <Headphones className="h-3.5 w-3.5" />
-                <span>Auto-Calibrate Gear</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
+              <button
                 onClick={toggleEq}
                 className={cn(
-                  "h-8 rounded-full text-xs font-bold gap-1.5 transition-all",
+                  "px-3 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider uppercase border transition-all cursor-pointer",
                   eqEnabled
-                    ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                    : "border-border/60 text-muted-foreground hover:text-foreground",
+                    ? "bg-[#e59e38] text-[#090a0c] border-[#e59e38] shadow-[0_0_15px_rgba(229,158,56,0.3)]"
+                    : "bg-[#16181e] text-muted-foreground border-white/[0.08] hover:text-foreground"
                 )}
               >
-                <Zap className="h-3.5 w-3.5 fill-current" />
-                <span>{eqEnabled ? "EQ ACTIVE" : "BYPASS EQ"}</span>
-              </Button>
+                {eqEnabled ? "EQ Active" : "EQ Bypass"}
+              </button>
 
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
                 onClick={onClose}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-white/[0.05] transition-colors cursor-pointer"
+                title="Close (Esc)"
               >
-                <X className="h-4 w-4" />
-              </Button>
+                <X className="h-5 w-5" />
+              </button>
             </div>
           </div>
 
-          {/* Real-time Spectrum Canvas */}
-          <div className="my-6 overflow-hidden rounded-2xl border border-border/50 bg-black/60 p-4 shadow-inner">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                <Activity className="h-3.5 w-3.5 animate-pulse" />
-                <span className="font-mono text-[11px] tracking-wider uppercase">
-                  Real-Time FFT Spectrum Visualizer
+          {/* Real-time Spectrum Visualizer Screen */}
+          <div className="relative mb-6 overflow-hidden rounded-xl border border-white/[0.08] bg-[#07080a] p-3">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-[#e59e38] animate-pulse" />
+                <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Master Output Spectrum
                 </span>
-                {currentTrack && (
-                  <span className="text-[10px] text-muted-foreground font-mono">
-                    ({currentTrack.quality}{" "}
-                    {currentTrack.sampleRate ? `${currentTrack.sampleRate / 1000}kHz` : "44.1kHz"})
-                  </span>
-                )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setVisualizerMode("bars")}
                   className={cn(
-                    "px-2 py-0.5 rounded text-[10px] font-mono transition-colors",
+                    "px-2 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer",
                     visualizerMode === "bars"
-                      ? "bg-primary/20 text-primary font-bold"
-                      : "text-muted-foreground hover:text-white",
+                      ? "bg-[#e59e38]/20 text-[#e59e38] font-bold border border-[#e59e38]/30"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  Bars
+                  FFT Bars
                 </button>
                 <button
                   onClick={() => setVisualizerMode("wave")}
                   className={cn(
-                    "px-2 py-0.5 rounded text-[10px] font-mono transition-colors",
+                    "px-2 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer",
                     visualizerMode === "wave"
-                      ? "bg-primary/20 text-primary font-bold"
-                      : "text-muted-foreground hover:text-white",
+                      ? "bg-[#e59e38]/20 text-[#e59e38] font-bold border border-[#e59e38]/30"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   Oscilloscope
@@ -399,27 +293,25 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
 
             <canvas
               ref={canvasRef}
-              width={780}
-              height={100}
-              className="h-24 w-full rounded-lg bg-black/40"
+              width={760}
+              height={90}
+              className="w-full h-20 rounded bg-black/40"
             />
           </div>
 
           {/* EQ Presets Bar */}
           <div className="mb-6">
-            <div className="mb-2.5 flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Acoustic Presets
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
+            <div className="flex items-center justify-between mb-2">
+              <label className="font-mono text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Sound Profiles & Presets
+              </label>
+              <button
                 onClick={() => setEqPreset("Flat")}
-                className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1"
+                className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground hover:text-[#e59e38] transition-colors cursor-pointer"
               >
                 <RotateCcw className="h-3 w-3" />
                 Reset Flat
-              </Button>
+              </button>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -428,10 +320,10 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                   key={preset}
                   onClick={() => setEqPreset(preset)}
                   className={cn(
-                    "rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all",
+                    "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border",
                     eqPreset === preset
-                      ? "border-primary bg-primary/20 text-primary shadow-sm"
-                      : "border-border/40 bg-surface-raised text-muted-foreground hover:bg-card hover:text-foreground",
+                      ? "bg-[#e59e38]/15 text-[#e59e38] border-[#e59e38]/40 shadow-sm"
+                      : "bg-[#16181e] text-muted-foreground border-white/[0.06] hover:text-foreground hover:bg-[#1a1d24]"
                   )}
                 >
                   {preset}
@@ -440,18 +332,9 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
             </div>
           </div>
 
-          {/* 10-Band Graphic Equalizer Sliders */}
-          <div className="rounded-2xl border border-border/40 bg-surface-raised p-5 mb-6">
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                10-Band Graphic Frequencies
-              </span>
-              <span className="text-[11px] font-mono text-muted-foreground">
-                Range: -12dB to +12dB
-              </span>
-            </div>
-
-            <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 sm:gap-2">
+          {/* 10-Band Parametric Graphic Sliders */}
+          <div className="mb-8 rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4 sm:p-6">
+            <div className="grid grid-cols-10 gap-1 sm:gap-2">
               {EQ_FREQUENCIES.map((freq, idx) => {
                 const gain = eqGains[idx] ?? 0;
                 const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
@@ -468,9 +351,8 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                         max={12}
                         step={0.5}
                         value={gain}
-                        disabled={!eqEnabled}
                         onChange={(e) => setEqGain(idx, parseFloat(e.target.value))}
-                        className="h-32 -rotate-90 appearance-none bg-transparent cursor-pointer disabled:opacity-40 accent-primary w-24"
+                        className="h-32 -rotate-90 appearance-none bg-transparent cursor-pointer accent-[#e59e38] w-24"
                         style={{ transformOrigin: "center" }}
                       />
                     </div>
@@ -484,287 +366,131 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
             </div>
           </div>
 
-          {/* DSP Enhancement Dials & Controls */}
+          {/* DSP Dynamics, Ambience & Enhancement Controls */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {/* Bass Boost */}
-            <div className="rounded-2xl border border-border/40 bg-surface-raised p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Flame className="h-4 w-4 text-orange" />
-                  <span className="text-xs font-bold text-foreground">Bass Boost</span>
-                </div>
-                <span className="font-mono text-xs font-bold text-primary">
-                  +{bassBoostLevel.toFixed(1)} dB
+            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Flame className="h-3.5 w-3.5 text-[#e59e38]" />
+                  Sub-Bass Driver
+                </span>
+                <span className="font-mono text-xs font-bold text-[#e59e38]">
+                  {bassBoostLevel > 0 ? `+${bassBoostLevel.toFixed(1)} dB` : "Off"}
                 </span>
               </div>
-              <Slider
+              <input
+                type="range"
                 min={0}
-                max={12}
+                max={10}
                 step={0.5}
-                value={[bassBoostLevel]}
-                onValueChange={([val]) => {
-                  if (typeof val === "number") setBassBoostLevel(val);
-                }}
-                className="my-3"
+                value={bassBoostLevel}
+                onChange={(e) => setBassBoostLevel(parseFloat(e.target.value))}
+                className="w-full appearance-none bg-transparent cursor-pointer accent-[#e59e38]"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Sub-bass low-shelf harmonic resonance at 100Hz.
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                60Hz low-shelf sub-harmonic punch
               </p>
             </div>
 
-            {/* Treble Boost / Cut */}
-            <div className="rounded-2xl border border-border/40 bg-surface-raised p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber" />
-                  <span className="text-xs font-bold text-foreground">Treble Presence</span>
-                </div>
-                <span className="font-mono text-xs font-bold text-primary">
-                  {trebleLevel > 0 ? `+${trebleLevel.toFixed(1)}` : trebleLevel.toFixed(1)} dB
+            {/* Treble Sparkle */}
+            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-[#e59e38]" />
+                  Air & Clarity
+                </span>
+                <span className="font-mono text-xs font-bold text-[#e59e38]">
+                  {trebleLevel > 0 ? `+${trebleLevel.toFixed(1)} dB` : "Off"}
                 </span>
               </div>
-              <Slider
-                min={-12}
-                max={12}
+              <input
+                type="range"
+                min={0}
+                max={10}
                 step={0.5}
-                value={[trebleLevel]}
-                onValueChange={([val]) => {
-                  if (typeof val === "number") setTrebleLevel(val);
-                }}
-                className="my-3"
+                value={trebleLevel}
+                onChange={(e) => setTrebleLevel(parseFloat(e.target.value))}
+                className="w-full appearance-none bg-transparent cursor-pointer accent-[#e59e38]"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                High-shelf clarity & sparkle above 8kHz.
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                12kHz high-shelf top-end detail
               </p>
             </div>
 
-            {/* Dynamics Normalizer & Stereo Width */}
-            <div className="rounded-2xl border border-border/40 bg-surface-raised p-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-primary" />
-                    <span className="text-xs font-bold text-foreground">Dynamics Normalizer</span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={normalizerEnabled ? "default" : "outline"}
-                    onClick={toggleNormalizer}
-                    className="h-6 text-[10px] rounded-full px-2.5"
-                  >
-                    {normalizerEnabled ? "ON" : "OFF"}
-                  </Button>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-snug">
-                  Compresses loud spikes & normalizes volume dynamics.
-                </p>
+            {/* Stereo Width */}
+            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <AudioWaveform className="h-3.5 w-3.5 text-[#e59e38]" />
+                  Soundstage Expansion
+                </span>
+                <span className="font-mono text-xs font-bold text-[#e59e38]">
+                  {Math.round(stereoWidth * 100)}%
+                </span>
               </div>
-
-              <div className="mt-3 pt-3 border-t border-border/30">
-                <div className="flex items-center justify-between text-[11px] font-bold text-foreground mb-1">
-                  <span>Stereo Width</span>
-                  <span className="font-mono text-primary">{Math.round(stereoWidth * 100)}%</span>
-                </div>
-                <Slider
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  value={[stereoWidth]}
-                  onValueChange={([val]) => {
-                    if (typeof val === "number") setStereoWidth(val);
-                  }}
-                  className="my-1.5"
-                />
-              </div>
+              <input
+                type="range"
+                min={0}
+                max={2}
+                step={0.1}
+                value={stereoWidth}
+                onChange={(e) => setStereoWidth(parseFloat(e.target.value))}
+                className="w-full appearance-none bg-transparent cursor-pointer accent-[#e59e38]"
+              />
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Binaural stereo acoustic panning
+              </p>
             </div>
           </div>
 
-          {/* 3D Spatial Audio & Binaural Room Simulator */}
-          <div className="rounded-2xl border border-border/40 bg-surface-raised p-5 mb-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-border/30 pb-3">
-              <div className="flex items-center gap-2">
-                <Headphones className="h-4 w-4 text-primary" />
-                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  3D Spatial Audio & Binaural Room Simulator
-                </span>
-              </div>
-              <Badge
+          {/* Spatial Room Ambience & Normalizer */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleNormalizer}
                 className={cn(
-                  "font-mono text-[10px] font-bold px-2 py-0.5",
-                  spatialMode === "pure"
-                    ? "bg-muted text-muted-foreground border-border/60"
-                    : "bg-primary/20 text-primary border-primary/40",
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer",
+                  normalizerEnabled
+                    ? "bg-[#e59e38]/15 text-[#e59e38] border-[#e59e38]/40"
+                    : "bg-[#16181e] text-muted-foreground border-white/[0.06]"
                 )}
               >
-                {spatialMode === "pure" ? "BIT-PERFECT DIRECT" : "3D BINAURAL ACTIVE"}
-              </Badge>
+                Dynamic Normalizer: {normalizerEnabled ? "ON" : "OFF"}
+              </button>
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                EBU R128 Peak Limiter
+              </span>
             </div>
 
-            {/* Room Environment Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-              {[
-                {
-                  id: "pure" as const,
-                  label: "Pure Direct",
-                  desc: "Unmodified bit-perfect stereo",
-                  icon: AudioWaveform,
-                },
-                {
-                  id: "control_room" as const,
-                  label: "Control Room",
-                  desc: "Studio nearfield monitors",
-                  icon: Sliders,
-                },
-                {
-                  id: "vinyl_lounge" as const,
-                  label: "Vinyl Lounge",
-                  desc: "Warm analog acoustic reflections",
-                  icon: Disc3,
-                },
-                {
-                  id: "concert_hall" as const,
-                  label: "Concert Hall",
-                  desc: "Expansive 3D binaural reverb",
-                  icon: Compass,
-                },
-                {
-                  id: "club_bunker" as const,
-                  label: "Club Bunker",
-                  desc: "Deep sub-bass room resonance",
-                  icon: Flame,
-                },
-              ].map((room) => {
-                const isSelected = spatialMode === room.id;
-                const Icon = room.icon;
-                return (
-                  <div
-                    key={room.id}
-                    onClick={() => setSpatialMode(room.id)}
-                    className={cn(
-                      "rounded-xl border p-3 cursor-pointer transition-all flex flex-col justify-between space-y-2",
-                      isSelected
-                        ? "border-primary bg-primary/15 shadow-sm ring-1 ring-primary/40"
-                        : "border-border/40 bg-card hover:border-border/80 hover:bg-surface",
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <Icon className={cn("h-4 w-4", isSelected ? "text-primary" : "text-muted-foreground")} />
-                      {isSelected && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground truncate">{room.label}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{room.desc}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Spatial Ambience Depth Slider */}
-            {spatialMode !== "pure" && (
-              <div className="pt-2 border-t border-border/30 flex items-center justify-between gap-4">
-                <div className="text-xs font-semibold text-foreground shrink-0">
-                  <span>Room Ambience Depth</span>
-                  <span className="font-mono text-primary ml-2 font-bold">{Math.round(spatialAmbience * 100)}%</span>
-                </div>
-                <div className="flex-1 max-w-xs">
-                  <Slider
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={[spatialAmbience]}
-                    onValueChange={([val]) => {
-                      if (typeof val === "number") setSpatialAmbience(val);
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── Section 4: Cloud Audiophile Sound Profiles & Sync ── */}
-          <div className="rounded-2xl border border-border/40 bg-surface-raised p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wider">
-                <Cloud className="h-4 w-4" />
-                <span>Cloud Sound Profiles & Multi-Device Sync</span>
-              </div>
-              <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[9px] font-mono font-bold flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                CLOUD SYNC ACTIVE
-              </Badge>
-            </div>
-
-            {/* Save Current Preset */}
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Save current DSP curve (e.g. Focal Utopia Flat)..."
-                value={newProfileName}
-                onChange={(e) => setNewProfileName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveCustomProfile();
-                }}
-                className="h-8 text-xs rounded-xl bg-card border-border/60"
-              />
-              <Button
-                size="sm"
-                disabled={!newProfileName.trim() || isSyncing}
-                onClick={saveCustomProfile}
-                className="h-8 rounded-xl bg-primary text-primary-foreground font-bold text-xs shrink-0 gap-1 cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" /> Save Profile
-              </Button>
-            </div>
-
-            {/* Saved Cloud Profiles Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-              {profiles.map((profile) => (
-                <div
-                  key={profile.id}
-                  className="rounded-xl border border-border/40 bg-card p-3 flex flex-col justify-between hover:border-primary/50 transition-all text-xs"
+            <div className="flex items-center gap-1.5">
+              {(
+                [
+                  "Direct Monitor",
+                  "Studio Master",
+                  "Concert Hall",
+                  "Acoustic Lounge",
+                ] as SpatialRoomPreset[]
+              ).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setSpatialMode(mode)}
+                  className={cn(
+                    "px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer",
+                    spatialMode === mode
+                      ? "bg-[#e59e38] text-[#090a0c] font-bold"
+                      : "bg-[#16181e] text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-foreground truncate">{profile.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteProfile(profile.id, profile.name)}
-                        className="h-5 w-5 text-muted-foreground hover:text-destructive rounded-full p-0 -mr-1"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground truncate">{profile.hardwareDevice}</p>
-                    <span className="text-[9px] font-mono text-primary/80 mt-1 block">
-                      {profile.spatialMode.replace("_", " ")} · {profile.eqPreset}
-                    </span>
-                  </div>
-
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      applyFullSoundProfile(profile);
-                      toast.success(`Applied profile "${profile.name}"!`, {
-                        description: "10-Band EQ, 3D Spatial Room, and dynamics updated.",
-                      });
-                    }}
-                    className="mt-3 rounded-lg bg-surface hover:bg-primary/20 text-foreground font-bold text-[11px] h-7 w-full border border-border/60 cursor-pointer"
-                  >
-                    Apply Setup
-                  </Button>
-                </div>
+                  {mode}
+                </button>
               ))}
             </div>
           </div>
         </motion.div>
       </div>
-
-      {/* Audiophile Gear Auto-Calibration Modal */}
-      <GearCalibrationModal
-        open={gearModalOpen}
-        onClose={() => setGearModalOpen(false)}
-      />
     </AnimatePresence>
   );
 }
+
+export default AudioConsoleModal;

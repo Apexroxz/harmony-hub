@@ -5,7 +5,7 @@ import { catalogQueryOptions, findArtist } from "@/domain/music/queries";
 import { cn } from "@/lib/utils";
 
 interface ArtistAvatarProps {
-  artistId: string;
+  artistId?: string;
   name: string;
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -18,11 +18,6 @@ const sizes = {
   lg: "h-16 w-16",
 };
 
-function useArtist(artistId: string) {
-  const { data } = useQuery(catalogQueryOptions());
-  return findArtist(data, artistId);
-}
-
 export function ArtistAvatar({
   artistId,
   name,
@@ -30,8 +25,7 @@ export function ArtistAvatar({
   className,
   linked = true,
 }: ArtistAvatarProps) {
-  const artist = useArtist(artistId);
-  const initials = name
+  const initials = (name || "Artist")
     .split(" ")
     .map((w) => w[0])
     .join("")
@@ -46,26 +40,23 @@ export function ArtistAvatar({
         className,
       )}
     >
-      {artist?.avatar ? (
-        <img
-          src={artist.avatar}
-          alt={`${name} avatar`}
-          loading="lazy"
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span className="text-xs font-semibold text-muted-foreground">{initials}</span>
-      )}
+      <span className="text-xs font-semibold text-muted-foreground">{initials}</span>
     </span>
   );
 
-  if (!linked) return inner;
+  if (!linked || !artistId || artistId.startsWith("local-") || artistId === "offline") {
+    return inner;
+  }
 
-  return (
-    <Link to="/artist/$id" params={{ id: artistId }} className="shrink-0">
-      {inner}
-    </Link>
-  );
+  try {
+    return (
+      <Link to="/artist/$id" params={{ id: artistId }} className="shrink-0">
+        {inner}
+      </Link>
+    );
+  } catch {
+    return inner;
+  }
 }
 
 export function VerifiedBadge({ className }: { className?: string }) {
@@ -82,21 +73,35 @@ export function ArtistName({
   name,
   className,
 }: {
-  artistId: string;
+  artistId?: string;
   name: string;
   className?: string;
 }) {
-  const artist = useArtist(artistId);
-  return (
-    <span className="inline-flex min-w-0 items-center gap-1">
-      <Link
-        to="/artist/$id"
-        params={{ id: artistId }}
-        className={cn("truncate font-medium text-foreground hover:text-primary", className)}
-      >
-        {name}
-      </Link>
-      {artist?.verified && <VerifiedBadge />}
-    </span>
-  );
+  if (!artistId || artistId.startsWith("local-") || artistId === "offline") {
+    return (
+      <span className={cn("truncate font-normal text-muted-foreground", className)}>
+        {name || "Artist"}
+      </span>
+    );
+  }
+
+  try {
+    return (
+      <span className="inline-flex min-w-0 items-center gap-1">
+        <Link
+          to="/artist/$id"
+          params={{ id: artistId }}
+          className={cn("truncate font-medium text-foreground hover:text-primary", className)}
+        >
+          {name}
+        </Link>
+      </span>
+    );
+  } catch {
+    return (
+      <span className={cn("truncate font-normal text-muted-foreground", className)}>
+        {name || "Artist"}
+      </span>
+    );
+  }
 }

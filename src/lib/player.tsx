@@ -47,6 +47,11 @@ export interface PlayerContextValue extends AudioEngineState {
   expandPlayer: () => void;
   collapsePlayer: () => void;
   setExpanded: (expanded: boolean) => void;
+  // Audio Console Modal Coordination
+  isConsoleOpen: boolean;
+  openConsole: () => void;
+  closeConsole: () => void;
+  toggleConsole: () => void;
   // EQ & DSP
   setEqGain: (bandIndex: number, gainDb: number) => void;
   setEqPreset: (preset: string) => void;
@@ -62,19 +67,28 @@ export interface PlayerContextValue extends AudioEngineState {
   getAnalyserNode: () => AnalyserNode | null;
 }
 
-const PlayerContext = createContext<PlayerContextValue | null>(null);
+export const PlayerContext = createContext<PlayerContextValue | null>(null);
+if (typeof window !== "undefined") {
+  (window as any).__LAYAM_PLAYER_CONTEXT_INSTANCE__ = PlayerContext;
+}
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [engineState, setEngineState] = useState<AudioEngineState>(
     () => globalAudioEngine.state,
   );
 
-  // Subscribe to AudioEngine reactive updates
+  // Subscribe to AudioEngine reactive updates and hook play counter
   useEffect(() => {
     const unsubscribe = globalAudioEngine.subscribe(() => {
+      console.log("PLAYER PROVIDER UPDATE", {
+        currentTrack: globalAudioEngine.state.currentTrack,
+        isPlaying: globalAudioEngine.state.isPlaying,
+      });
       setEngineState({ ...globalAudioEngine.state });
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const playTrack = useCallback((track: Track, queue?: Track[]) => {
@@ -128,6 +142,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const setPlaybackRate = useCallback((rate: number) => {
     globalAudioEngine.setPlaybackRate(rate);
   }, []);
+
+  const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+  const openConsole = useCallback(() => setIsConsoleOpen(true), []);
+  const closeConsole = useCallback(() => setIsConsoleOpen(false), []);
+  const toggleConsole = useCallback(() => setIsConsoleOpen((prev) => !prev), []);
 
   const expandPlayer = useCallback(() => {
     globalAudioEngine.setExpanded(true);
@@ -209,6 +228,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         expandPlayer,
         collapsePlayer,
         setExpanded,
+        isConsoleOpen,
+        openConsole,
+        closeConsole,
+        toggleConsole,
         setEqGain,
         setEqPreset,
         toggleEq,

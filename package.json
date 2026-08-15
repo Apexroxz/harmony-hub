@@ -3,10 +3,16 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite dev",
+    "dev:offline": "npm --workspace apps/offline-player run dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:offline": "npm --workspace apps/offline-player run build",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."

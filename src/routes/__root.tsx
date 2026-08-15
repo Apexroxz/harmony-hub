@@ -22,6 +22,28 @@ import { I18nProvider } from "../lib/i18n";
 
 import { Header } from "../components/Header";
 import { PlayerBar } from "../components/PlayerBar";
+import { AudioConsoleModal } from "../components/AudioConsoleModal";
+import { FullscreenAudiophilePlayer } from "../components/FullscreenAudiophilePlayer";
+import { usePlayer } from "../lib/player";
+
+function RootPlayerShell() {
+  const { isConsoleOpen, closeConsole, isExpanded, collapsePlayer } = usePlayer();
+  return (
+    <>
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <Header />
+        <main className="flex-1 pb-32 sm:pb-36">
+          <AppErrorBoundary>
+            <Outlet />
+          </AppErrorBoundary>
+        </main>
+        <PlayerBar />
+      </div>
+      <AudioConsoleModal open={isConsoleOpen} onClose={closeConsole} />
+      <FullscreenAudiophilePlayer open={isExpanded} onClose={collapsePlayer} />
+    </>
+  );
+}
 
 function NotFoundComponent() {
   return (
@@ -218,15 +240,7 @@ function RootComponent() {
                       className: "bg-card text-foreground border-border",
                     }}
                   />
-                  <div className="flex min-h-screen flex-col bg-background text-foreground">
-                    <Header />
-                    <main className="flex-1 pb-32 sm:pb-36">
-                      <AppErrorBoundary>
-                        <Outlet />
-                      </AppErrorBoundary>
-                    </main>
-                    <PlayerBar />
-                  </div>
+                  <RootPlayerShell />
                 </PlayerProvider>
               </LibraryProvider>
             </ModeProvider>

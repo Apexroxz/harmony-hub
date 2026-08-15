@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Layam Hi-Fi Player</title>
+    <meta name="application-name" content="Layam Hi-Fi Player" />
+    <meta name="apple-mobile-web-app-title" content="Layam Hi-Fi" />
+    <meta name="theme-color" content="#090a0c" />
+    <meta name="description" content="Lossless local audio player with 64-bit floating point DSP, 10-band hardware equalizer, bit-perfect PCM output, and zero tracking." />
+    
+    <!-- Open Graph Metadata -->
+    <meta property="og:title" content="Layam Hi-Fi Player" />
+    <meta property="og:description" content="Pure bit-perfect lossless local audio playback with hardware DSP controls." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Layam Hi-Fi Player" />
+
+    <!-- Official Shared Brand Favicon -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+  </head>
+  <body class="bg-[#090a0c] text-[#f2f3f5] antialiased selection:bg-[#e59e38]/20 selection:text-[#e59e38]">
+    <div id="root">
+      <!-- Minimal Initial Launch Surface -->
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #090a0c; color: #f2f3f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+          <img src="/logo.png" alt="Layam" width="48" height="48" style="border-radius: 12px; object-fit: contain;" />
+          <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 900; letter-spacing: 3px; color: #f2f3f5;">LAYAM</div>
+            <div style="font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #e59e38; margin-top: 4px;">Hi-Fi Player</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -9,6 +9,8 @@ export const SYSTEM_ROLES = [
   "listener",
   "creator",
   "moderator",
+  "content_admin",
+  "finance_admin",
   "admin",
   "super_admin",
 ] as const;
@@ -20,6 +22,16 @@ export type SystemRole = (typeof SYSTEM_ROLES)[number];
 // "developer" -> "super_admin"
 export type LegacyRole = "artist" | "developer";
 export type UserRole = SystemRole | LegacyRole;
+
+export type AdminRole = "moderator" | "content_admin" | "finance_admin" | "super_admin";
+
+export type AdminPermission =
+  | "moderate_content"
+  | "manage_users"
+  | "verify_creators"
+  | "view_financials"
+  | "manage_catalog"
+  | "manage_platform_settings";
 
 export type Permission =
   | "play:stream"
@@ -40,7 +52,8 @@ export type Permission =
   | "admin:manage_catalog"
   | "admin:audit_logs"
   | "super:bypass_all"
-  | "super:manage_roles";
+  | "super:manage_roles"
+  | AdminPermission;
 
 /**
  * Maps legacy/alias role names to canonical SystemRole.
@@ -63,6 +76,8 @@ export const ROLE_HIERARCHY: Record<SystemRole, number> = {
   listener: 10,
   creator: 20,
   moderator: 30,
+  content_admin: 35,
+  finance_admin: 38,
   admin: 40,
   super_admin: 50,
 };
@@ -102,6 +117,37 @@ export const ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "mod:flag",
     "mod:delete_comment",
     "mod:unpublish_track",
+    "moderate_content",
+  ],
+  content_admin: [
+    "play:stream",
+    "play:offline",
+    "social:like",
+    "social:repost",
+    "social:comment",
+    "store:purchase",
+    "creator:upload",
+    "creator:dashboard",
+    "mod:flag",
+    "mod:delete_comment",
+    "mod:unpublish_track",
+    "admin:verify_artist",
+    "admin:manage_catalog",
+    "moderate_content",
+    "verify_creators",
+    "manage_catalog",
+  ],
+  finance_admin: [
+    "play:stream",
+    "play:offline",
+    "social:like",
+    "social:repost",
+    "social:comment",
+    "store:purchase",
+    "creator:dashboard",
+    "creator:cashout",
+    "view_financials",
+    "admin:audit_logs",
   ],
   admin: [
     "play:stream",
@@ -121,6 +167,12 @@ export const ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "admin:verify_artist",
     "admin:manage_catalog",
     "admin:audit_logs",
+    "moderate_content",
+    "manage_users",
+    "verify_creators",
+    "view_financials",
+    "manage_catalog",
+    "manage_platform_settings",
   ],
   super_admin: [
     "play:stream",
@@ -140,6 +192,12 @@ export const ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "admin:verify_artist",
     "admin:manage_catalog",
     "admin:audit_logs",
+    "moderate_content",
+    "manage_users",
+    "verify_creators",
+    "view_financials",
+    "manage_catalog",
+    "manage_platform_settings",
     "super:bypass_all",
     "super:manage_roles",
   ],

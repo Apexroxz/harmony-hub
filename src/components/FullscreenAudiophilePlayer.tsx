@@ -22,7 +22,7 @@ import { usePlayer } from "@/lib/player";
 import { useAppMode, type LocalTrack } from "@/lib/mode";
 import { formatDuration } from "@/domain/music/types";
 import { getTrackLyrics } from "@/lib/lyrics";
-import { AudioConsoleModal } from "@/components/AudioConsoleModal";
+import { LocalLyricsService } from "@layam/storage-core";
 import { Waveform } from "@/components/Waveform";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -53,10 +53,10 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
     removeFromQueue,
     clearQueue,
     getAnalyserNode,
+    openConsole,
   } = usePlayer();
 
   const { isOffline, importLocalFiles } = useAppMode();
-  const [consoleOpen, setConsoleOpen] = useState(false);
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
   const [isShuffle, setIsShuffle] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
@@ -100,14 +100,32 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
     e.target.value = "";
   };
 
+  const [customLyrics, setCustomLyrics] = useState<{ time: number; text: string }[] | null>(null);
+
+  useEffect(() => {
+    if (!currentTrack) {
+      setCustomLyrics(null);
+      return;
+    }
+    // Check local IndexedDB lyrics vault
+    LocalLyricsService.getLyrics(currentTrack.id).then((stored) => {
+      if (stored && stored.lines && stored.lines.length > 0) {
+        setCustomLyrics(stored.lines);
+      } else {
+        setCustomLyrics(null);
+      }
+    }).catch(() => setCustomLyrics(null));
+  }, [currentTrack]);
+
   const lyrics = useMemo(() => {
+    if (customLyrics && customLyrics.length > 0) return customLyrics;
     if (!currentTrack) return [];
     return getTrackLyrics(
       currentTrack.title,
       currentTrack.artistName || (currentTrack as any).artist || "Artist",
       duration || currentTrack.duration || 180,
     );
-  }, [currentTrack, duration]);
+  }, [customLyrics, currentTrack, duration]);
 
   const activeLyricIndex = useMemo(() => {
     if (lyrics.length === 0) return 0;
@@ -128,6 +146,19 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
       });
     }
   }, [activeLyricIndex, viewMode]);
+
+  // ESC key dismiss
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
 
   // Clean Minimalist Spectrum / Oscilloscope Visualizer
   useEffect(() => {
@@ -168,12 +199,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               const x = i * (barWidth + gap);
               const y = h - barHeight - 10;
 
-              ctx.fillStyle = isOffline ? "#10b981" : "#ffffff";
+              ctx.fillStyle = isOffline ? "#e59e38" : "#ffffff";
               ctx.fillRect(x, y, barWidth, barHeight);
             }
           } else {
             ctx.lineWidth = 1.5;
-            ctx.strokeStyle = isOffline ? "#10b981" : "#ffffff";
+            ctx.strokeStyle = isOffline ? "#e59e38" : "#ffffff";
             ctx.beginPath();
 
             const sliceWidth = w / bufferLength;
@@ -309,9 +340,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
           {viewMode === "art" ? (
             <div className="relative w-full max-w-xs sm:max-w-sm aspect-square my-auto flex items-center justify-center">
               <img
-                src={currentTrack.coverImage}
+                src={currentTrack.coverImage || "/logo.png"}
                 alt={currentTrack.title}
                 className="w-full h-full object-cover rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] border border-white/[0.05]"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "/logo.png";
+                }}
               />
             </div>
           ) : viewMode === "visualizer" ? (
@@ -421,7 +455,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               className={cn(
                 "flex h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-95 cursor-pointer shadow-xl",
                 isOffline
-                  ? "bg-emerald-500 text-white hover:bg-emerald-400"
+                  ? "bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d]"
                   : "bg-foreground text-background hover:bg-foreground/90",
               )}
               title={isPlaying ? "Pause" : "Play"}
@@ -471,7 +505,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               className="flex-1"
             />
             <button
-              onClick={() => setConsoleOpen(true)}
+              onClick={openConsole}
               className={cn(
                 "p-1 transition-colors cursor-pointer",
                 eqEnabled ? "text-primary" : "text-muted-foreground hover:text-foreground",
@@ -489,26 +523,19 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-              className="fixed inset-y-0 right-0 z-50 w-full max-w-sm border-l border-white/[0.08] bg-[#0c0d10]/98 shadow-2xl flex flex-col p-6 backdrop-blur-2xl"
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              className="absolute right-0 top-0 bottom-0 z-30 w-full sm:w-96 bg-[#0a0a0c]/98 border-l border-white/[0.08] p-6 flex flex-col shadow-2xl backdrop-blur-2xl"
             >
               <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Up Next ({queue.length})
-                </h3>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1 rounded-full bg-primary/10 border border-primary/30 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer"
-                    title="Add / Drop Track"
-                  >
-                    <img src="/logo.png" alt="Layam" className="h-3.5 w-3.5 rounded object-contain" />
-                    <span>+ Add</span>
-                  </button>
+                  <ListMusic className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-bold tracking-tight">Active Queue ({queue.length})</h3>
+                </div>
+                <div className="flex items-center gap-2">
                   {queue.length > 0 && (
                     <button
                       onClick={clearQueue}
-                      className="text-xs text-muted-foreground hover:text-red-400 cursor-pointer"
+                      className="text-xs text-muted-foreground hover:text-red-400 font-mono transition-colors cursor-pointer"
                     >
                       Clear
                     </button>
@@ -522,6 +549,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 </div>
               </div>
 
+              {/* Layam Logo Dropzone / Add Master Trigger */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -579,8 +607,6 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
             </motion.aside>
           )}
         </AnimatePresence>
-
-        <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
       </motion.div>
     </AnimatePresence>
   );

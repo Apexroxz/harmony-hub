@@ -26,7 +26,10 @@ import {
   MoreVertical,
   X,
   ShieldCheck,
+  HardDrive,
   AlertTriangle,
+  Layers,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLibrary } from "@/lib/library";
@@ -43,10 +46,8 @@ import { PurchaseService } from "@/domain/music/purchases";
 import { formatDuration, qualityLabel, type Track } from "@/domain/music/types";
 import { QualityBadge } from "@/components/QualityBadge";
 import { AudioConsoleModal } from "@/components/AudioConsoleModal";
-import { TrackCard } from "@/components/TrackCard";
 import { SmartPlaylistGenerator } from "@/components/SmartPlaylistGenerator";
 import { PlaylistBackupModal } from "@/components/PlaylistBackupModal";
-import { tracks as storeCatalogTracks } from "@/domain/music/catalog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 interface LibrarySearchParams {
@@ -77,23 +78,14 @@ export const Route = createFileRoute("/library")({
       { title: "Music Library & Local Player — Layam" },
       {
         name: "description",
-        content: "Offline audiophile library, folders, albums, playlists, and purchased masters.",
+        content: "Offline audiophile library, folders, albums, playlists, and high-res playback.",
       },
     ],
   }),
   component: LibraryPage,
 });
 
-type OfflineTab =
-  | "tracks"
-  | "folders"
-  | "albums"
-  | "artists"
-  | "playlists"
-  | "smart"
-  | "tags"
-  | "store"
-  | "cleaner";
+type OfflinePrimaryTab = "tracks" | "albums" | "artists" | "playlists";
 type OnlineTab = "purchased" | "liked" | "local" | "smart";
 
 function LibraryPage() {
@@ -116,20 +108,37 @@ function LibraryPage() {
   const { allTracks, likedIds } = useLibrary();
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer();
 
-  const [offlineTab, setOfflineTab] = useState<OfflineTab>((search.tab as OfflineTab) || "tracks");
+  // Primary navigation tabs
+  const [offlineTab, setOfflineTab] = useState<OfflinePrimaryTab>(
+    ["tracks", "albums", "artists", "playlists"].includes(search.tab || "")
+      ? (search.tab as OfflinePrimaryTab)
+      : "tracks",
+  );
   const [onlineTab, setOnlineTab] = useState<OnlineTab>("purchased");
   const [consoleOpen, setConsoleOpen] = useState(false);
 
-  // Playlist state
-  const [newPlaylistName, setNewPlaylistName] = useState("");
-  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+  // Search & Filter state
+  const [trackSearchQuery, setTrackSearchQuery] = useState("");
 
-  // Tag Editor state
+  // Modals & Tools state
+  const [tagEditorOpen, setTagEditorOpen] = useState(false);
+  const [duplicateCleanerOpen, setDuplicateCleanerOpen] = useState(false);
+  const [smartMixOpen, setSmartMixOpen] = useState(false);
+  const [storageManagerOpen, setStorageManagerOpen] = useState(false);
+  const [backupModalOpen, setBackupModalOpen] = useState(false);
+  const [managePlaylist, setManagePlaylist] = useState<LocalPlaylist | null>(null);
+  const [playlistTrackSearch, setPlaylistTrackSearch] = useState("");
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+
+  // Tag Editor Form state
   const [selectedTrackForEdit, setSelectedTrackForEdit] = useState<LocalTrack | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editArtist, setEditArtist] = useState("");
   const [editAlbum, setEditAlbum] = useState("");
   const [editGenre, setEditGenre] = useState("");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Duplicate Track Detection logic
   const duplicateGroups = useMemo(() => {
@@ -145,6 +154,22 @@ function LibraryPage() {
       map.set(key, group);
     }
     return Array.from(map.values()).filter((group) => group.length > 1);
+  }, [localTracks]);
+
+  // Storage Stats Calculation
+  const storageStats = useMemo(() => {
+    const totalBytes = localTracks.reduce((acc, t) => acc + (t.fileSizeBytes || 0), 0);
+    const totalMb = Math.round((totalBytes / (1024 * 1024)) * 10) / 10;
+    const formatCounts: Record<string, number> = {};
+    for (const t of localTracks) {
+      const fmt = t.quality || "FLAC";
+      formatCounts[fmt] = (formatCounts[fmt] || 0) + 1;
+    }
+    return {
+      totalTracks: localTracks.length,
+      totalMb,
+      formatCounts,
+    };
   }, [localTracks]);
 
   const handleAutoCleanDuplicates = () => {
@@ -166,35 +191,16 @@ function LibraryPage() {
         }
       }
     }
+    setDuplicateCleanerOpen(false);
     toast.success(`Removed ${cleanedCount} duplicate track(s). Kept highest quality masters!`);
   };
 
-  // Manage Playlist Dialog state
-  const [managePlaylist, setManagePlaylist] = useState<LocalPlaylist | null>(null);
-  const [playlistTrackSearch, setPlaylistTrackSearch] = useState("");
-  const [backupModalOpen, setBackupModalOpen] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (
-      search.tab &&
-      ["tracks", "folders", "albums", "artists", "playlists", "tags", "store"].includes(search.tab)
-    ) {
-      setOfflineTab(search.tab as OfflineTab);
-    }
-  }, [search.tab]);
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    console.log(
-      "[OfflineImport:Input] File input onChange event received files:",
-      files?.length,
-      files,
-    );
     if (files && files.length > 0) {
+      toast.info(`Importing ${files.length} audio file(s)...`);
       await importLocalFiles(files);
+      toast.success(`Import complete. ${files.length} audio file(s) indexed.`);
     }
     e.target.value = "";
   };
@@ -208,7 +214,7 @@ function LibraryPage() {
     setEditArtist(track.artistName);
     setEditAlbum(track.album || "");
     setEditGenre(track.genre || "");
-    setOfflineTab("tags");
+    setTagEditorOpen(true);
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -220,8 +226,22 @@ function LibraryPage() {
       album: editAlbum.trim() || selectedTrackForEdit.album || "",
       genre: editGenre.trim() || selectedTrackForEdit.genre,
     });
+    setTagEditorOpen(false);
     setSelectedTrackForEdit(null);
+    toast.success("Track metadata updated successfully!");
   };
+
+  // Filtered tracks for search
+  const filteredLocalTracks = useMemo(() => {
+    if (!trackSearchQuery.trim()) return localTracks;
+    const q = trackSearchQuery.toLowerCase();
+    return localTracks.filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        t.artistName.toLowerCase().includes(q) ||
+        (t.album && t.album.toLowerCase().includes(q)),
+    );
+  }, [localTracks, trackSearchQuery]);
 
   // ── Render Track Row ──────────────────────────────────────────────────────────
   const renderTrackRow = (track: LocalTrack | Track, currentQueue: (LocalTrack | Track)[]) => {
@@ -233,7 +253,7 @@ function LibraryPage() {
         className={cn(
           "group flex items-center justify-between gap-4 rounded-2xl p-3 transition-all border",
           isCurrent
-            ? "bg-primary/10 border-primary/30 shadow-sm"
+            ? "bg-emerald-500/10 border-emerald-500/30 shadow-sm"
             : "hover:bg-surface-raised/70 border-transparent hover:border-border/40",
         )}
       >
@@ -265,11 +285,11 @@ function LibraryPage() {
               aria-label={`Play ${track.title}`}
             >
               {isCurrent && isPlaying ? (
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
                   <span className="h-2.5 w-2.5 bg-current rounded-xs" />
                 </div>
               ) : (
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
                   <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
                 </div>
               )}
@@ -281,7 +301,7 @@ function LibraryPage() {
               onClick={() => playTrack(track as Track, currentQueue as Track[])}
               className={cn(
                 "truncate font-bold text-sm cursor-pointer transition-colors",
-                isCurrent ? "text-primary" : "text-foreground group-hover:text-primary",
+                isCurrent ? "text-emerald-400" : "text-foreground group-hover:text-emerald-400",
               )}
             >
               {track.title}
@@ -292,14 +312,6 @@ function LibraryPage() {
                 <>
                   <span>·</span>
                   <span className="text-muted-foreground/80">{(track as LocalTrack).album}</span>
-                </>
-              )}
-              {(track as LocalTrack).folderPath && (
-                <>
-                  <span>·</span>
-                  <span className="font-mono text-[10px] text-muted-foreground/60">
-                    📁 {(track as LocalTrack).folderPath}
-                  </span>
                 </>
               )}
             </p>
@@ -339,7 +351,7 @@ function LibraryPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-emerald-400 rounded-full"
+                    className="h-8 w-8 text-muted-foreground hover:text-emerald-400 rounded-full cursor-pointer"
                     title="Add to Offline Playlist"
                   >
                     <ListPlus className="h-4 w-4" />
@@ -355,7 +367,7 @@ function LibraryPage() {
                   <DropdownMenuSeparator className="bg-border/40" />
                   {localPlaylists.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">
-                      No playlists created. Create one in the Playlists tab!
+                      No playlists created yet.
                     </div>
                   ) : (
                     localPlaylists.map((pl) => {
@@ -384,7 +396,7 @@ function LibraryPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
                 onClick={() => handleStartEdit(track as LocalTrack)}
                 title="Edit ID3 Tags"
               >
@@ -393,7 +405,7 @@ function LibraryPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-full"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-full cursor-pointer"
                 onClick={() => removeLocalTrack(track.id)}
                 title="Remove from Local Library"
               >
@@ -410,7 +422,7 @@ function LibraryPage() {
     <>
       <div className="mx-auto max-w-7xl px-4 pb-36 pt-24 sm:px-6 lg:px-8">
         {/* ── Page Header ── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span
@@ -422,7 +434,7 @@ function LibraryPage() {
                 )}
               >
                 {isOffline ? <WifiOff className="h-3 w-3" /> : <Library className="h-3 w-3" />}
-                {isOffline ? "Audiophile Local Player" : "Online Ecosystem Library"}
+                {isOffline ? "Offline Audiophile Player" : "Online Ecosystem Library"}
               </span>
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
@@ -431,13 +443,13 @@ function LibraryPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* Import file inputs */}
+            {/* Hidden File inputs */}
             <input
               type="file"
               ref={fileInputRef}
               onChange={handleFileSelect}
               multiple
-              accept="audio/*,.flac,.wav,.mp3,.alac,.m4a,.aac"
+              accept="audio/*,.flac,.wav,.mp3,.alac,.m4a,.aac,.ogg"
               className="hidden"
             />
             <input
@@ -450,30 +462,46 @@ function LibraryPage() {
               className="hidden"
             />
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded-full text-xs font-bold gap-1.5 border-border/60 bg-glass"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Audio Files
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={() => folderInputRef.current?.click()}
-              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold gap-1.5 shadow-md shadow-primary/20"
-            >
-              <FolderOpen className="h-3.5 w-3.5" />
-              Scan Folder
-            </Button>
+            {/* Unified Add Music Dropdown */}
+            {isOffline && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Music
+                    <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-52 bg-card border-border/80 rounded-2xl p-1.5 shadow-2xl"
+                >
+                  <DropdownMenuItem
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 text-xs font-semibold py-2.5 px-3 rounded-xl cursor-pointer hover:bg-surface-raised"
+                  >
+                    <Plus className="h-4 w-4 text-emerald-400" />
+                    <span>Select Audio Files...</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => folderInputRef.current?.click()}
+                    className="flex items-center gap-2 text-xs font-semibold py-2.5 px-3 rounded-xl cursor-pointer hover:bg-surface-raised"
+                  >
+                    <FolderOpen className="h-4 w-4 text-emerald-400" />
+                    <span>Scan Local Folder...</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <Button
               variant="outline"
               size="sm"
               onClick={() => setConsoleOpen(true)}
-              className="rounded-full text-xs font-bold gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+              className="rounded-full text-xs font-bold gap-1.5 border-primary/40 text-primary hover:bg-primary/10 h-9 cursor-pointer"
             >
               <Sliders className="h-3.5 w-3.5" />
               Audio Console
@@ -481,81 +509,121 @@ function LibraryPage() {
           </div>
         </div>
 
-        {/* ── Sub Navigation Tabs ── */}
-        <div className="flex items-center gap-2 border-b border-border/40 pb-4 mb-8 overflow-x-auto">
+        {/* ── Sub Navigation: 4 Core Tabs + Tools Menu ── */}
+        <div className="flex items-center justify-between border-b border-border/40 pb-4 mb-8 overflow-x-auto gap-3">
           {isOffline ? (
             <>
-              {[
-                { id: "tracks" as const, label: `Tracks (${localTracks.length})`, icon: Music2 },
-                {
-                  id: "folders" as const,
-                  label: `Folders (${localFolders.length})`,
-                  icon: FolderOpen,
-                },
-                { id: "albums" as const, label: `Albums (${localAlbums.length})`, icon: Disc3 },
-                {
-                  id: "artists" as const,
-                  label: `Artists (${localArtistGroups.length})`,
-                  icon: Users,
-                },
-                {
-                  id: "playlists" as const,
-                  label: `Playlists (${localPlaylists.length})`,
-                  icon: ListMusic,
-                },
-                { id: "smart" as const, label: "Smart Mix Engine", icon: Sparkles },
-                { id: "tags" as const, label: "Tag Editor", icon: Edit3 },
-                {
-                  id: "cleaner" as const,
-                  label: `Duplicate Cleaner ${duplicateGroups.length > 0 ? `(${duplicateGroups.length})` : ""}`,
-                  icon: ShieldCheck,
-                },
-                { id: "store" as const, label: "Buy Store Masters", icon: ShoppingBag },
-              ].map((tabItem) => (
-                <button
-                  key={tabItem.id}
-                  onClick={() => setOfflineTab(tabItem.id)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all shrink-0",
-                    offlineTab === tabItem.id
-                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-sm"
-                      : "text-muted-foreground hover:bg-surface-raised hover:text-foreground",
-                  )}
+              {/* 4 Primary Offline Tabs */}
+              <div className="flex items-center gap-2">
+                {[
+                  { id: "tracks" as const, label: `Tracks (${localTracks.length})`, icon: Music2 },
+                  { id: "albums" as const, label: `Albums (${localAlbums.length})`, icon: Disc3 },
+                  { id: "artists" as const, label: `Artists (${localArtistGroups.length})`, icon: Users },
+                  { id: "playlists" as const, label: `Playlists (${localPlaylists.length})`, icon: ListMusic },
+                ].map((tabItem) => (
+                  <button
+                    key={tabItem.id}
+                    onClick={() => setOfflineTab(tabItem.id)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all shrink-0 cursor-pointer",
+                      offlineTab === tabItem.id
+                        ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-sm"
+                        : "text-muted-foreground hover:bg-surface-raised hover:text-foreground",
+                    )}
+                  >
+                    <tabItem.icon className="h-3.5 w-3.5" />
+                    {tabItem.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tools Menu Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full text-xs font-bold gap-1.5 h-8 border-border/60 hover:bg-surface-raised cursor-pointer shrink-0 ml-auto"
+                  >
+                    <Sliders className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Tools</span>
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 bg-card border-border/80 rounded-2xl p-1.5 shadow-2xl"
                 >
-                  <tabItem.icon className="h-3.5 w-3.5" />
-                  {tabItem.label}
-                </button>
-              ))}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (localTracks.length > 0 && !selectedTrackForEdit) {
+                        handleStartEdit(localTracks[0]!);
+                      } else {
+                        setTagEditorOpen(true);
+                      }
+                    }}
+                    className="flex items-center gap-2 text-xs font-semibold py-2 px-3 rounded-xl cursor-pointer hover:bg-surface-raised"
+                  >
+                    <Edit3 className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Tag & Metadata Editor</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setDuplicateCleanerOpen(true)}
+                    className="flex items-center justify-between text-xs font-semibold py-2 px-3 rounded-xl cursor-pointer hover:bg-surface-raised"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Duplicate Cleaner</span>
+                    </div>
+                    {duplicateGroups.length > 0 && (
+                      <Badge className="bg-amber/20 text-amber border-amber/40 text-[10px] font-mono font-bold px-1.5 py-0">
+                        {duplicateGroups.length}
+                      </Badge>
+                    )}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setSmartMixOpen(true)}
+                    className="flex items-center gap-2 text-xs font-semibold py-2 px-3 rounded-xl cursor-pointer hover:bg-surface-raised"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span>Smart Mix Engine</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setStorageManagerOpen(true)}
+                    className="flex items-center gap-2 text-xs font-semibold py-2 px-3 rounded-xl cursor-pointer hover:bg-surface-raised"
+                  >
+                    <HardDrive className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Storage Manager ({storageStats.totalMb} MB)</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="bg-border/40" />
+
+                  <DropdownMenuItem
+                    onClick={() => setBackupModalOpen(true)}
+                    className="flex items-center gap-2 text-xs font-semibold py-2 px-3 rounded-xl cursor-pointer hover:bg-surface-raised"
+                  >
+                    <Download className="h-3.5 w-3.5 text-primary" />
+                    <span>M3U8 / JSON Backup</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
-            <>
+            <div className="flex items-center gap-2">
               {[
-                {
-                  id: "purchased" as const,
-                  label: `Purchased Masters (${purchasedTracks.length})`,
-                  icon: Download,
-                },
-                {
-                  id: "liked" as const,
-                  label: `Liked Tracks (${likedTracks.length})`,
-                  icon: Heart,
-                },
-                {
-                  id: "local" as const,
-                  label: `Local Files (${localTracks.length})`,
-                  icon: FolderOpen,
-                },
-                {
-                  id: "smart" as const,
-                  label: "Smart Mix Generator",
-                  icon: Sparkles,
-                },
+                { id: "purchased" as const, label: `Purchased Masters (${purchasedTracks.length})`, icon: Download },
+                { id: "liked" as const, label: `Liked Tracks (${likedTracks.length})`, icon: Heart },
+                { id: "local" as const, label: `Local Files (${localTracks.length})`, icon: FolderOpen },
+                { id: "smart" as const, label: "Smart Mix Generator", icon: Sparkles },
               ].map((tabItem) => (
                 <button
                   key={tabItem.id}
                   onClick={() => setOnlineTab(tabItem.id)}
                   className={cn(
-                    "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all shrink-0",
+                    "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all shrink-0 cursor-pointer",
                     onlineTab === tabItem.id
                       ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                       : "text-muted-foreground hover:bg-surface-raised hover:text-foreground",
@@ -565,7 +633,7 @@ function LibraryPage() {
                   {tabItem.label}
                 </button>
               ))}
-            </>
+            </div>
           )}
         </div>
 
@@ -574,159 +642,178 @@ function LibraryPage() {
           <div>
             {/* 1. Tracks View */}
             {offlineTab === "tracks" && (
-              <div>
+              <div className="space-y-4">
+                {localTracks.length > 0 && (
+                  <div className="relative max-w-sm">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search tracks, artists, albums..."
+                      value={trackSearchQuery}
+                      onChange={(e) => setTrackSearchQuery(e.target.value)}
+                      className="pl-9 rounded-full bg-card text-xs h-9"
+                    />
+                  </div>
+                )}
+
                 {localTracks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 p-12 text-center">
-                    <Music2 className="h-10 w-10 text-muted-foreground mb-3" />
-                    <h3 className="text-lg font-bold text-foreground">No local tracks imported</h3>
-                    <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-5">
-                      Drop FLAC, WAV, ALAC, or MP3 files from your device to listen offline with
-                      full 10-band DSP equalization.
+                  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 p-12 text-center bg-card/30">
+                    <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-4 border border-emerald-500/30">
+                      <Music2 className="h-8 w-8" />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">
+                      Add your first songs to start your offline library.
+                    </h3>
+                    <p className="text-xs text-muted-foreground max-w-md mt-2 mb-6 leading-relaxed">
+                      Drop FLAC, WAV, ALAC, or MP3 files from your device to listen offline with full 10-band DSP equalization.
                     </p>
-                    <Button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 gap-2 text-xs font-bold"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Select Local Audio Files
-                    </Button>
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                      <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 gap-2 text-xs font-bold px-5 h-9 cursor-pointer"
+                      >
+                        <Plus className="h-4 w-4" /> Select Audio Files
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => folderInputRef.current?.click()}
+                        className="rounded-full text-xs font-bold gap-2 px-5 h-9 border-border/60 hover:bg-surface-raised cursor-pointer"
+                      >
+                        <FolderOpen className="h-4 w-4 text-emerald-400" /> Scan Local Folder
+                      </Button>
+                    </div>
+                  </div>
+                ) : filteredLocalTracks.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border/40 p-10 text-center text-muted-foreground text-xs">
+                    No tracks matching &quot;{trackSearchQuery}&quot;.
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    {localTracks.map((track) => renderTrackRow(track, localTracks))}
+                    {filteredLocalTracks.map((track) => renderTrackRow(track, filteredLocalTracks))}
                   </div>
                 )}
               </div>
             )}
 
-            {/* 2. Folders View */}
-            {offlineTab === "folders" && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {localFolders.map((folder) => (
-                  <div
-                    key={folder.folderPath}
-                    className="rounded-2xl border border-border/40 bg-card p-5 hover:border-emerald-500/40 transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2.5 text-emerald-400 mb-2">
-                        <Folder className="h-5 w-5 fill-emerald-500/20" />
-                        <span className="font-bold text-sm text-foreground truncate">
-                          {folder.folderPath}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {folder.trackCount} {folder.trackCount === 1 ? "track" : "tracks"} indexed
-                      </p>
-
-                      <div className="mt-4 space-y-1">
-                        {folder.tracks.slice(0, 3).map((t) => (
-                          <div
-                            key={t.id}
-                            className="text-xs text-muted-foreground truncate flex items-center gap-1.5"
-                          >
-                            <span className="h-1 w-1 rounded-full bg-emerald-400" />
-                            {t.title}
-                          </div>
-                        ))}
-                        {folder.tracks.length > 3 && (
-                          <span className="text-[10px] text-muted-foreground/70 pl-2.5">
-                            +{folder.tracks.length - 3} more...
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-5 pt-3 border-t border-border/30 flex items-center justify-between">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          if (folder.tracks[0]) playTrack(folder.tracks[0], folder.tracks);
-                        }}
-                        className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 h-8 text-xs font-bold gap-1.5 w-full"
-                      >
-                        <Play className="h-3.5 w-3.5 fill-current" /> Play Folder
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 3. Albums View */}
+            {/* 2. Albums View */}
             {offlineTab === "albums" && (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {localAlbums.map((album) => (
-                  <div
-                    key={album.name}
-                    className="group rounded-2xl border border-border/40 bg-card p-4 hover:border-emerald-500/40 transition-all flex flex-col"
-                  >
-                    <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted mb-3">
-                      <img
-                        src={album.coverImage}
-                        alt={album.name}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <button
-                        onClick={() => {
-                          if (album.tracks[0]) playTrack(album.tracks[0], album.tracks);
-                        }}
-                        className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
-                        aria-label={`Play album ${album.name}`}
-                      >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xl hover:scale-110 transition-transform">
-                          <Play className="h-6 w-6 fill-current ml-0.5" />
-                        </div>
-                      </button>
+              <div>
+                {localAlbums.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 p-12 text-center bg-card/30">
+                    <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-4 border border-emerald-500/30">
+                      <Disc3 className="h-8 w-8" />
                     </div>
-
-                    <h3 className="font-bold text-sm text-foreground truncate group-hover:text-emerald-400 transition-colors">
-                      {album.name}
+                    <h3 className="text-xl font-bold text-foreground">
+                      Your imported albums will appear here.
                     </h3>
-                    <p className="text-xs text-muted-foreground truncate">{album.artistName}</p>
-                    <span className="text-[10px] font-mono text-muted-foreground mt-1">
-                      {album.trackCount} {album.trackCount === 1 ? "track" : "tracks"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 4. Artists View */}
-            {offlineTab === "artists" && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {localArtistGroups.map((artist) => (
-                  <div
-                    key={artist.artistName}
-                    className="rounded-2xl border border-border/40 bg-card p-5 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 font-bold text-base">
-                        {artist.artistName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-sm text-foreground truncate">
-                          {artist.artistName}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {artist.trackCount} local {artist.trackCount === 1 ? "track" : "tracks"}
-                        </p>
-                      </div>
-                    </div>
-
+                    <p className="text-xs text-muted-foreground max-w-sm mt-2 mb-5">
+                      Audio files containing album metadata will automatically group into albums.
+                    </p>
                     <Button
-                      size="sm"
-                      onClick={() => {
-                        if (artist.tracks[0]) playTrack(artist.tracks[0], artist.tracks);
-                      }}
-                      className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 h-8 text-xs font-bold gap-1 shrink-0"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-2"
                     >
-                      <Play className="h-3 w-3 fill-current" /> Play
+                      <Plus className="h-4 w-4" /> Import Audio
                     </Button>
                   </div>
-                ))}
+                ) : (
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    {localAlbums.map((album) => (
+                      <div
+                        key={album.name}
+                        className="group rounded-2xl border border-border/40 bg-card p-4 hover:border-emerald-500/40 transition-all flex flex-col"
+                      >
+                        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted mb-3">
+                          <img
+                            src={album.coverImage}
+                            alt={album.name}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                          <button
+                            onClick={() => {
+                              if (album.tracks[0]) playTrack(album.tracks[0], album.tracks);
+                            }}
+                            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            aria-label={`Play album ${album.name}`}
+                          >
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xl hover:scale-110 transition-transform">
+                              <Play className="h-6 w-6 fill-current ml-0.5" />
+                            </div>
+                          </button>
+                        </div>
+
+                        <h3 className="font-bold text-sm text-foreground truncate group-hover:text-emerald-400 transition-colors">
+                          {album.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground truncate">{album.artistName}</p>
+                        <span className="text-[10px] font-mono text-muted-foreground mt-1">
+                          {album.trackCount} {album.trackCount === 1 ? "track" : "tracks"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* 5. Playlists View */}
+            {/* 3. Artists View */}
+            {offlineTab === "artists" && (
+              <div>
+                {localArtistGroups.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 p-12 text-center bg-card/30">
+                    <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-4 border border-emerald-500/30">
+                      <Users className="h-8 w-8" />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">
+                      Artists from your local audio files will appear here.
+                    </h3>
+                    <p className="text-xs text-muted-foreground max-w-sm mt-2 mb-5">
+                      Local music will automatically group by artist.
+                    </p>
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-2"
+                    >
+                      <Plus className="h-4 w-4" /> Import Audio
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {localArtistGroups.map((artist) => (
+                      <div
+                        key={artist.artistName}
+                        className="rounded-2xl border border-border/40 bg-card p-5 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 font-bold text-base">
+                            {artist.artistName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-sm text-foreground truncate">
+                              {artist.artistName}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                              {artist.trackCount} local {artist.trackCount === 1 ? "track" : "tracks"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (artist.tracks[0]) playTrack(artist.tracks[0], artist.tracks);
+                          }}
+                          className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 h-8 text-xs font-bold gap-1 shrink-0 cursor-pointer"
+                        >
+                          <Play className="h-3 w-3 fill-current" /> Play
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 4. Playlists View */}
             {offlineTab === "playlists" && (
               <div>
                 <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -749,30 +836,22 @@ function LibraryPage() {
                       createPlaylist(newPlaylistName);
                       setNewPlaylistName("");
                     }}
-                    className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1"
+                    className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" /> Create Playlist
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setBackupModalOpen(true)}
-                    className="rounded-full border-border/60 text-xs font-bold gap-1.5 ml-auto"
-                  >
-                    <Download className="h-3.5 w-3.5 text-primary" /> M3U8 / JSON Backup & Migrate
                   </Button>
                 </div>
 
                 {localPlaylists.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-border/60 p-12 text-center bg-card/40">
-                    <ListMusic className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
-                    <h3 className="text-base font-bold text-foreground">
-                      No Offline Playlists Created
+                  <div className="rounded-3xl border border-dashed border-border/60 p-12 text-center bg-card/30">
+                    <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mx-auto mb-4 border border-emerald-500/30">
+                      <ListMusic className="h-8 w-8" />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">
+                      Create a playlist from your local music.
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                      Create custom playlists for your high-res audio tracks, albums, or workout
-                      sets. All stored locally on your device.
+                    <p className="text-xs text-muted-foreground mt-2 max-w-sm mx-auto">
+                      Organize your local audio files into high-res playlists, workout sets, and custom mixes.
                     </p>
                   </div>
                 ) : (
@@ -800,7 +879,7 @@ function LibraryPage() {
                                     setManagePlaylist(pl);
                                     setPlaylistTrackSearch("");
                                   }}
-                                  className="h-7 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-full px-2"
+                                  className="h-7 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-full px-2 cursor-pointer"
                                 >
                                   <Plus className="h-3 w-3 mr-0.5" /> Add Songs
                                 </Button>
@@ -808,7 +887,7 @@ function LibraryPage() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => deletePlaylist(pl.id)}
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-full"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-full cursor-pointer"
                                   title="Delete Playlist"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -825,8 +904,7 @@ function LibraryPage() {
                             <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                               {plTracks.length === 0 && (
                                 <p className="text-[11px] text-muted-foreground italic py-3 text-center">
-                                  No songs added yet. Click &quot;Add Songs&quot; above to select
-                                  local tracks.
+                                  No songs added yet. Click &quot;Add Songs&quot; above to select local tracks.
                                 </p>
                               )}
                               {plTracks.map((t) => (
@@ -840,7 +918,7 @@ function LibraryPage() {
                                   </span>
                                   <button
                                     onClick={() => removeTrackFromPlaylist(pl.id, t.id)}
-                                    className="text-muted-foreground hover:text-destructive text-xs font-bold px-1"
+                                    className="text-muted-foreground hover:text-destructive text-xs font-bold px-1 cursor-pointer"
                                     title="Remove track"
                                   >
                                     ×
@@ -857,7 +935,7 @@ function LibraryPage() {
                               onClick={() => {
                                 if (plTracks[0]) playTrack(plTracks[0], plTracks);
                               }}
-                              className="flex-1 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1.5 h-9 shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                              className="flex-1 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1.5 h-9 shadow-md shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
                             >
                               <Play className="h-3.5 w-3.5 fill-current" /> Play Playlist
                             </Button>
@@ -865,371 +943,6 @@ function LibraryPage() {
                         </div>
                       );
                     })}
-                  </div>
-                )}
-
-                {/* Manage / Add Tracks to Playlist Dialog */}
-                {managePlaylist && (
-                  <Dialog
-                    open={Boolean(managePlaylist)}
-                    onOpenChange={(open) => !open && setManagePlaylist(null)}
-                  >
-                    <DialogContent className="max-w-md bg-card border-border/80 rounded-3xl p-6 shadow-2xl">
-                      <DialogHeader>
-                        <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                          <ListPlus className="h-4 w-4 text-emerald-400" />
-                          Add Tracks to &quot;{managePlaylist.name}&quot;
-                        </DialogTitle>
-                      </DialogHeader>
-
-                      <div className="mt-4 space-y-4">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Search local library songs..."
-                            value={playlistTrackSearch}
-                            onChange={(e) => setPlaylistTrackSearch(e.target.value)}
-                            className="pl-9 rounded-2xl text-xs bg-surface"
-                          />
-                        </div>
-
-                        <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
-                          {localTracks
-                            .filter((t) =>
-                              playlistTrackSearch
-                                ? t.title
-                                    .toLowerCase()
-                                    .includes(playlistTrackSearch.toLowerCase()) ||
-                                  t.artistName
-                                    .toLowerCase()
-                                    .includes(playlistTrackSearch.toLowerCase())
-                                : true,
-                            )
-                            .map((track) => {
-                              const isAdded = managePlaylist.trackIds.includes(track.id);
-                              return (
-                                <div
-                                  key={track.id}
-                                  onClick={() => {
-                                    if (isAdded) {
-                                      removeTrackFromPlaylist(managePlaylist.id, track.id);
-                                      setManagePlaylist((prev) =>
-                                        prev
-                                          ? {
-                                              ...prev,
-                                              trackIds: prev.trackIds.filter(
-                                                (id) => id !== track.id,
-                                              ),
-                                            }
-                                          : null,
-                                      );
-                                    } else {
-                                      addTrackToPlaylist(managePlaylist.id, track.id);
-                                      setManagePlaylist((prev) =>
-                                        prev
-                                          ? { ...prev, trackIds: [...prev.trackIds, track.id] }
-                                          : null,
-                                      );
-                                    }
-                                  }}
-                                  className={cn(
-                                    "flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer",
-                                    isAdded
-                                      ? "bg-emerald-500/10 border-emerald-500/30 text-foreground"
-                                      : "bg-surface/50 border-transparent hover:border-border/60 text-muted-foreground hover:text-foreground",
-                                  )}
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                    <img
-                                      src={track.coverImage}
-                                      alt=""
-                                      className="h-8 w-8 rounded-lg object-cover shrink-0"
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                      <p className="font-bold text-xs truncate text-foreground">
-                                        {track.title}
-                                      </p>
-                                      <p className="text-[10px] text-muted-foreground truncate">
-                                        {track.artistName}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-[10px] font-mono font-bold text-emerald-400">
-                                      {track.quality}
-                                    </span>
-                                    <div
-                                      className={cn(
-                                        "h-6 w-6 rounded-full flex items-center justify-center border transition-colors",
-                                        isAdded
-                                          ? "bg-emerald-500 border-emerald-500 text-white"
-                                          : "border-border/80 hover:border-emerald-500",
-                                      )}
-                                    >
-                                      {isAdded ? (
-                                        <Check className="h-3.5 w-3.5" />
-                                      ) : (
-                                        <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-
-                        <Button
-                          onClick={() => setManagePlaylist(null)}
-                          className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-xs h-10"
-                        >
-                          Done
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-            )}
-
-            {/* 6. Tag Editor View */}
-            {offlineTab === "tags" && (
-              <div className="max-w-xl rounded-3xl border border-border/40 bg-card p-6 sm:p-8">
-                <h3 className="text-lg font-bold text-foreground mb-1">
-                  Local Tag & Metadata Editor
-                </h3>
-                <p className="text-xs text-muted-foreground mb-6">
-                  Select any track to modify title, artist, album, and genre tags without touching
-                  cloud servers.
-                </p>
-
-                <div className="mb-4">
-                  <label className="text-xs font-semibold text-muted-foreground block mb-2">
-                    Select Track:
-                  </label>
-                  <select
-                    className="w-full rounded-xl border border-border/60 bg-surface-raised px-3 py-2 text-xs text-foreground"
-                    value={selectedTrackForEdit?.id || ""}
-                    onChange={(e) => {
-                      const t = localTracks.find((track) => track.id === e.target.value);
-                      if (t) handleStartEdit(t);
-                    }}
-                  >
-                    <option value="">-- Choose local track --</option>
-                    {localTracks.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.title} — {t.artistName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {selectedTrackForEdit && (
-                  <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                        Track Title
-                      </label>
-                      <Input
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        className="rounded-xl text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                        Artist Name
-                      </label>
-                      <Input
-                        value={editArtist}
-                        onChange={(e) => setEditArtist(e.target.value)}
-                        className="rounded-xl text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                        Album Title
-                      </label>
-                      <Input
-                        value={editAlbum}
-                        onChange={(e) => setEditAlbum(e.target.value)}
-                        className="rounded-xl text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                        Genre
-                      </label>
-                      <Input
-                        value={editGenre}
-                        onChange={(e) => setEditGenre(e.target.value)}
-                        className="rounded-xl text-xs"
-                      />
-                    </div>
-
-                    <div className="pt-3">
-                      <Button
-                        type="submit"
-                        className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1.5 h-10"
-                      >
-                        <Check className="h-4 w-4" /> Save Metadata
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            )}
-
-            {/* 7. Buy Store Masters View (Direct Offline Acquisition) */}
-            {offlineTab === "store" && (
-              <div>
-                <div className="rounded-3xl border border-border/40 bg-card p-6 sm:p-8 mb-8">
-                  <div className="flex items-center gap-2 text-primary text-xs font-bold mb-1">
-                    <ShoppingBag className="h-4 w-4" />
-                    <span>ONLINE MUSIC STORE · DIRECT OFFLINE DOWNLOAD</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground">
-                    Get New Masters for Your Offline Player
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                    Buy high-resolution DRM-free master tracks directly from creators. Once
-                    purchased, tracks are instantly downloaded and added directly into your Local
-                    Offline Library under{" "}
-                    <code className="text-foreground font-mono">Downloads/Purchased</code>.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {storeCatalogTracks.map((t) => (
-                    <TrackCard key={t.id} track={t} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 7.5 Smart Mix Generator View */}
-            {offlineTab === "smart" && (
-              <SmartPlaylistGenerator onPlaylistCreated={() => setOfflineTab("playlists")} />
-            )}
-
-            {/* 8. Duplicate Detection & Cleaner View */}
-            {offlineTab === "cleaner" && (
-              <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-border/40 bg-card p-6 sm:p-8">
-                  <div>
-                    <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold mb-1">
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>ACOUSTIC & METADATA DEDUPLICATION ENGINE</span>
-                    </div>
-                    <h3 className="text-xl font-bold text-foreground">
-                      Local Library Duplicate Cleaner
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                      Scans your local library for identical songs across folders, compares audio
-                      bitrates and losslessness, and cleans redundant lower-quality copies while
-                      preserving your highest-fidelity masters.
-                    </p>
-                  </div>
-
-                  {duplicateGroups.length > 0 && (
-                    <Button
-                      onClick={handleAutoCleanDuplicates}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full gap-2 text-xs shadow-lg shadow-emerald-500/20 cursor-pointer shrink-0"
-                    >
-                      <Zap className="h-4 w-4" />
-                      Clean All ({duplicateGroups.reduce((acc: number, g: LocalTrack[]) => acc + (g.length - 1), 0)} dupes)
-                    </Button>
-                  )}
-                </div>
-
-                {duplicateGroups.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 bg-surface-raised/40 p-12 text-center">
-                    <ShieldCheck className="h-12 w-12 text-emerald-400 mb-3" />
-                    <h4 className="text-lg font-bold text-foreground">No duplicates detected</h4>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-md">
-                      Your local audiophile library is cleanly organized with zero redundant files.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {duplicateGroups.map((group: LocalTrack[], gIdx: number) => (
-                      <div
-                        key={gIdx}
-                        className="rounded-3xl border border-border/60 bg-card/80 p-5 overflow-hidden shadow-lg"
-                      >
-                        <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-3">
-                          <div>
-                            <span className="font-bold text-foreground text-sm">
-                              {group[0]?.title}
-                            </span>
-                            <span className="text-xs text-muted-foreground ml-2">
-                              by {group[0]?.artistName || group[0]?.artist}
-                            </span>
-                          </div>
-                          <Badge className="bg-amber/15 text-amber border-amber/30 text-[10px] font-mono font-bold">
-                            {group.length} COPIES FOUND
-                          </Badge>
-                        </div>
-
-                        <div className="divide-y divide-border/20">
-                          {group.map((t: LocalTrack, tIdx: number) => {
-                            const isBest = tIdx === 0;
-                            return (
-                              <div
-                                key={t.id}
-                                className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-2"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Badge
-                                    variant="outline"
-                                    className={cn(
-                                      "font-mono text-[10px] font-bold px-2 py-0.5",
-                                      isBest
-                                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                                        : "border-border/60 text-muted-foreground",
-                                    )}
-                                  >
-                                    {t.quality} · {t.bitrate} kbps
-                                  </Badge>
-                                  <div className="text-xs">
-                                    <span className="font-mono text-muted-foreground truncate block max-w-[280px]">
-                                      📁 {t.folderPath || "Root"}
-                                    </span>
-                                  </div>
-                                  {isBest && (
-                                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                                      ★ Recommended Master
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => playTrack(t)}
-                                    className="h-7 text-xs gap-1 rounded-full text-foreground hover:bg-surface-raised"
-                                  >
-                                    <Play className="h-3 w-3" /> Preview
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => removeLocalTrack(t.id)}
-                                    className="h-7 text-xs text-destructive hover:bg-destructive/10 rounded-full"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" /> Delete
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 )}
               </div>
@@ -1243,16 +956,15 @@ function LibraryPage() {
             {onlineTab === "purchased" && (
               <div>
                 {purchasedTracks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 p-12 text-center">
-                    <ShoppingBag className="h-10 w-10 text-muted-foreground mb-3" />
-                    <h3 className="text-lg font-bold text-foreground">No purchased masters yet</h3>
-                    <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-5">
-                      Purchase DRM-free 24-bit masters directly from independent creators in the
-                      Store. 85% goes straight to the artist.
+                  <div className="rounded-3xl border border-dashed border-border/60 p-12 text-center">
+                    <Download className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <h3 className="text-base font-bold text-foreground">No Purchased Masters</h3>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto mb-5">
+                      Buy lossless tracks in the Store to own perpetual 24-bit master downloads.
                     </p>
                     <Link to="/store">
-                      <Button className="rounded-full bg-primary text-primary-foreground font-bold text-xs gap-1.5 shadow-md">
-                        <ShoppingBag className="h-3.5 w-3.5" /> Explore DRM-Free Store
+                      <Button className="rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                        Browse Music Store
                       </Button>
                     </Link>
                   </div>
@@ -1267,11 +979,11 @@ function LibraryPage() {
             {onlineTab === "liked" && (
               <div>
                 {likedTracks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 p-12 text-center">
-                    <Heart className="h-10 w-10 text-muted-foreground mb-3" />
-                    <h3 className="text-lg font-bold text-foreground">No liked tracks</h3>
-                    <p className="text-xs text-muted-foreground max-w-sm mt-1">
-                      Like tracks across the platform to build your streaming collection.
+                  <div className="rounded-3xl border border-dashed border-border/60 p-12 text-center">
+                    <Heart className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <h3 className="text-base font-bold text-foreground">No Liked Tracks</h3>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                      Tap the heart icon on any stream to add songs to your favorites.
                     </p>
                   </div>
                 ) : (
@@ -1289,26 +1001,288 @@ function LibraryPage() {
             )}
 
             {onlineTab === "smart" && (
-              <SmartPlaylistGenerator onPlaylistCreated={() => setOnlineTab("local")} />
+              <div className="rounded-3xl border border-border/40 bg-card p-6">
+                <SmartPlaylistGenerator />
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Audio Console Modal */}
-      <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
+      {/* ── Dialog 1: Manage Playlist Songs ── */}
+      {managePlaylist && (
+        <Dialog open={Boolean(managePlaylist)} onOpenChange={(open) => !open && setManagePlaylist(null)}>
+          <DialogContent className="max-w-md bg-card border-border/80 rounded-3xl p-6 shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                <ListPlus className="h-4 w-4 text-emerald-400" />
+                Add Tracks to &quot;{managePlaylist.name}&quot;
+              </DialogTitle>
+            </DialogHeader>
 
-      {/* Playlist Backup & Migration Modal */}
-      <PlaylistBackupModal
-        playlists={localPlaylists}
-        allTracks={allTracks}
-        onImportPlaylist={(newPl) => {
-          createPlaylist(newPl.name);
-          newPl.trackIds.forEach((tId) => addTrackToPlaylist(newPl.id, tId));
-        }}
-        open={backupModalOpen}
-        onClose={() => setBackupModalOpen(false)}
-      />
+            <div className="mt-4 space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search local library songs..."
+                  value={playlistTrackSearch}
+                  onChange={(e) => setPlaylistTrackSearch(e.target.value)}
+                  className="pl-9 rounded-2xl text-xs bg-surface"
+                />
+              </div>
+
+              <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+                {localTracks
+                  .filter((t) =>
+                    playlistTrackSearch
+                      ? t.title.toLowerCase().includes(playlistTrackSearch.toLowerCase()) ||
+                        t.artistName.toLowerCase().includes(playlistTrackSearch.toLowerCase())
+                      : true,
+                  )
+                  .map((track) => {
+                    const isAdded = managePlaylist.trackIds.includes(track.id);
+                    return (
+                      <div
+                        key={track.id}
+                        onClick={() => {
+                          if (isAdded) {
+                            removeTrackFromPlaylist(managePlaylist.id, track.id);
+                            setManagePlaylist((prev) =>
+                              prev ? { ...prev, trackIds: prev.trackIds.filter((id) => id !== track.id) } : null,
+                            );
+                          } else {
+                            addTrackToPlaylist(managePlaylist.id, track.id);
+                            setManagePlaylist((prev) =>
+                              prev ? { ...prev, trackIds: [...prev.trackIds, track.id] } : null,
+                            );
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer",
+                          isAdded
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-foreground"
+                            : "bg-surface/50 border-transparent hover:border-border/60 text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <img src={track.coverImage} alt="" className="h-8 w-8 rounded-lg object-cover shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs truncate text-foreground">{track.title}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{track.artistName}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] font-mono font-bold text-emerald-400">{track.quality}</span>
+                          <div
+                            className={cn(
+                              "h-6 w-6 rounded-full flex items-center justify-center border transition-colors",
+                              isAdded
+                                ? "bg-emerald-500 border-emerald-500 text-white"
+                                : "border-border/80 hover:border-emerald-500",
+                            )}
+                          >
+                            {isAdded ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5 text-muted-foreground" />}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              <Button
+                onClick={() => setManagePlaylist(null)}
+                className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-xs h-10 cursor-pointer"
+              >
+                Done
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── Dialog 2: In-Place Tag Editor ── */}
+      <Dialog open={tagEditorOpen} onOpenChange={setTagEditorOpen}>
+        <DialogContent className="max-w-md bg-card border-border/80 rounded-3xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <Edit3 className="h-4 w-4 text-emerald-400" />
+              Tag & Metadata Editor
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Modify track tags locally on your device without cloud modifications.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Select Track:</label>
+              <select
+                className="w-full rounded-xl border border-border/60 bg-surface px-3 py-2 text-xs text-foreground"
+                value={selectedTrackForEdit?.id || ""}
+                onChange={(e) => {
+                  const t = localTracks.find((track) => track.id === e.target.value);
+                  if (t) handleStartEdit(t);
+                }}
+              >
+                <option value="">-- Choose local track --</option>
+                {localTracks.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title} — {t.artistName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedTrackForEdit && (
+              <form onSubmit={handleSaveEdit} className="space-y-3.5 pt-1">
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">Track Title</label>
+                  <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="rounded-xl text-xs" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">Artist Name</label>
+                  <Input value={editArtist} onChange={(e) => setEditArtist(e.target.value)} className="rounded-xl text-xs" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">Album</label>
+                  <Input value={editAlbum} onChange={(e) => setEditAlbum(e.target.value)} className="rounded-xl text-xs" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">Genre</label>
+                  <Input value={editGenre} onChange={(e) => setEditGenre(e.target.value)} className="rounded-xl text-xs" />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold gap-1.5 h-9 mt-2 cursor-pointer"
+                >
+                  <Check className="h-4 w-4" /> Save Metadata
+                </Button>
+              </form>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog 3: Duplicate Cleaner ── */}
+      <Dialog open={duplicateCleanerOpen} onOpenChange={setDuplicateCleanerOpen}>
+        <DialogContent className="max-w-lg bg-card border-border/80 rounded-3xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              Duplicate Track Cleaner
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Detect and clean redundant copies while preserving the highest-quality 24-bit masters.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-4">
+            {duplicateGroups.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted-foreground rounded-2xl bg-surface/50 border border-border/40">
+                <Check className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
+                <p className="font-bold text-foreground">Zero Duplicate Tracks Found</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Your offline library is completely clean and deduplicated.</p>
+              </div>
+            ) : (
+              <>
+                <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
+                  {duplicateGroups.map((group, idx) => (
+                    <div key={idx} className="p-3 rounded-2xl bg-surface-raised border border-border/40 space-y-2">
+                      <p className="text-xs font-bold text-foreground">{group[0]?.title} — {group[0]?.artistName}</p>
+                      <div className="space-y-1">
+                        {group.map((t) => (
+                          <div key={t.id} className="flex items-center justify-between text-[11px] text-muted-foreground bg-card/60 px-2 py-1 rounded-lg">
+                            <span className="truncate">{t.title}</span>
+                            <span className="font-mono text-[10px] text-emerald-400 font-bold">{t.quality} ({t.bitrate}kbps)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={handleAutoCleanDuplicates}
+                  className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-xs h-10 cursor-pointer"
+                >
+                  Clean Duplicates (Keep Highest Bitrate)
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog 4: Smart Mix Engine ── */}
+      <Dialog open={smartMixOpen} onOpenChange={setSmartMixOpen}>
+        <DialogContent className="max-w-2xl bg-card border-border/80 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Smart Mix Engine
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Generate dynamic mood and energy playlists from your local offline collection.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2">
+            <SmartPlaylistGenerator />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog 5: Storage Manager ── */}
+      <Dialog open={storageManagerOpen} onOpenChange={setStorageManagerOpen}>
+        <DialogContent className="max-w-md bg-card border-border/80 rounded-3xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <HardDrive className="h-4 w-4 text-emerald-400" />
+              Offline Storage Manager
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              IndexedDB local storage allocation and file format breakdown.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/40 space-y-1">
+                <span className="text-[10px] uppercase font-mono text-muted-foreground">Total Tracks</span>
+                <p className="text-2xl font-black font-mono text-foreground">{storageStats.totalTracks}</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/40 space-y-1">
+                <span className="text-[10px] uppercase font-mono text-muted-foreground">Storage Used</span>
+                <p className="text-2xl font-black font-mono text-emerald-400">{storageStats.totalMb} MB</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-surface-raised border border-border/40 space-y-2">
+              <span className="text-xs font-bold text-foreground block">Format Distribution:</span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(storageStats.formatCounts).map(([fmt, count]) => (
+                  <Badge key={fmt} variant="outline" className="text-xs font-mono border-emerald-500/30 text-emerald-400">
+                    {fmt}: {count}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              onClick={() => setStorageManagerOpen(false)}
+              className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold text-xs h-9 cursor-pointer"
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Audio Console & Backup Modals ── */}
+      <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
+      <PlaylistBackupModal open={backupModalOpen} onClose={() => setBackupModalOpen(false)} />
     </>
   );
 }
