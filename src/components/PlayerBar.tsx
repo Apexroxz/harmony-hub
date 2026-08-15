@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Play,
@@ -48,6 +48,14 @@ export function PlayerBar() {
     expandPlayer,
     toggleConsole,
   } = usePlayer();
+
+  useEffect(() => {
+    console.log("[Layam Hi-Fi] PlayerBar mounted & active", {
+      currentTrackTitle: currentTrack?.title,
+      isPlaying,
+      isExpanded,
+    });
+  }, [currentTrack, isPlaying, isExpanded]);
 
   const { isOffline, importLocalFiles } = useAppMode();
   const [queueOpen, setQueueOpen] = useState(false);
@@ -149,7 +157,14 @@ export function PlayerBar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="fixed bottom-[96px] right-4 z-50 max-h-[58vh] w-[min(92vw,25rem)] overflow-hidden rounded-2xl border border-[#D99A2B]/25 bg-[#08090B] shadow-[0_25px_70px_rgba(0,0,0,0.95)] sm:right-8 flex flex-col"
+            style={{
+              position: "fixed",
+              bottom: "96px",
+              right: "16px",
+              zIndex: 10000,
+              backgroundColor: "#08090B",
+            }}
+            className="max-h-[58vh] w-[min(92vw,25rem)] overflow-hidden rounded-2xl border border-[#D99A2B]/25 shadow-[0_25px_70px_rgba(0,0,0,0.95)] flex flex-col"
           >
             <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
               <div className="flex items-center gap-2">
@@ -278,10 +293,20 @@ export function PlayerBar() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 border-t border-[#D99A2B]/25 bg-[#08090B] shadow-[0_-12px_45px_rgba(0,0,0,0.92)] px-4 py-3 sm:px-6 transition-colors duration-200",
-          isDraggingOver && "border-[#D99A2B] bg-[#08090B]/95 shadow-[0_-12px_45px_rgba(217,154,43,0.3)]",
-        )}
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          backgroundColor: "#08090B",
+          borderTop: "1px solid rgba(217,154,43,0.25)",
+          boxShadow: "0 -12px 45px rgba(0,0,0,0.92)",
+          padding: "12px 24px",
+          display: "block",
+          visibility: "visible",
+          opacity: 1,
+        }}
       >
         {isDraggingOver && (
           <div className="absolute inset-0 z-50 flex items-center justify-center gap-2 bg-[#08090B]/95 backdrop-blur-md pointer-events-none">
