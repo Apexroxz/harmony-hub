@@ -120,15 +120,12 @@ function OfflinePlayerLayout() {
         onOpenAbout={() => setIsAboutOpen(true)}
         onOpenConsole={openConsole}
       />
-      <main>
+      <main className="pb-36">
         <OfflineLibrary />
       </main>
       
-      {/* Floating Transport Bar (renders when currentTrack !== null) */}
-      {(() => {
-        console.log("OFFLINE LAYOUT RENDERING PLAYERBAR");
-        return <PlayerBar />;
-      })()}
+      {/* Precision Hi-Fi Hardware Cockpit Bar */}
+      <PlayerBar />
       
       {/* Top-Level Global Modals (Mounted Independently) */}
       <AudioConsoleModal open={isConsoleOpen} onClose={closeConsole} />
