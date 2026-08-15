@@ -117,7 +117,7 @@ export function PlayerBar() {
         className="hidden"
       />
 
-      {/* ── Queue Popover Drawer ── */}
+      {/* ── Original 07d8597 Play Queue Popover Drawer ── */}
       <AnimatePresence>
         {queueOpen && (
           <motion.aside
@@ -125,13 +125,13 @@ export function PlayerBar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 400, damping: 32 }}
-            className="fixed bottom-[110px] right-4 z-50 max-h-[56vh] w-[min(92vw,24rem)] overflow-hidden rounded-3xl border border-[#D99A2B]/25 bg-[#08090B] shadow-2xl backdrop-blur-2xl sm:right-8 flex flex-col"
+            className="fixed bottom-[96px] right-3 z-50 max-h-[56vh] w-[min(92vw,24rem)] overflow-hidden rounded-3xl border border-border/80 bg-background/95 shadow-2xl backdrop-blur-2xl sm:right-6 flex flex-col"
           >
-            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
+            <div className="flex items-center justify-between border-b border-border/40 px-5 py-3.5 bg-surface/50">
               <div className="flex items-center gap-2">
-                <ListMusic className="h-4 w-4 text-[#D99A2B]" />
-                <span className="text-xs font-bold uppercase tracking-wider text-[#f2f3f5]">Play Queue</span>
-                <span className="rounded-full bg-[#D99A2B]/10 px-2 py-0.5 text-[10px] font-mono text-[#D99A2B] border border-[#D99A2B]/20">
+                <ListMusic className="h-4 w-4 text-primary" />
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">Play Queue</span>
+                <span className="rounded-full bg-surface-raised px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
                   {queue.length}
                 </span>
               </div>
@@ -139,7 +139,7 @@ export function PlayerBar() {
                 {/* Layam Logo Add Button in Queue Header */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 rounded-full bg-[#D99A2B]/10 border border-[#D99A2B]/30 px-2 py-0.5 text-[11px] font-semibold text-[#D99A2B] hover:bg-[#D99A2B]/20 transition-all cursor-pointer mr-1"
+                  className="flex items-center gap-1 rounded-full bg-primary/10 border border-primary/30 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer mr-1"
                   title="Drop or Add FLAC/WAV masters"
                 >
                   <img src="/logo.png" alt="Layam" className="h-3.5 w-3.5 rounded object-contain" />
@@ -178,8 +178,8 @@ export function PlayerBar() {
               className={cn(
                 "m-2 flex items-center justify-center gap-2 rounded-xl border border-dashed p-2 text-center transition-all cursor-pointer",
                 isDraggingOver
-                  ? "border-[#D99A2B] bg-[#D99A2B]/15 text-[#D99A2B] scale-[0.99]"
-                  : "border-white/[0.08] bg-white/[0.02] text-muted-foreground hover:border-[#D99A2B]/40 hover:text-foreground hover:bg-white/[0.04]",
+                  ? "border-primary bg-primary/15 text-primary scale-[0.99]"
+                  : "border-white/[0.08] bg-white/[0.02] text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-white/[0.04]",
               )}
             >
               <img
@@ -205,8 +205,8 @@ export function PlayerBar() {
                   className={cn(
                     "flex items-center justify-between gap-3 rounded-2xl px-3 py-2 text-xs transition-colors cursor-pointer group",
                     i === queueIndex
-                      ? "bg-[#D99A2B]/10 text-[#D99A2B] font-medium border border-[#D99A2B]/20"
-                      : "text-foreground hover:bg-white/[0.04]"
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-foreground hover:bg-surface-raised/60"
                   )}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -247,34 +247,34 @@ export function PlayerBar() {
         )}
       </AnimatePresence>
 
-      {/* ── Fixed Floating Audiophile Hardware Cockpit Player Bar ── */}
+      {/* ── Original 07d8597 Fixed Floating Obsidian Player Bar ── */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "fixed bottom-6 left-4 right-4 z-40 max-w-6xl mx-auto rounded-2xl border border-[#D99A2B]/20 bg-[#08090B] p-3 shadow-[0_20px_80px_rgba(0,0,0,0.85)] sm:px-5 sm:py-3.5 transition-all duration-200",
+          "fixed bottom-3 left-3 right-3 z-40 max-w-5xl mx-auto rounded-3xl border border-border/80 bg-background/95 p-3 shadow-2xl backdrop-blur-2xl sm:bottom-4 sm:left-4 sm:right-4 sm:px-4 sm:py-3 transition-all duration-200",
           isDraggingOver
-            ? "border-[#D99A2B] shadow-[0_0_30px_rgba(217,154,43,0.3)] ring-2 ring-[#D99A2B]/40 scale-[1.005]"
-            : "hover:border-[#D99A2B]/35"
+            ? "border-primary shadow-[0_0_30px_rgba(229,158,56,0.3)] ring-2 ring-primary/40 scale-[1.01]"
+            : "border-white/[0.08]"
         )}
       >
         {isDraggingOver && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center gap-2 rounded-2xl bg-black/80 backdrop-blur-md pointer-events-none">
+          <div className="absolute inset-0 z-50 flex items-center justify-center gap-2 rounded-3xl bg-black/80 backdrop-blur-md pointer-events-none">
             <img src="/logo.png" alt="Layam" className="h-6 w-6 rounded animate-pulse" />
-            <span className="text-xs font-mono font-bold text-[#D99A2B]">
+            <span className="text-xs font-mono font-bold text-primary">
               Drop Master Audio File(s) Here to Play
             </span>
           </div>
         )}
 
         <div className="flex items-center justify-between gap-3 sm:gap-4">
-          {/* Left: 56x56 Album Cartridge & Track Info */}
-          <div className="flex min-w-0 items-center gap-3.5 md:w-[30%]">
+          {/* Left: Track Information & Expand Trigger */}
+          <div className="flex min-w-0 items-center gap-3 md:w-[28%]">
             <button
               onClick={expandPlayer}
-              className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-surface group text-left cursor-pointer transition-transform hover:scale-[1.02] ring-1 ring-[#D99A2B]/30 shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
-              title="Expand Audiophile Console"
+              className="relative block h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-surface group text-left cursor-pointer transition-opacity hover:opacity-80 border border-white/[0.06]"
+              title="Expand player"
             >
               <img
                 src={currentTrack.coverImage || "/logo.png"}
@@ -289,38 +289,29 @@ export function PlayerBar() {
             <div className="min-w-0 flex-1">
               <button
                 onClick={expandPlayer}
-                className="block truncate text-xs sm:text-sm font-bold text-[#f2f3f5] hover:text-[#D99A2B] transition-colors text-left w-full cursor-pointer tracking-tight"
+                className="block truncate text-xs sm:text-sm font-semibold text-foreground hover:text-primary transition-colors text-left w-full cursor-pointer"
               >
                 {currentTrack.title || "Untitled Master"}
               </button>
 
-              <div className="flex items-center gap-1.5 truncate text-xs text-muted-foreground mt-0.5">
+              <div className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
                 <span className="text-xs font-normal text-muted-foreground truncate">
                   {currentTrack.artistName || "Local Artist"}
                 </span>
 
                 <Badge
                   variant="outline"
-                  className="font-mono text-[9px] px-1.5 py-0 border-[#D99A2B]/30 text-[#D99A2B] bg-[#D99A2B]/10 shrink-0"
+                  className="font-mono text-[9px] px-1 py-0 border-primary/30 text-primary bg-primary/5 shrink-0"
                 >
-                  PCM · {currentTrack.quality || "FLAC"}
+                  {currentTrack.quality || "FLAC"}
                   {currentTrack.sampleRate && Number(currentTrack.sampleRate) >= 96000 ? " 24/96" : ""}
                 </Badge>
-
-                {eqEnabled && (
-                  <Badge
-                    variant="outline"
-                    className="font-mono text-[9px] px-1 py-0 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 shrink-0 hidden sm:inline-flex"
-                  >
-                    DSP ON
-                  </Badge>
-                )}
 
                 {status === "buffering" && (
                   <span className="text-[10px] text-amber-400 animate-pulse font-bold">· Buffering</span>
                 )}
                 {status === "loading" && (
-                  <span className="text-[10px] text-[#D99A2B] animate-pulse font-bold">· Loading</span>
+                  <span className="text-[10px] text-primary animate-pulse font-bold">· Loading</span>
                 )}
                 {status === "error" && (
                   <span className="text-[10px] text-destructive font-bold flex items-center gap-0.5">
@@ -333,7 +324,7 @@ export function PlayerBar() {
 
           {/* Center: Precision Playback Controls & Waveform Seekbar */}
           <div className="flex flex-none items-center gap-2 md:flex-1 md:flex-col md:gap-1 max-w-xl">
-            <div className="flex items-center gap-3 sm:gap-5">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -349,7 +340,12 @@ export function PlayerBar() {
                   size="icon"
                   aria-label={isPlaying ? "Pause" : "Play"}
                   onClick={togglePlay}
-                  className="h-11 w-11 sm:h-12 sm:w-12 rounded-full shadow-lg transition-all cursor-pointer bg-gradient-to-b from-[#f5b84c] via-[#D99A2B] to-[#b37a1a] text-[#08090B] border border-[#fbd38d]/40 hover:shadow-[0_0_25px_rgba(217,154,43,0.45)]"
+                  className={cn(
+                    "h-10 w-10 sm:h-11 sm:w-11 rounded-full shadow-lg transition-all cursor-pointer",
+                    isOffline
+                      ? "bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] shadow-[#e59e38]/25"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/25"
+                  )}
                 >
                   {status === "loading" || status === "buffering" ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -374,7 +370,7 @@ export function PlayerBar() {
 
             {/* Desktop Waveform & Seek Timeline */}
             <div className="hidden w-full items-center gap-2.5 md:flex">
-              <span className="w-10 text-right font-mono text-[10px] font-semibold text-[#D99A2B] tabular-nums">
+              <span className="w-10 text-right font-mono text-[10px] text-muted-foreground tabular-nums">
                 {formatDuration(currentTime)}
               </span>
 
@@ -396,11 +392,11 @@ export function PlayerBar() {
           </div>
 
           {/* Right: Studio Audio Console & Hardware Controls */}
-          <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 md:w-[30%]">
+          <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 md:w-[28%]">
             {/* Layam Emblem Add / Drop Master Track Button */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="hidden xl:flex items-center gap-1 rounded-lg border border-[#D99A2B]/30 bg-[#D99A2B]/10 px-2.5 py-1 text-xs font-semibold text-[#D99A2B] hover:bg-[#D99A2B]/20 hover:border-[#D99A2B]/50 transition-all cursor-pointer"
+              className="hidden xl:flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20 hover:border-primary/50 transition-all cursor-pointer"
               title="Add / Drop FLAC, WAV Masters"
             >
               <img
@@ -417,17 +413,17 @@ export function PlayerBar() {
               size="sm"
               onClick={toggleConsole}
               className={cn(
-                "h-8 rounded-lg px-2.5 text-xs font-mono font-bold gap-1.5 transition-all border cursor-pointer",
+                "h-8 rounded-full px-2.5 text-xs font-bold gap-1.5 transition-all border cursor-pointer",
                 eqEnabled
-                  ? "border-[#D99A2B]/50 bg-[#D99A2B]/15 text-[#D99A2B] shadow-[0_0_10px_rgba(217,154,43,0.2)]"
-                  : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                  ? "border-primary/40 bg-primary/15 text-primary shadow-sm"
+                  : "border-transparent text-muted-foreground hover:bg-surface-raised hover:text-foreground"
               )}
               title="Studio Audio Console & 10-Band EQ"
             >
               <Sliders className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">DSP</span>
+              <span className="hidden xl:inline">Console</span>
               {eqEnabled && (
-                <span className="h-1.5 w-1.5 rounded-full bg-[#D99A2B] animate-pulse" />
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               )}
             </Button>
 
@@ -438,14 +434,14 @@ export function PlayerBar() {
               aria-label="Toggle playback queue"
               onClick={() => setQueueOpen((o) => !o)}
               className={cn(
-                "h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground relative transition-colors cursor-pointer border border-white/[0.06] bg-white/[0.02]",
+                "h-8 w-8 rounded-full text-muted-foreground hover:text-foreground relative transition-colors cursor-pointer",
                 queueOpen && "bg-surface-raised text-foreground"
               )}
               title="Master Queue"
             >
               <ListMusic className="h-4 w-4" />
               {queue.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#D99A2B]" />
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
               )}
             </Button>
 
@@ -455,34 +451,33 @@ export function PlayerBar() {
               size="icon"
               aria-label="Expand Audiophile Player"
               onClick={expandPlayer}
-              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer border border-white/[0.06] bg-white/[0.02]"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground cursor-pointer"
               title="Expand Full Audiophile Player & Console"
             >
               <Maximize2 className="h-4 w-4" />
             </Button>
 
             {/* Precision Volume */}
-            <div className="hidden sm:flex items-center gap-2 pl-1 border-l border-white/[0.08]">
+            <div className="hidden items-center gap-2 sm:flex">
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label={volume === 0 ? "Unmute" : "Mute"}
                 onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
               >
                 {volume === 0 ? (
-                  <VolumeX className="h-4 w-4 text-red-400" />
+                  <VolumeX className="h-4 w-4" />
                 ) : (
                   <Volume2 className="h-4 w-4" />
                 )}
               </Button>
-              <div className="w-16 lg:w-20">
+              <div className="w-18 lg:w-22">
                 <Slider
                   value={[volume * 100]}
                   max={100}
                   step={1}
                   onValueChange={([val]) => setVolume(val / 100)}
-                  className="cursor-pointer"
                 />
               </div>
             </div>
