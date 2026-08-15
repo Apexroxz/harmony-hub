@@ -103,7 +103,7 @@ export function PlayerBar() {
     [importLocalFiles],
   );
 
-  if (!currentTrack) return null;
+  if (!currentTrack || isExpanded) return null;
 
   return (
     <>

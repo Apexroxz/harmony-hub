@@ -124,8 +124,8 @@ function OfflinePlayerLayout() {
         <OfflineLibrary />
       </main>
       
-      {/* Precision Hi-Fi Hardware Cockpit Bar */}
-      <PlayerBar />
+      {/* Precision Hi-Fi Hardware Cockpit Bar (Mutually exclusive with Fullscreen) */}
+      {!isExpanded && <PlayerBar />}
       
       {/* Top-Level Global Modals (Mounted Independently) */}
       <AudioConsoleModal open={isConsoleOpen} onClose={closeConsole} />

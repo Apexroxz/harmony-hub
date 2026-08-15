@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -17,6 +17,7 @@ import {
   Mic2,
   Activity,
   Disc,
+  Trash2,
 } from "lucide-react";
 import { usePlayer } from "@/lib/player";
 import { useAppMode, type LocalTrack } from "@/lib/mode";
@@ -25,6 +26,7 @@ import { getTrackLyrics } from "@/lib/lyrics";
 import { LocalLyricsService } from "@layam/storage-core";
 import { Waveform } from "@/components/Waveform";
 import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface FullscreenAudiophilePlayerProps {
@@ -37,13 +39,13 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
     currentTrack,
     status,
     isPlaying,
-    progress,
-    volume,
-    currentTime,
-    duration,
-    queue,
-    queueIndex,
-    eqEnabled,
+    progress = 0,
+    volume = 0.8,
+    currentTime = 0,
+    duration = 180,
+    queue = [],
+    queueIndex = 0,
+    eqEnabled = false,
     togglePlay,
     playNext,
     playPrevious,
@@ -88,14 +90,14 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
     setIsDraggingOver(false);
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      await importLocalFiles(files);
+      await importLocalFiles?.(files);
     }
   };
 
   const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      await importLocalFiles(files);
+      await importLocalFiles?.(files);
     }
     e.target.value = "";
   };
@@ -107,14 +109,15 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
       setCustomLyrics(null);
       return;
     }
-    // Check local IndexedDB lyrics vault
-    LocalLyricsService.getLyrics(currentTrack.id).then((stored) => {
-      if (stored && stored.lines && stored.lines.length > 0) {
-        setCustomLyrics(stored.lines);
-      } else {
-        setCustomLyrics(null);
-      }
-    }).catch(() => setCustomLyrics(null));
+    LocalLyricsService.getLyrics(currentTrack.id)
+      .then((stored) => {
+        if (stored && stored.lines && stored.lines.length > 0) {
+          setCustomLyrics(stored.lines);
+        } else {
+          setCustomLyrics(null);
+        }
+      })
+      .catch(() => setCustomLyrics(null));
   }, [currentTrack]);
 
   const lyrics = useMemo(() => {
@@ -160,17 +163,25 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
-  // Clean Minimalist Spectrum / Oscilloscope Visualizer
+  // Real-time Canvas FFT Visualizer in Fullscreen
   useEffect(() => {
-    if (!open) return;
-    const canvas = bigCanvasRef.current;
-    const analyser = getAnalyserNode();
-    const bufferLength = analyser ? analyser.frequencyBinCount : 64;
-    const freqData = new Uint8Array(bufferLength);
-    const timeData = new Uint8Array(bufferLength);
+    if (!open || viewMode !== "visualizer") {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
 
     const render = () => {
       animationFrameRef.current = requestAnimationFrame(render);
+      const canvas = bigCanvasRef.current;
+      if (!canvas) return;
+
+      const analyser = getAnalyserNode?.();
+      const bufferLength = analyser ? analyser.frequencyBinCount : 64;
+      const freqData = new Uint8Array(bufferLength);
+      const timeData = new Uint8Array(bufferLength);
 
       if (analyser && isPlaying) {
         analyser.getByteFrequencyData(freqData);
@@ -199,12 +210,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               const x = i * (barWidth + gap);
               const y = h - barHeight - 10;
 
-              ctx.fillStyle = isOffline ? "#e59e38" : "#ffffff";
+              ctx.fillStyle = "#D99A2B";
               ctx.fillRect(x, y, barWidth, barHeight);
             }
           } else {
             ctx.lineWidth = 1.5;
-            ctx.strokeStyle = isOffline ? "#e59e38" : "#ffffff";
+            ctx.strokeStyle = "#D99A2B";
             ctx.beginPath();
 
             const sliceWidth = w / bufferLength;
@@ -233,7 +244,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [open, viewMode, vizMode, isPlaying, isOffline, getAnalyserNode]);
+  }, [open, viewMode, vizMode, isPlaying, getAnalyserNode]);
 
   if (!open || !currentTrack) return null;
 
@@ -243,8 +254,8 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
       : `${currentTrack.sampleRate} Hz`
     : "96.0 kHz";
 
-  const bitDepthLabel = currentTrack.bitDepth ? `${currentTrack.bitDepth}-Bit` : "24-Bit";
-  const formatLabel = currentTrack.format || currentTrack.quality || "FLAC";
+  const bitDepthLabel = currentTrack.bitDepth ? `${currentTrack.bitDepth}-BIT` : "24-BIT";
+  const formatLabel = currentTrack.quality || "FLAC";
 
   return (
     <AnimatePresence>
@@ -256,7 +267,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className="fixed inset-0 z-50 flex flex-col bg-[#08080a] text-foreground select-none overflow-hidden"
+        className="fixed inset-0 z-50 flex flex-col bg-[#08090B] text-[#f2f3f5] select-none overflow-hidden"
       >
         <input
           ref={fileInputRef}
@@ -268,51 +279,63 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
         />
 
         {isDraggingOver && (
-          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/90 backdrop-blur-md pointer-events-none">
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-[#08090B]/95 backdrop-blur-md pointer-events-none">
             <img src="/logo.png" alt="Layam" className="h-16 w-16 rounded-2xl animate-pulse shadow-2xl" />
-            <p className="text-base font-mono font-bold text-primary">
+            <p className="text-base font-mono font-bold text-[#D99A2B]">
               Drop Master Audio File(s) to Play & Queue
             </p>
-            <p className="text-xs text-muted-foreground font-mono">
+            <p className="text-xs text-[#9ba1ad] font-mono">
               Supports 24-Bit / 192kHz FLAC, WAV, ALAC, AIFF
             </p>
           </div>
         )}
 
-        <header className="relative z-10 mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-6">
+        {/* ── Top Header Navigation Bar ── */}
+        <header className="relative z-10 mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5 border-b border-white/[0.06]">
           <button
             onClick={onClose}
             aria-label="Minimize"
-            className="p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 p-2 rounded-lg text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-white/[0.04] transition-colors cursor-pointer"
           >
             <ChevronDown className="h-5 w-5" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider hidden sm:inline">Cockpit</span>
           </button>
 
-          <div className="text-center">
-            <p className="text-[11px] font-mono text-muted-foreground tracking-wider">
-              {formatLabel} · {bitDepthLabel} / {sampleRateKhz}
-            </p>
+          {/* Precision Telemetry Badges */}
+          <div className="flex items-center gap-1.5">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-widest bg-[#D99A2B]/10 text-[#D99A2B] border border-[#D99A2B]/25">
+              PCM
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono text-[#9ba1ad] bg-white/[0.03] border border-white/[0.06]">
+              {formatLabel} · {bitDepthLabel}
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono text-[#D99A2B]/90 bg-[#D99A2B]/5 border border-[#D99A2B]/20">
+              {sampleRateKhz}
+            </span>
+            {eqEnabled ? (
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-1">
+                <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
+                DSP ON
+              </span>
+            ) : (
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-mono text-[#6b7280] bg-white/[0.02] border border-white/[0.04]">
+                DSP DIRECT
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer"
-              title="Add / Drop FLAC, WAV masters"
-            >
-              <img src="/logo.png" alt="Layam" className="h-3.5 w-3.5 rounded object-contain" />
-              <span>+ Master</span>
-            </button>
+            {/* View Mode Toggle: Cartridge / Visualizer / Lyrics */}
             <button
               onClick={() =>
                 setViewMode((v) =>
                   v === "art" ? "visualizer" : v === "visualizer" ? "lyrics" : "art",
                 )
               }
-              aria-label="Toggle view"
+              aria-label="Toggle view mode"
               className={cn(
-                "p-2 rounded-lg transition-colors cursor-pointer",
-                viewMode !== "art" ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                "p-2 rounded-lg transition-colors cursor-pointer border border-white/[0.06] bg-white/[0.02]",
+                viewMode !== "art" ? "text-[#D99A2B] border-[#D99A2B]/40 bg-[#D99A2B]/10" : "text-[#9ba1ad] hover:text-[#f2f3f5]"
               )}
             >
               {viewMode === "art" ? (
@@ -323,26 +346,42 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 <Disc className="h-4 w-4" />
               )}
             </button>
+
+            {/* DSP Console Trigger */}
+            <button
+              onClick={openConsole}
+              aria-label="DSP Studio Console"
+              className={cn(
+                "p-2 rounded-lg transition-colors cursor-pointer border border-white/[0.06] bg-white/[0.02]",
+                eqEnabled ? "text-[#D99A2B] border-[#D99A2B]/40" : "text-[#9ba1ad] hover:text-[#f2f3f5]"
+              )}
+              title="DSP 10-Band Graphic EQ"
+            >
+              <Sliders className="h-4 w-4" />
+            </button>
+
+            {/* Queue Trigger */}
             <button
               onClick={() => setQueueDrawerOpen(true)}
               aria-label="Queue"
-              className="p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer relative"
+              className="p-2 rounded-lg text-[#9ba1ad] hover:text-[#f2f3f5] border border-white/[0.06] bg-white/[0.02] transition-colors cursor-pointer relative"
             >
               <ListMusic className="h-4 w-4" />
               {queue.length > 0 && (
-                <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#D99A2B]" />
               )}
             </button>
           </div>
         </header>
 
-        <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 max-w-4xl mx-auto w-full">
+        {/* ── Main Audiophile Console Cockpit ── */}
+        <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 max-w-4xl mx-auto w-full my-auto">
           {viewMode === "art" ? (
             <div className="relative w-full max-w-xs sm:max-w-sm aspect-square my-auto flex items-center justify-center">
               <img
                 src={currentTrack.coverImage || "/logo.png"}
                 alt={currentTrack.title}
-                className="w-full h-full object-cover rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] border border-white/[0.05]"
+                className="w-full h-full object-cover rounded-2xl shadow-[0_20px_80px_rgba(0,0,0,0.95)] border border-[#D99A2B]/25 ring-1 ring-[#D99A2B]/30"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = "/logo.png";
                 }}
@@ -362,8 +401,8 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                   className={cn(
                     "px-3 py-1 rounded-full text-xs font-mono transition-colors cursor-pointer",
                     vizMode === "spectrum"
-                      ? "bg-primary/20 text-primary border border-primary/40"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "bg-[#D99A2B]/20 text-[#D99A2B] border border-[#D99A2B]/40"
+                      : "text-[#9ba1ad] hover:text-[#f2f3f5]",
                   )}
                 >
                   Spectrum
@@ -373,18 +412,18 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                   className={cn(
                     "px-3 py-1 rounded-full text-xs font-mono transition-colors cursor-pointer",
                     vizMode === "oscilloscope"
-                      ? "bg-primary/20 text-primary border border-primary/40"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "bg-[#D99A2B]/20 text-[#D99A2B] border border-[#D99A2B]/40"
+                      : "text-[#9ba1ad] hover:text-[#f2f3f5]",
                   )}
                 >
-                  Wave
+                  Oscilloscope
                 </button>
               </div>
             </div>
           ) : (
             <div className="relative w-full max-w-lg h-72 my-auto overflow-y-auto px-4 py-8 space-y-4 text-center scroll-smooth no-scrollbar">
               {lyrics.length === 0 ? (
-                <p className="text-sm font-mono text-muted-foreground my-auto">
+                <p className="text-sm font-mono text-[#9ba1ad] my-auto">
                   No time-synced master lyrics available.
                 </p>
               ) : (
@@ -396,8 +435,8 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                     className={cn(
                       "text-base sm:text-lg font-medium transition-all duration-300 cursor-pointer py-1",
                       idx === activeLyricIndex
-                        ? "text-primary text-xl sm:text-2xl font-bold scale-105"
-                        : "text-muted-foreground/40 hover:text-muted-foreground",
+                        ? "text-[#D99A2B] text-xl sm:text-2xl font-bold scale-105"
+                        : "text-[#9ba1ad]/40 hover:text-[#9ba1ad]",
                     )}
                   >
                     {line.text}
@@ -407,15 +446,18 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
             </div>
           )}
 
+          {/* Track Titles */}
           <div className="w-full text-center mt-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground truncate">
+            <h2 className="text-2xl sm:text-3xl font-bold text-[#f2f3f5] tracking-tight truncate">
               {currentTrack.title}
             </h2>
-            <p className="text-sm text-muted-foreground mt-0.5 truncate">
-              {currentTrack.artistName || (currentTrack as any).artist}
+            <p className="text-sm text-[#9ba1ad] mt-1 truncate font-medium">
+              {currentTrack.artistName || "Local Artist"}
+              {currentTrack.albumName && <span> · {currentTrack.albumName}</span>}
             </p>
           </div>
 
+          {/* Precision Waveform Timeline Seekbar */}
           <div className="w-full mt-6 space-y-2">
             <Waveform
               seed={currentTrack.id}
@@ -426,60 +468,62 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               onSeek={seek}
               className="h-8 w-full"
             />
-            <div className="flex justify-between text-[11px] font-mono text-muted-foreground/70 tabular-nums">
-              <span className="text-primary/90 font-bold">{formatDuration(currentTime)}</span>
+            <div className="flex justify-between text-xs font-mono text-[#9ba1ad] tabular-nums">
+              <span className="text-[#D99A2B] font-bold">{formatDuration(currentTime)}</span>
               <span>{formatDuration(duration)}</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-6 mt-4 mb-8">
+          {/* Center Transport Controls */}
+          <div className="flex items-center justify-center gap-6 sm:gap-8 mt-4 mb-4">
             <button
               onClick={() => setIsShuffle((s) => !s)}
               className={cn(
-                "p-2 transition-colors cursor-pointer",
-                isShuffle ? "text-primary" : "text-muted-foreground/60 hover:text-foreground",
+                "p-2 transition-colors cursor-pointer rounded-lg",
+                isShuffle ? "text-[#D99A2B]" : "text-[#9ba1ad]/60 hover:text-[#f2f3f5]",
               )}
               title="Shuffle"
             >
               <Shuffle className="h-4 w-4" />
             </button>
+
             <button
               onClick={playPrevious}
-              className="p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="p-3 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-full hover:bg-white/[0.04] transition-colors cursor-pointer"
               title="Previous"
             >
               <SkipBack className="h-6 w-6 fill-current" />
             </button>
-            <button
+
+            {/* Large Gold Circular Center Button */}
+            <motion.button
+              whileTap={{ scale: 0.92 }}
               onClick={togglePlay}
-              className={cn(
-                "flex h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-95 cursor-pointer shadow-xl",
-                isOffline
-                  ? "bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d]"
-                  : "bg-foreground text-background hover:bg-foreground/90",
-              )}
+              className="h-16 w-16 sm:h-18 sm:w-18 rounded-full bg-gradient-to-b from-[#f5b84c] via-[#D99A2B] to-[#b37a1a] text-[#08090B] shadow-[0_0_35px_rgba(217,154,43,0.45)] hover:shadow-[0_0_45px_rgba(217,154,43,0.65)] flex items-center justify-center cursor-pointer border border-[#fbd38d]/40 transition-transform"
               title={isPlaying ? "Pause" : "Play"}
             >
               {status === "loading" || status === "buffering" ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-8 w-8 animate-spin" />
               ) : isPlaying ? (
-                <Pause className="h-6 w-6 fill-current" />
+                <Pause className="h-8 w-8 fill-current" />
               ) : (
-                <Play className="h-6 w-6 fill-current ml-0.5" />
+                <Play className="h-8 w-8 fill-current ml-1" />
               )}
-            </button>
+            </motion.button>
+
             <button
               onClick={playNext}
-              className="p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="p-3 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-full hover:bg-white/[0.04] transition-colors cursor-pointer"
               title="Next"
             >
               <SkipForward className="h-6 w-6 fill-current" />
             </button>
+
             <button
               onClick={() => setIsRepeat((r) => !r)}
               className={cn(
-                "p-2 transition-colors cursor-pointer",
-                isRepeat ? "text-primary" : "text-muted-foreground/60 hover:text-foreground",
+                "p-2 transition-colors cursor-pointer rounded-lg",
+                isRepeat ? "text-[#D99A2B]" : "text-[#9ba1ad]/60 hover:text-[#f2f3f5]",
               )}
               title="Repeat"
             >
@@ -487,127 +531,108 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
             </button>
           </div>
 
-          <div className="flex items-center justify-between w-full max-w-xs gap-3 pb-6">
+          {/* Volume Slider in Fullscreen */}
+          <div className="flex items-center gap-3 w-full max-w-xs justify-center mb-6">
             <button
               onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
-              className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="text-[#9ba1ad] hover:text-[#f2f3f5] cursor-pointer"
             >
-              {volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              {volume === 0 ? <VolumeX className="h-4 w-4 text-red-400" /> : <Volume2 className="h-4 w-4" />}
             </button>
-            <Slider
-              value={[volume * 100]}
-              max={100}
-              step={1}
-              onValueChange={(val) => {
-                const newVol = (val[0] ?? 80) / 100;
-                setVolume(newVol);
-              }}
-              className="flex-1"
-            />
-            <button
-              onClick={openConsole}
-              className={cn(
-                "p-1 transition-colors cursor-pointer",
-                eqEnabled ? "text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-              title="Equalizer"
-            >
-              <Sliders className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex-1">
+              <Slider
+                value={[volume * 100]}
+                max={100}
+                step={1}
+                onValueChange={([val]) => setVolume(val / 100)}
+                className="cursor-pointer"
+              />
+            </div>
+            <span className="text-[10px] font-mono text-[#9ba1ad] w-8 text-right">
+              {Math.round(volume * 100)}%
+            </span>
           </div>
         </main>
 
+        {/* ── Slide-up Queue Drawer within Fullscreen ── */}
         <AnimatePresence>
           {queueDrawerOpen && (
-            <motion.aside
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              className="absolute right-0 top-0 bottom-0 z-30 w-full sm:w-96 bg-[#0a0a0c]/98 border-l border-white/[0.08] p-6 flex flex-col shadow-2xl backdrop-blur-2xl"
+              className="absolute inset-x-0 bottom-0 z-50 max-h-[60vh] rounded-t-3xl border-t border-[#D99A2B]/25 bg-[#08090B] shadow-[0_-20px_60px_rgba(0,0,0,0.95)] flex flex-col"
             >
-              <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08]">
                 <div className="flex items-center gap-2">
-                  <ListMusic className="h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-bold tracking-tight">Active Queue ({queue.length})</h3>
+                  <ListMusic className="h-4 w-4 text-[#D99A2B]" />
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#f2f3f5]">
+                    Play Queue ({queue.length})
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   {queue.length > 0 && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={clearQueue}
-                      className="text-xs text-muted-foreground hover:text-red-400 font-mono transition-colors cursor-pointer"
+                      className="h-8 w-8 text-[#9ba1ad] hover:text-red-400 rounded-lg hover:bg-white/[0.04]"
                     >
-                      Clear
-                    </button>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   )}
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => setQueueDrawerOpen(false)}
-                    className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+                    className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg hover:bg-white/[0.04]"
                   >
                     <X className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              {/* Layam Logo Dropzone / Add Master Trigger */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="my-3 flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] p-2.5 text-center transition-all cursor-pointer hover:border-primary/40 hover:bg-white/[0.04]"
-              >
-                <img src="/logo.png" alt="Layam" className="h-4 w-4 rounded object-contain opacity-80" />
-                <span className="text-[11px] font-mono text-muted-foreground">
-                  Drop audio masters to queue
-                </span>
-              </div>
-
-              <ul className="flex-1 overflow-y-auto divide-y divide-white/[0.03] py-2">
+              <ul className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
                 {queue.map((track, i) => (
                   <li
                     key={`${track.id}-${i}`}
-                    className={cn(
-                      "flex items-center justify-between gap-3 p-3 rounded-xl transition-colors cursor-pointer group",
-                      i === queueIndex ? "bg-primary/10 text-primary font-medium" : "hover:bg-white/[0.03]",
-                    )}
                     onClick={() => playFromQueue(i)}
+                    className={cn(
+                      "flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs transition-colors cursor-pointer",
+                      i === queueIndex
+                        ? "bg-[#D99A2B]/10 text-[#D99A2B] font-medium border border-[#D99A2B]/20"
+                        : "text-[#f2f3f5] hover:bg-white/[0.04]"
+                    )}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <img
-                        src={track.coverImage}
+                        src={track.coverImage || "/logo.png"}
                         alt={track.title}
-                        className="h-9 w-9 rounded-lg object-cover"
+                        className="h-9 w-9 rounded-lg object-cover flex-shrink-0 bg-[#121316]"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = "/logo.png";
+                        }}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium truncate">{track.title}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {track.artistName}
+                        <p className="truncate font-medium">{track.title}</p>
+                        <p className="truncate text-[11px] text-[#9ba1ad]">
+                          {track.artistName || "Local Artist"}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-muted-foreground/60">
-                        {formatDuration(track.duration)}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFromQueue(i);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 p-1 cursor-pointer transition-opacity"
-                        title="Remove track"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    <span className="font-mono text-[10px] text-[#9ba1ad]">
+                      {formatDuration(track.duration || 0)}
+                    </span>
                   </li>
                 ))}
               </ul>
-            </motion.aside>
+            </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
     </AnimatePresence>
   );
 }
+
+export default FullscreenAudiophilePlayer;
