@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { usePlayer } from "./player";
+import { usePlayer, globalAudioEngine } from "./player";
 
 interface GlobalHotkeysOptions {
   onToggleConsole?: () => void;
@@ -14,6 +14,8 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
     isPlaying,
     togglePlay,
     seek,
+    seekToTime,
+    seekRelative,
     currentTime,
     duration,
     playNext,
@@ -31,6 +33,7 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
       // Ignore if user is currently typing in an input, textarea or editable element
       if (
         target &&
+        typeof target.getAttribute === "function" &&
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
           target.isContentEditable ||
@@ -39,22 +42,22 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
         return;
       }
 
+      const activeTrack = currentTrack || globalAudioEngine.state.currentTrack;
+
       if (e.key === " " || e.code === "Space") {
-        if (currentTrack) {
+        if (activeTrack) {
           e.preventDefault();
           togglePlay();
         }
       } else if (e.key === "ArrowLeft" && !e.shiftKey) {
-        if (currentTrack && duration > 0) {
+        if (activeTrack) {
           e.preventDefault();
-          const targetTime = Math.max(0, currentTime - 5);
-          seek((targetTime / duration) * 100);
+          globalAudioEngine.seekRelative(-10);
         }
       } else if (e.key === "ArrowRight" && !e.shiftKey) {
-        if (currentTrack && duration > 0) {
+        if (activeTrack) {
           e.preventDefault();
-          const targetTime = Math.min(duration, currentTime + 5);
-          seek((targetTime / duration) * 100);
+          globalAudioEngine.seekRelative(10);
         }
       } else if (e.key === "ArrowLeft" && e.shiftKey) {
         e.preventDefault();
@@ -90,8 +93,8 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [
     currentTrack,
     isPlaying,
@@ -101,6 +104,8 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
     isExpanded,
     togglePlay,
     seek,
+    seekToTime,
+    seekRelative,
     playNext,
     playPrevious,
     setVolume,

@@ -308,10 +308,29 @@ export class AudioEngine {
     if (!this.audio) return;
     const dur = this.audio.duration || this.state.currentTrack?.duration || 0;
     if (dur > 0) {
-      const targetTime = Math.max(0, Math.min(1, percent)) * dur;
+      const ratio = percent > 1 ? Math.max(0, Math.min(100, percent)) / 100 : Math.max(0, Math.min(1, percent));
+      const targetTime = ratio * dur;
       this.audio.currentTime = targetTime;
-      this.setState({ currentTime: targetTime, progress: percent * 100 });
+      this.setState({ currentTime: targetTime, progress: ratio * 100 });
     }
+  }
+
+  public seekToTime(seconds: number): void {
+    if (!this.audio) return;
+    const dur = this.audio.duration || this.state.currentTrack?.duration || 0;
+    if (dur > 0) {
+      const clampedTime = Math.max(0, Math.min(dur, seconds));
+      this.audio.currentTime = clampedTime;
+      this.setState({ currentTime: clampedTime, progress: (clampedTime / dur) * 100 });
+    }
+  }
+
+  public seekRelative(deltaSeconds: number): void {
+    if (!this.audio) return;
+    const dur = this.audio.duration || this.state.currentTrack?.duration || 0;
+    const cur = this.audio.currentTime ?? this.state.currentTime ?? 0;
+    const target = Math.max(0, Math.min(dur > 0 ? dur : cur + deltaSeconds, cur + deltaSeconds));
+    this.seekToTime(target);
   }
 
   public setVolume(vol: number): void {

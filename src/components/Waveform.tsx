@@ -58,6 +58,7 @@ export function Waveform({
   variant = "neon",
 }: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
   const [hoverPercent, setHoverPercent] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -87,16 +88,17 @@ export function Waveform({
       const percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
       setHoverPercent(percent);
 
-      if (isDragging && onSeek) {
+      if (isDraggingRef.current && onSeek) {
         onSeek(percent);
       }
     },
-    [isDragging, onSeek],
+    [onSeek],
   );
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!onSeek || !containerRef.current) return;
+      isDraggingRef.current = true;
       setIsDragging(true);
       const rect = containerRef.current.getBoundingClientRect();
       const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
@@ -108,6 +110,7 @@ export function Waveform({
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      isDraggingRef.current = false;
       setIsDragging(false);
       try {
         if (containerRef.current?.hasPointerCapture(e.pointerId)) {
@@ -121,10 +124,10 @@ export function Waveform({
   );
 
   const handlePointerLeave = useCallback(() => {
-    if (!isDragging) {
+    if (!isDraggingRef.current) {
       setHoverPercent(null);
     }
-  }, [isDragging]);
+  }, []);
 
   const hoverTime = hoverPercent !== null ? (hoverPercent / 100) * duration : 0;
 

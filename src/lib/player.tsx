@@ -21,6 +21,7 @@ import {
 } from "./dsp.engine";
 
 export {
+  globalAudioEngine,
   EQ_FREQUENCIES,
   EQ_PRESETS,
   type SpatialRoomPreset,
@@ -37,6 +38,8 @@ export interface PlayerContextValue extends AudioEngineState {
   resume: () => void;
   setVolume: (volume: number) => void;
   seek: (percent: number) => void;
+  seekToTime: (seconds: number) => void;
+  seekRelative: (deltaSeconds: number) => void;
   playNext: () => void;
   playPrevious: () => void;
   addToQueue: (track: Track) => void;
@@ -113,6 +116,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const seek = useCallback((pct: number) => {
     globalAudioEngine.seek(pct);
+  }, []);
+
+  const seekToTime = useCallback((seconds: number) => {
+    globalAudioEngine.seekToTime(seconds);
+  }, []);
+
+  const seekRelative = useCallback((deltaSeconds: number) => {
+    globalAudioEngine.seekRelative(deltaSeconds);
   }, []);
 
   const playNext = useCallback(() => {
@@ -218,6 +229,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         resume,
         setVolume,
         seek,
+        seekToTime,
+        seekRelative,
         playNext,
         playPrevious,
         addToQueue,
