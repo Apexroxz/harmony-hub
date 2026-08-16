@@ -18,12 +18,15 @@ import {
   ShieldAlert,
   Cpu,
 } from "lucide-react";
+import { usePlayer } from "@/lib/player";
 import {
-  usePlayer,
   EQ_FREQUENCIES,
   EQ_PRESETS,
-  type SpatialRoomPreset,
-} from "@/lib/player";
+  SoundProfile,
+  SpatialRoomPreset,
+  SPATIAL_ROOM_PRESETS,
+  globalDspEngine,
+} from "@layam/audio-core";
 import { cn } from "@/lib/utils";
 
 interface AudioConsoleModalProps {
@@ -33,24 +36,25 @@ interface AudioConsoleModalProps {
 
 export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
   const {
-    eqEnabled,
     eqGains,
-    eqPreset,
-    bassBoostLevel,
-    trebleLevel,
-    stereoWidth,
-    normalizerEnabled,
-    spatialMode,
-    spatialAmbience,
     setEqGain,
+    eqPreset,
     setEqPreset,
+    eqEnabled,
     toggleEq,
+    bassBoostLevel,
     setBassBoostLevel,
+    trebleLevel,
     setTrebleLevel,
+    stereoWidth,
     setStereoWidth,
+    normalizerEnabled,
     toggleNormalizer,
+    spatialMode,
     setSpatialMode,
+    spatialAmbience,
     setSpatialAmbience,
+    applyFullSoundProfile,
     getAnalyserNode,
     isPlaying,
     currentTrack,
@@ -59,6 +63,22 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const [visualizerMode, setVisualizerMode] = useState<"bars" | "wave">("bars");
+  const [telemetry, setTelemetry] = useState(() => ({
+    truePeakDb: -90,
+    lufs: -90,
+    phaseCorrelation: 1.0,
+    dynamicRangeDb: 0,
+    isClipping: false,
+  }));
+
+  // Periodic broadcast telemetry update loop
+  useEffect(() => {
+    if (!open || !isPlaying) return;
+    const interval = setInterval(() => {
+      setTelemetry(globalDspEngine.getBroadcastTelemetry());
+    }, 150);
+    return () => clearInterval(interval);
+  }, [open, isPlaying]);
 
   // Real-time 60fps FFT spectrum visualizer loop
   useEffect(() => {
@@ -240,12 +260,23 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
             {/* Hardware Status Indicators & Master Controls */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               {/* Telemetry Status Badges */}
-              <div className="hidden md:flex items-center gap-1.5 font-mono text-[10px]">
+              <div className="hidden lg:flex items-center gap-1.5 font-mono text-[10px]">
                 <span className="px-2 py-0.5 rounded bg-[#0D0E12] border border-[#D99A2B]/30 text-[#D99A2B] font-bold">
                   DSP {eqEnabled ? "ACTIVE" : "DIRECT"}
                 </span>
+                <span
+                  className={cn(
+                    "px-2 py-0.5 rounded bg-[#0D0E12] border font-bold tabular-nums",
+                    telemetry.isClipping ? "border-rose-500/50 text-rose-400" : "border-white/[0.08] text-[#f2f3f5]"
+                  )}
+                >
+                  PEAK: {telemetry.truePeakDb > -80 ? `${telemetry.truePeakDb > 0 ? "+" : ""}${telemetry.truePeakDb} dBTP` : "-inf"}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-[#0D0E12] border border-white/[0.08] text-amber-300 font-bold tabular-nums">
+                  LUFS: {telemetry.lufs > -80 ? `${telemetry.lufs}` : "-inf"}
+                </span>
                 <span className="px-2 py-0.5 rounded bg-[#0D0E12] border border-white/[0.08] text-[#9ba1ad]">
-                  OUTPUT: 64-BIT PCM
+                  MONO-BASS: &lt;120Hz
                 </span>
               </div>
 
