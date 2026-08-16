@@ -275,18 +275,15 @@ export class DspEngine {
       }
       this.analyser = win.__LAYAM_ANALYSER_NODE__;
 
-      // Connect series chain: sourceNode -> filters[0..9] -> bassNode -> trebleNode -> compressor -> stereoSplitter -> (M/S) -> stereoMerger -> roomNetwork -> headroomGain -> destination
-      try {
-        this.sourceNode.disconnect();
-      } catch {}
-
-      let prevNode: AudioNode = this.sourceNode;
-      for (const filter of this.filters) {
+      // 1. Connect series DSP chain internally:
+      // filters[0] -> filters[1] -> ... -> filters[9] -> bassNode -> trebleNode -> compressor -> stereoSplitter -> (M/S) -> stereoMerger -> roomNetwork -> headroomGain -> destination
+      let prevNode: AudioNode = this.filters[0];
+      for (let i = 1; i < this.filters.length; i++) {
         try {
-          filter.disconnect();
+          this.filters[i].disconnect();
         } catch {}
-        prevNode.connect(filter);
-        prevNode = filter;
+        prevNode.connect(this.filters[i]);
+        prevNode = this.filters[i];
       }
 
       try {
@@ -336,6 +333,21 @@ export class DspEngine {
       } catch {}
       this.headroomGain.connect(this.analyser);
 
+      // 2. Connect sourceNode according to bypass state:
+      if (typeof window !== "undefined" && (window as any).__LAYAM_DSP_BYPASSED__ !== undefined) {
+        this.isBypassed = Boolean((window as any).__LAYAM_DSP_BYPASSED__);
+      }
+
+      try {
+        this.sourceNode.disconnect();
+      } catch {}
+
+      if (this.isBypassed) {
+        this.sourceNode.connect(this.headroomGain);
+      } else {
+        this.sourceNode.connect(this.filters[0]);
+      }
+
       this.isInitialized = true;
     } catch (err) {
       console.warn("[DspEngine] Web Audio tap initialization deferred:", err);
@@ -383,6 +395,9 @@ export class DspEngine {
   }
 
   public isDspBypassed(): boolean {
+    if (typeof window !== "undefined" && (window as any).__LAYAM_DSP_BYPASSED__ !== undefined) {
+      this.isBypassed = Boolean((window as any).__LAYAM_DSP_BYPASSED__);
+    }
     return this.isBypassed;
   }
 
@@ -408,6 +423,10 @@ export class DspEngine {
         source.connect(headroom);
       }
       this.isBypassed = false;
+    }
+
+    if (typeof window !== "undefined") {
+      (window as any).__LAYAM_DSP_BYPASSED__ = this.isBypassed;
     }
   }
 
