@@ -23,11 +23,11 @@ import {
 } from "lucide-react";
 import { UserMenu } from "./UserMenu";
 import { ModeSwitch } from "./ModeSwitch";
-import { AudioConsoleModal } from "./AudioConsoleModal";
 import { OfflineSettingsModal } from "./OfflineSettingsModal";
 import { OctalysisGamificationModal } from "./OctalysisGamificationModal";
 import { AudioComparisonModal } from "./AudioComparisonModal";
 import { useAppMode } from "@/lib/mode";
+import { usePlayer } from "@/lib/player";
 import { useAuth } from "@/lib/auth";
 import { useI18n, type LanguageCode } from "@/lib/i18n";
 import { useGamification } from "@/lib/gamification";
@@ -62,10 +62,10 @@ const offlineNav = [
 export function Header() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isOffline } = useAppMode();
+  const { openConsole } = usePlayer();
   const { isArtist, isListener } = useAuth();
   const { language, setLanguage, languages, t } = useI18n();
   const { state: gamificationState, levelInfo } = useGamification();
-  const [consoleOpen, setConsoleOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [gamificationOpen, setGamificationOpen] = useState(false);
   const [blindTestOpen, setBlindTestOpen] = useState(false);
@@ -150,7 +150,7 @@ export function Header() {
                     </Link>
                   ))}
                   <button
-                    onClick={() => setConsoleOpen(true)}
+                    onClick={openConsole}
                     className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer border border-transparent hover:border-primary/20"
                   >
                     <Sliders className="h-3.5 w-3.5" />
@@ -299,9 +299,6 @@ export function Header() {
           </div>
         </div>
       </header>
-
-      {/* Audio Console Modal */}
-      <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
 
       {/* Offline Settings Modal */}
       <OfflineSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />

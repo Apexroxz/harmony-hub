@@ -25,6 +25,7 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
     isExpanded,
     expandPlayer,
     collapsePlayer,
+    toggleConsole,
   } = usePlayer();
 
   useEffect(() => {
@@ -76,7 +77,11 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
         setVolume(volume === 0 ? 0.8 : 0);
       } else if (e.key.toLowerCase() === "e" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
-        options.onToggleConsole?.();
+        if (options.onToggleConsole) {
+          options.onToggleConsole();
+        } else {
+          toggleConsole();
+        }
       } else if (e.key.toLowerCase() === "d" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         options.onToggleDac?.();

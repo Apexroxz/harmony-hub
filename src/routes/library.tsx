@@ -45,7 +45,6 @@ import {
 import { PurchaseService } from "@/domain/music/purchases";
 import { formatDuration, qualityLabel, type Track } from "@/domain/music/types";
 import { QualityBadge } from "@/components/QualityBadge";
-import { AudioConsoleModal } from "@/components/AudioConsoleModal";
 import { SmartPlaylistGenerator } from "@/components/SmartPlaylistGenerator";
 import { PlaylistBackupModal } from "@/components/PlaylistBackupModal";
 import { Button } from "@/components/ui/button";
@@ -106,7 +105,7 @@ function LibraryPage() {
     removeTrackFromPlaylist,
   } = useAppMode();
   const { allTracks, likedIds } = useLibrary();
-  const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay, openConsole } = usePlayer();
 
   // Primary navigation tabs
   const [offlineTab, setOfflineTab] = useState<OfflinePrimaryTab>(
@@ -115,7 +114,6 @@ function LibraryPage() {
       : "tracks",
   );
   const [onlineTab, setOnlineTab] = useState<OnlineTab>("purchased");
-  const [consoleOpen, setConsoleOpen] = useState(false);
 
   // Search & Filter state
   const [trackSearchQuery, setTrackSearchQuery] = useState("");
@@ -500,7 +498,7 @@ function LibraryPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setConsoleOpen(true)}
+              onClick={openConsole}
               className="rounded-full text-xs font-bold gap-1.5 border-primary/40 text-primary hover:bg-primary/10 h-9 cursor-pointer"
             >
               <Sliders className="h-3.5 w-3.5" />
@@ -1280,8 +1278,7 @@ function LibraryPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Audio Console & Backup Modals ── */}
-      <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
+      {/* ── Playlist Backup Modal ── */}
       <PlaylistBackupModal open={backupModalOpen} onClose={() => setBackupModalOpen(false)} />
     </>
   );

@@ -24,7 +24,6 @@ import { tracks as storeCatalogTracks } from "@/domain/music/catalog";
 import { formatNumber, formatDuration, type Track } from "@/domain/music/types";
 import { useAppMode, type LocalTrack } from "@/lib/mode";
 import { usePlayer } from "@/lib/player";
-import { AudioConsoleModal } from "@/components/AudioConsoleModal";
 import { TrackCard } from "@/components/TrackCard";
 import { TrackGridSkeleton, LoadError } from "@/components/CatalogState";
 import { Button } from "@/components/ui/button";
@@ -75,8 +74,7 @@ function OfflineHiFiDashboard() {
     formatsSummary,
     importLocalFiles,
   } = useAppMode();
-  const { playTrack, expandPlayer, currentTrack } = usePlayer();
-  const [consoleOpen, setConsoleOpen] = useState(false);
+  const { playTrack, expandPlayer, currentTrack, openConsole } = usePlayer();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -162,7 +160,7 @@ function OfflineHiFiDashboard() {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => setConsoleOpen(true)}
+              onClick={openConsole}
               className="rounded-full border-border/60 text-foreground hover:bg-surface-raised font-bold gap-2 bg-surface h-11 px-6 cursor-pointer"
             >
               <Sliders className="h-4 w-4 text-primary" />
@@ -408,9 +406,6 @@ function OfflineHiFiDashboard() {
           ))}
         </div>
       </section>
-
-      {/* Audio Console Modal */}
-      <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
     </div>
   );
 }

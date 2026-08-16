@@ -25,9 +25,11 @@ import { PlayerBar } from "../components/PlayerBar";
 import { AudioConsoleModal } from "../components/AudioConsoleModal";
 import { FullscreenAudiophilePlayer } from "../components/FullscreenAudiophilePlayer";
 import { usePlayer } from "../lib/player";
+import { useGlobalHotkeys } from "../lib/useGlobalHotkeys";
 
 function RootPlayerShell() {
   const { isConsoleOpen, closeConsole, isExpanded, collapsePlayer } = usePlayer();
+  useGlobalHotkeys();
   return (
     <>
       <div className="flex min-h-screen flex-col bg-background text-foreground">
