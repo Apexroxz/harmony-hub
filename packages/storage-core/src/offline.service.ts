@@ -57,108 +57,7 @@ const LOCAL_PLAYLISTS_KEY = "layam_local_playlists";
 const OFFLINE_SETTINGS_KEY = "layam_offline_settings";
 const OFFLINE_EVENT = "layam:offline-updated";
 
-export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [
-  {
-    id: "local-midnight-protocol",
-    title: "Midnight Protocol",
-    artistId: "neon-drifter",
-    artistName: "Neon Drifter",
-    artist: "Neon Drifter",
-    coverImage: cover1,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    duration: 371,
-    genre: "Synthwave",
-    quality: "FLAC",
-    format: "FLAC",
-    source: "offline",
-    bitrate: 1411,
-    sampleRate: 44100,
-    bitDepth: 16,
-    playCount: 0,
-    likes: 0,
-    comments: 0,
-    createdAt: "2026-08-01",
-    uploaderId: "local-device",
-    folderPath: "Music/Synthwave",
-    album: "Midnight Sessions",
-    fileSizeBytes: 65400000,
-  },
-  {
-    id: "local-phantom-waves",
-    title: "Phantom Waves",
-    artistId: "solana-siren",
-    artistName: "Solana Siren",
-    artist: "Solana Siren",
-    coverImage: cover3,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-    duration: 337,
-    genre: "Electropop",
-    quality: "WAV",
-    format: "WAV",
-    source: "offline",
-    bitrate: 4608,
-    sampleRate: 96000,
-    bitDepth: 24,
-    playCount: 0,
-    likes: 0,
-    comments: 0,
-    createdAt: "2026-08-05",
-    uploaderId: "local-device",
-    folderPath: "Music/Electropop",
-    album: "Waves Vol 1",
-    fileSizeBytes: 194000000,
-  },
-  {
-    id: "local-hash-rate",
-    title: "Hash Rate",
-    artistId: "byte-bass",
-    artistName: "Byte Bass",
-    artist: "Byte Bass",
-    coverImage: cover5,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-    duration: 342,
-    genre: "Bass",
-    quality: "ALAC",
-    format: "ALAC",
-    source: "offline",
-    bitrate: 1411,
-    sampleRate: 44100,
-    bitDepth: 16,
-    playCount: 0,
-    likes: 0,
-    comments: 0,
-    createdAt: "2026-08-08",
-    uploaderId: "local-device",
-    folderPath: "Downloads/Bass",
-    album: "Grid Beats",
-    fileSizeBytes: 60200000,
-  },
-  {
-    id: "local-chain-reaction",
-    title: "Chain Reaction",
-    artistId: "neon-drifter",
-    artistName: "Neon Drifter",
-    artist: "Neon Drifter",
-    coverImage: cover2,
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-    duration: 226,
-    genre: "Cyberpunk",
-    quality: "FLAC",
-    format: "FLAC",
-    source: "offline",
-    bitrate: 4608,
-    sampleRate: 96000,
-    bitDepth: 24,
-    playCount: 0,
-    likes: 0,
-    comments: 0,
-    createdAt: "2026-08-10",
-    uploaderId: "local-device",
-    folderPath: "Music/Synthwave",
-    album: "Midnight Sessions",
-    fileSizeBytes: 130000000,
-  },
-];
+export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [];
 
 export const DEFAULT_OFFLINE_SETTINGS: OfflineSettings = {
   gaplessPlayback: true,
@@ -177,13 +76,12 @@ export class OfflineService {
   private static listeners = new Set<() => void>();
 
   public static getTracks(): LocalTrack[] {
-    if (typeof window === "undefined") return LOCAL_SAMPLE_TRACKS;
+    if (typeof window === "undefined") return [];
     try {
       const stored = localStorage.getItem(LOCAL_TRACKS_KEY);
-      if (!stored) return LOCAL_SAMPLE_TRACKS;
+      if (!stored) return [];
       const parsed = JSON.parse(stored) as LocalTrack[];
-      const trackList = parsed.length > 0 ? parsed : LOCAL_SAMPLE_TRACKS;
-      return trackList.map((t) => {
+      return parsed.map((t) => {
         const cachedUrl = getCachedAudioBlobUrl(t.id);
         if (cachedUrl) {
           return { ...t, audioUrl: cachedUrl };
@@ -191,14 +89,16 @@ export class OfflineService {
         return t;
       });
     } catch {
-      return LOCAL_SAMPLE_TRACKS;
+      return [];
     }
   }
 
   public static saveTracks(tracks: LocalTrack[]): void {
     if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(LOCAL_TRACKS_KEY, JSON.stringify(tracks));
+      // Strip transient/dead runtime blob URLs before persisting metadata to localStorage
+      const persistentTracks = tracks.map((t) => ({ ...t, audioUrl: "" }));
+      localStorage.setItem(LOCAL_TRACKS_KEY, JSON.stringify(persistentTracks));
       this.notify();
     } catch (e) {
       console.warn("[OfflineService] Failed to save tracks:", e);

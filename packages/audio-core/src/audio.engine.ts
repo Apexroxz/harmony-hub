@@ -185,23 +185,21 @@ export class AudioEngine {
       errorMessage: null,
     });
 
-    // Resolve audio URL: prioritize active blob URLs and local IndexedDB rehydration
+    // Resolve audio URL: for local/offline tracks, ALWAYS get a live fresh blob URL from active memory or IndexedDB
     let finalAudioUrl = "";
 
-    if (track.audioUrl && (track.audioUrl.startsWith("blob:") || track.audioUrl.startsWith("http"))) {
-      finalAudioUrl = track.audioUrl;
-    }
-
-    if (!finalAudioUrl && (track.source === "offline" || track.id.startsWith("local-"))) {
+    if (track.source === "offline" || track.id.startsWith("local-")) {
       try {
-        const blobUrl = await getAudioBlobUrl(track.id);
-        if (blobUrl) {
-          finalAudioUrl = blobUrl;
-          track.audioUrl = blobUrl;
+        const liveBlobUrl = await getAudioBlobUrl(track.id);
+        if (liveBlobUrl) {
+          finalAudioUrl = liveBlobUrl;
+          track.audioUrl = liveBlobUrl;
         }
       } catch (err) {
-        console.warn("[AudioEngine] Blob rehydration note:", err);
+        console.warn("[AudioEngine] Blob resolution note:", err);
       }
+    } else if (track.audioUrl && !track.audioUrl.startsWith("blob:")) {
+      finalAudioUrl = track.audioUrl;
     }
 
     // Only fallback to synth/online demo if NOT an imported local file

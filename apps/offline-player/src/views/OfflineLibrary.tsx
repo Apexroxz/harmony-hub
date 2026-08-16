@@ -708,6 +708,13 @@ export function OfflineLibrary() {
                   </tr>
                 );
               })}
+              {filteredTracks.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-xs text-[#9ba1ad]">
+                    No audio tracks found in local vault. Click "Add Files" or "Scan Folder" above to import music.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
