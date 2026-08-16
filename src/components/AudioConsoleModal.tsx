@@ -509,25 +509,23 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
             </div>
 
             <div className="flex items-center gap-1.5">
-              {(
-                [
-                  "Direct Monitor",
-                  "Studio Master",
-                  "Concert Hall",
-                  "Acoustic Lounge",
-                ] as SpatialRoomPreset[]
-              ).map((mode) => (
+              {[
+                { id: "pure" as SpatialRoomPreset, label: "DIRECT MONITOR" },
+                { id: "studio_control" as SpatialRoomPreset, label: "STUDIO MASTER" },
+                { id: "concert_hall" as SpatialRoomPreset, label: "CONCERT HALL" },
+                { id: "vinyl_lounge" as SpatialRoomPreset, label: "ACOUSTIC LOUNGE" },
+              ].map((preset) => (
                 <button
-                  key={mode}
-                  onClick={() => setSpatialMode(mode)}
+                  key={preset.id}
+                  onClick={() => setSpatialMode(preset.id)}
                   className={cn(
                     "px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold transition-all cursor-pointer border",
-                    spatialMode === mode
+                    spatialMode === preset.id
                       ? "bg-gradient-to-b from-[#f5b84c] via-[#D99A2B] to-[#b37a1a] text-[#08090B] border-[#fbd38d]/60 shadow-[0_0_12px_rgba(217,154,43,0.35)] font-bold"
                       : "bg-[#14161C] text-[#9ba1ad] border-white/[0.06] hover:text-[#f2f3f5] hover:bg-white/[0.04]"
                   )}
                 >
-                  {mode.toUpperCase()}
+                  {preset.label}
                 </button>
               ))}
             </div>
