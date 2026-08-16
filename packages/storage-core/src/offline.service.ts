@@ -1,7 +1,7 @@
 import type { Track, AudioFormat } from "@/domain/music/types";
 import { extractAudioMetadata, type ExtractedMetadata } from "./audioMetadata";
 import { getAudioFormatName, SUPPORTED_AUDIO_EXTENSIONS } from "@/domain/music/quality-tier";
-import { storeAudioBlob, getAudioBlobUrl, deleteAudioBlob } from "./indexedDbAudio";
+import { storeAudioBlob, getAudioBlobUrl, deleteAudioBlob, getCachedAudioBlobUrl } from "./indexedDbAudio";
 import cover1 from "@/assets/covers/cover-1.jpg";
 import cover2 from "@/assets/covers/cover-2.jpg";
 import cover3 from "@/assets/covers/cover-3.jpg";
@@ -182,7 +182,14 @@ export class OfflineService {
       const stored = localStorage.getItem(LOCAL_TRACKS_KEY);
       if (!stored) return LOCAL_SAMPLE_TRACKS;
       const parsed = JSON.parse(stored) as LocalTrack[];
-      return parsed.length > 0 ? parsed : LOCAL_SAMPLE_TRACKS;
+      const trackList = parsed.length > 0 ? parsed : LOCAL_SAMPLE_TRACKS;
+      return trackList.map((t) => {
+        const cachedUrl = getCachedAudioBlobUrl(t.id);
+        if (cachedUrl) {
+          return { ...t, audioUrl: cachedUrl };
+        }
+        return t;
+      });
     } catch {
       return LOCAL_SAMPLE_TRACKS;
     }
@@ -301,7 +308,8 @@ export class OfflineService {
       if (duplicateIndex !== -1) {
         // Track already exists: re-store blob in IndexedDB for the existing track ID without adding a duplicate row
         const existingTrack = updatedExisting[duplicateIndex]!;
-        await storeAudioBlob(existingTrack.id, file, file.name);
+        const reloadedUrl = await storeAudioBlob(existingTrack.id, file, file.name);
+        existingTrack.audioUrl = reloadedUrl;
         continue;
       }
 
@@ -312,7 +320,7 @@ export class OfflineService {
         filename: file.name,
         stage: "Extracting artwork & securing in local vault",
       });
-      await storeAudioBlob(trackId, file, file.name);
+      const blobUrl = await storeAudioBlob(trackId, file, file.name);
 
       const relativePath = (file as unknown as { webkitRelativePath?: string }).webkitRelativePath;
       const folderPath = relativePath
@@ -326,7 +334,7 @@ export class OfflineService {
         artistName: rawArtist,
         artist: rawArtist,
         coverImage: meta.coverImage || coverFallbackArray[i % coverFallbackArray.length]!,
-        audioUrl: "", // Never store transient runtime blob URLs in persistent metadata
+        audioUrl: blobUrl, // Immediate active blob URL for playback
         duration: meta.duration || 180,
         genre: meta.genre || "Audiophile Master",
         quality: meta.format || getAudioFormatName(ext),

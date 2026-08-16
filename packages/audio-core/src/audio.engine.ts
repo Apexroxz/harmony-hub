@@ -40,6 +40,7 @@ export interface AudioEngineState {
 export class AudioEngine {
   private audio: HTMLAudioElement | null = null;
   private loadSeq = 0;
+  private playPromise: Promise<void> | null = null;
   private recordedPlayTrackId: string | null = null;
   private listeners = new Set<() => void>();
   public onPlayRecorded?: (track: Track, durationSec: number) => void;
@@ -164,17 +165,8 @@ export class AudioEngine {
     if (!this.audio) this.initAudioElement();
     const audio = this.audio!;
 
-    globalDspEngine.init(audio);
-    await globalDspEngine.resume();
-
     const seq = ++this.loadSeq;
     this.recordedPlayTrackId = null;
-
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.src = "";
-    } catch {}
 
     let finalQueue = newQueue || this.state.queue;
     if (!newQueue && finalQueue.length === 0) finalQueue = [track];
@@ -193,29 +185,48 @@ export class AudioEngine {
       errorMessage: null,
     });
 
-    // Resolve audio URL (with guaranteed IndexedDB offline blob rehydration)
+    // Resolve audio URL: prioritize active blob URLs and local IndexedDB rehydration
     let finalAudioUrl = "";
 
-    if (track.source === "offline" || track.id.startsWith("local-")) {
+    if (track.audioUrl && (track.audioUrl.startsWith("blob:") || track.audioUrl.startsWith("http"))) {
+      finalAudioUrl = track.audioUrl;
+    }
+
+    if (!finalAudioUrl && (track.source === "offline" || track.id.startsWith("local-"))) {
       try {
         const blobUrl = await getAudioBlobUrl(track.id);
         if (blobUrl) {
           finalAudioUrl = blobUrl;
+          track.audioUrl = blobUrl;
         }
       } catch (err) {
         console.warn("[AudioEngine] Blob rehydration note:", err);
       }
-
-      // If no IndexedDB record found, fallback to original non-blob URL if valid
-      if (!finalAudioUrl && track.audioUrl && !track.audioUrl.startsWith("blob:")) {
-        finalAudioUrl = track.audioUrl;
-      }
-    } else {
-      finalAudioUrl = track.audioUrl || "";
     }
 
-    if (!finalAudioUrl) {
+    // Only fallback to synth/online demo if NOT an imported local file
+    if (!finalAudioUrl && track.source !== "offline" && !track.id.startsWith("local-imported-")) {
       finalAudioUrl = getGuaranteedAudioUrl(track);
+    }
+
+    if (seq !== this.loadSeq) return;
+
+    if (!finalAudioUrl) {
+      console.warn("[AudioEngine] No audio URL found for track:", track.id);
+      this.setState({
+        status: "error",
+        isLoading: false,
+        isPlaying: false,
+        errorMessage: "Audio file unavailable in local vault",
+      });
+      return;
+    }
+
+    // Await any pending play promise before updating src to prevent AbortError
+    if (this.playPromise) {
+      try {
+        await this.playPromise;
+      } catch {}
     }
 
     if (seq !== this.loadSeq) return;
@@ -224,15 +235,23 @@ export class AudioEngine {
     audio.load();
 
     try {
-      await audio.play();
+      this.playPromise = audio.play();
+      await this.playPromise;
       if (seq === this.loadSeq) {
         this.setState({ isPlaying: true, isLoading: false, status: "playing" });
         this.setupMediaSession(track);
       }
-    } catch (err) {
-      console.warn("[AudioEngine] Playback deferred or failed:", err);
-      if (seq === this.loadSeq) {
+    } catch (err: unknown) {
+      const isAbort = (err as { name?: string })?.name === "AbortError";
+      if (!isAbort) {
+        console.warn("[AudioEngine] Playback failed:", err);
+      }
+      if (seq === this.loadSeq && !isAbort) {
         this.setState({ isPlaying: false, isLoading: false, status: "paused" });
+      }
+    } finally {
+      if (seq === this.loadSeq) {
+        this.playPromise = null;
       }
     }
   }
@@ -240,31 +259,50 @@ export class AudioEngine {
   public togglePlay(): void {
     if (!this.audio) return;
     if (this.state.isPlaying) {
-      this.audio.pause();
-      this.setState({ isPlaying: false, status: "paused" });
+      this.pause();
     } else {
-      void globalDspEngine.resume();
-      this.audio
-        .play()
-        .then(() => this.setState({ isPlaying: true, status: "playing" }))
-        .catch(() => {});
+      this.resume();
     }
   }
 
   public pause(): void {
-    if (this.audio) {
+    if (!this.audio) return;
+    if (this.playPromise) {
+      this.playPromise
+        .then(() => {
+          this.audio?.pause();
+          this.setState({ isPlaying: false, status: "paused" });
+        })
+        .catch(() => {
+          this.setState({ isPlaying: false, status: "paused" });
+        });
+    } else {
       this.audio.pause();
       this.setState({ isPlaying: false, status: "paused" });
     }
   }
 
   public resume(): void {
-    if (this.audio) {
-      void globalDspEngine.resume();
-      this.audio
-        .play()
-        .then(() => this.setState({ isPlaying: true, status: "playing" }))
-        .catch(() => {});
+    if (!this.audio) return;
+    if (this.playPromise) return;
+
+    try {
+      this.playPromise = this.audio.play();
+      this.playPromise
+        .then(() => {
+          this.setState({ isPlaying: true, status: "playing" });
+        })
+        .catch((err: unknown) => {
+          const isAbort = (err as { name?: string })?.name === "AbortError";
+          if (!isAbort) {
+            console.warn("[AudioEngine] Resume failed:", err);
+          }
+        })
+        .finally(() => {
+          this.playPromise = null;
+        });
+    } catch (err) {
+      console.warn("[AudioEngine] Resume exception:", err);
     }
   }
 

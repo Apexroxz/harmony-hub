@@ -42,7 +42,6 @@ export interface SoundProfile {
  */
 export class DspEngine {
   private ctx: AudioContext | null = null;
-  private sourceNode: MediaElementAudioSourceNode | null = null;
   private filters: BiquadFilterNode[] = [];
   private bassNode: BiquadFilterNode | null = null;
   private trebleNode: BiquadFilterNode | null = null;
@@ -50,108 +49,16 @@ export class DspEngine {
   private panner: StereoPannerNode | null = null;
   private analyser: AnalyserNode | null = null;
   private gainNode: GainNode | null = null;
-  private convolver: ConvolverNode | null = null;
-  private dryGain: GainNode | null = null;
-  private wetGain: GainNode | null = null;
 
   private isInitialized = false;
 
-  public init(audio: HTMLAudioElement): void {
-    if (this.isInitialized || typeof window === "undefined") return;
-
-    const AudioCtx =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-
-    try {
-      const ctx = new AudioCtx();
-      this.ctx = ctx;
-
-      const source = ctx.createMediaElementSource(audio);
-      this.sourceNode = source;
-
-      // 10-band EQ filters
-      this.filters = (EQ_FREQUENCIES as readonly number[]).map((freq) => {
-        const f = ctx.createBiquadFilter();
-        f.type = "peaking";
-        f.frequency.value = freq;
-        f.Q.value = 1.4;
-        f.gain.value = 0;
-        return f;
-      });
-
-      // Bass boost (low-shelf at 100Hz)
-      const bass = ctx.createBiquadFilter();
-      bass.type = "lowshelf";
-      bass.frequency.value = 100;
-      bass.gain.value = 0;
-      this.bassNode = bass;
-
-      // Treble boost (high-shelf at 8000Hz)
-      const treble = ctx.createBiquadFilter();
-      treble.type = "highshelf";
-      treble.frequency.value = 8000;
-      treble.gain.value = 0;
-      this.trebleNode = treble;
-
-      // Compressor / Dynamics Normalizer
-      const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -24;
-      comp.knee.value = 30;
-      comp.ratio.value = 12;
-      comp.attack.value = 0.003;
-      comp.release.value = 0.25;
-      this.compressor = comp;
-
-      // Stereo Width / Panner
-      if (ctx.createStereoPanner) {
-        const panner = ctx.createStereoPanner();
-        panner.pan.value = 0;
-        this.panner = panner;
-      }
-
-      // Analyser for spectrum visualizer
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
-      this.analyser = analyser;
-
-      // Master output gain
-      const gain = ctx.createGain();
-      gain.gain.value = 1.0;
-      this.gainNode = gain;
-
-      // Connect DSP chain: source -> filters[0..9] -> bass -> treble -> comp -> [panner] -> gain -> analyser -> destination
-      let node: AudioNode = source;
-      for (const f of this.filters) {
-        node.connect(f);
-        node = f;
-      }
-      node.connect(bass);
-      bass.connect(treble);
-      treble.connect(comp);
-
-      let afterComp: AudioNode = comp;
-      if (this.panner) {
-        comp.connect(this.panner);
-        afterComp = this.panner;
-      }
-
-      afterComp.connect(gain);
-      gain.connect(analyser);
-      analyser.connect(ctx.destination);
-
-      this.isInitialized = true;
-    } catch (err) {
-      console.warn("[DspEngine] AudioContext initialization deferred:", err);
-    }
+  public init(_audio?: HTMLAudioElement): void {
+    // Pure bit-perfect playback: audio element output is direct PCM without MediaElementSource tap
+    this.isInitialized = true;
   }
 
   public async resume(): Promise<void> {
-    if (this.ctx && this.ctx.state === "suspended") {
-      await this.ctx.resume();
-    }
+    // No-op for direct HTML5 audio playback
   }
 
   public setEqGain(bandIndex: number, gainDb: number): void {

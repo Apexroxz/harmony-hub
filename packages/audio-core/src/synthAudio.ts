@@ -235,11 +235,7 @@ export function getGuaranteedAudioUrl(track: {
   genre?: string;
   duration?: number;
 }): string {
-  if (
-    track.audioUrl &&
-    track.audioUrl.trim().length > 0 &&
-    !track.audioUrl.startsWith("blob:")
-  ) {
+  if (track.audioUrl && track.audioUrl.trim().length > 0) {
     return track.audioUrl;
   }
 

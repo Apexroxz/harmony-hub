@@ -84,14 +84,25 @@ export interface StoredAudioRecord {
 // In-memory active blob URL cache to prevent creating duplicate URLs within same session
 const activeUrlCache = new Map<string, string>();
 
+export function getCachedAudioBlobUrl(id: string): string | null {
+  return activeUrlCache.get(id) || null;
+}
+
+export function setCachedAudioBlobUrl(id: string, url: string): void {
+  activeUrlCache.set(id, url);
+}
+
 export async function storeAudioBlob(
   id: string,
   fileOrBlob: Blob,
   name = "audio_master",
-): Promise<void> {
+): Promise<string> {
+  const url = URL.createObjectURL(fileOrBlob);
+  activeUrlCache.set(id, url);
+
   try {
     const db = await getDB();
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORES.AUDIO_BLOBS, "readwrite");
       const store = tx.objectStore(STORES.AUDIO_BLOBS);
 
@@ -110,6 +121,8 @@ export async function storeAudioBlob(
   } catch (err) {
     console.error("[IndexedDB:StoreAudioError]", err);
   }
+
+  return url;
 }
 
 export async function getAudioBlob(id: string): Promise<Blob | null> {
