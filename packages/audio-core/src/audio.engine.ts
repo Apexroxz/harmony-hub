@@ -392,19 +392,28 @@ export class AudioEngine {
     const nextGains = [...this.state.eqGains];
     nextGains[bandIndex] = gainDb;
     globalDspEngine.setEqGain(bandIndex, gainDb);
+    if (!this.state.eqEnabled) {
+      globalDspEngine.setBypass(false);
+    }
     this.setState({ eqGains: nextGains, eqPreset: "Custom", eqEnabled: true });
   }
 
   public setEqPreset(preset: string): void {
     const gains = globalDspEngine.setEqPreset(preset);
+    if (!this.state.eqEnabled) {
+      globalDspEngine.setBypass(false);
+    }
     this.setState({ eqPreset: preset, eqGains: gains, eqEnabled: true });
+  }
+
+  public setEqEnabled(enabled: boolean): void {
+    globalDspEngine.setBypass(!enabled);
+    this.setState({ eqEnabled: enabled });
   }
 
   public toggleEq(): void {
     const enabled = !this.state.eqEnabled;
-    if (!enabled) globalDspEngine.setEqGains(Array(10).fill(0));
-    else globalDspEngine.setEqGains(this.state.eqGains);
-    this.setState({ eqEnabled: enabled });
+    this.setEqEnabled(enabled);
   }
 
   public setBassBoostLevel(level: number): void {

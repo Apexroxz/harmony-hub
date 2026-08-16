@@ -58,6 +58,7 @@ export interface PlayerContextValue extends AudioEngineState {
   // EQ & DSP
   setEqGain: (bandIndex: number, gainDb: number) => void;
   setEqPreset: (preset: string) => void;
+  setEqEnabled: (enabled: boolean) => void;
   toggleEq: () => void;
   setBassBoostLevel: (level: number) => void;
   setTrebleLevel: (level: number) => void;
@@ -183,6 +184,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     globalAudioEngine.toggleEq();
   }, []);
 
+  const setEqEnabled = useCallback((enabled: boolean) => {
+    globalAudioEngine.setEqEnabled(enabled);
+  }, []);
+
   const setBassBoostLevel = useCallback((level: number) => {
     globalAudioEngine.setBassBoostLevel(level);
   }, []);
@@ -247,6 +252,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         toggleConsole,
         setEqGain,
         setEqPreset,
+        setEqEnabled,
         toggleEq,
         setBassBoostLevel,
         setTrebleLevel,
