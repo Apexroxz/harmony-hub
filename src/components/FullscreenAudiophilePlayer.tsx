@@ -23,7 +23,6 @@ import {
 import { usePlayer } from "@/lib/player";
 import { useAppMode, type LocalTrack } from "@/lib/mode";
 import { formatDuration, type Track } from "@/domain/music/types";
-import { AudioConsoleModal } from "@/components/AudioConsoleModal";
 import { Waveform } from "@/components/Waveform";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -59,10 +58,11 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
     removeFromQueue,
     clearQueue,
     getAnalyserNode,
+    openConsole,
+    toggleConsole,
   } = usePlayer();
 
   const { isOffline } = useAppMode();
-  const [consoleOpen, setConsoleOpen] = useState(false);
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
   const [isShuffle, setIsShuffle] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
@@ -334,7 +334,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
           <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full rounded-2xl border border-white/[0.08] bg-[#0D0E12] p-2.5 mb-5 text-xs font-mono">
             {/* EQ Button */}
             <button
-              onClick={() => setConsoleOpen(true)}
+              onClick={openConsole}
               className={cn(
                 "flex flex-col items-center justify-center py-2 px-3 rounded-xl border transition-all cursor-pointer",
                 eqEnabled
@@ -353,7 +353,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
 
             {/* DSP Console Button */}
             <button
-              onClick={() => setConsoleOpen(true)}
+              onClick={openConsole}
               className={cn(
                 "flex flex-col items-center justify-center py-2 px-3 rounded-xl border transition-all cursor-pointer border-x border-white/[0.08]",
                 bassBoostLevel > 0 || normalizerEnabled
@@ -513,9 +513,6 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
             </motion.aside>
           )}
         </AnimatePresence>
-
-        {/* Studio Audio Console Modal */}
-        <AudioConsoleModal open={consoleOpen} onClose={() => setConsoleOpen(false)} />
       </motion.div>
     </AnimatePresence>
   );
