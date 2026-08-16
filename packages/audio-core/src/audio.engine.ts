@@ -96,6 +96,7 @@ export class AudioEngine {
     if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
       try {
         LayamNativeAudio.addListener("onPlaybackStateChanged", (data) => {
+          console.log(`[LAYAM_JS] native playback state received: isPlaying=${data.isPlaying} state=${data.state} posMs=${data.positionMs} durMs=${data.durationMs}`);
           this.setState({
             isPlaying: data.isPlaying,
             status: data.isPlaying ? "playing" : (data.state === "BUFFERING" ? "buffering" : "paused"),
@@ -106,6 +107,7 @@ export class AudioEngine {
         });
 
         LayamNativeAudio.addListener("onPositionDiscontinuity", (data) => {
+          console.log(`[LAYAM_JS] native position discontinuity: posMs=${data.positionMs}`);
           const dur = this.state.duration || 0;
           this.setState({
             currentTime: data.positionMs / 1000,
@@ -114,6 +116,7 @@ export class AudioEngine {
         });
 
         LayamNativeAudio.addListener("onError", (data) => {
+          console.error(`[LAYAM_JS] native error received: code=${data.errorCode} msg=${data.errorMessage}`);
           this.setState({
             status: "error",
             errorMessage: data.errorMessage,
@@ -269,8 +272,19 @@ export class AudioEngine {
     if (seq !== this.loadSeq) return;
 
     if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      let nativeUri = getNativeAudioUri(track.id) || (track as any).nativeUri || (track as any).contentUri;
+      if (!nativeUri && (track.audioUrl?.startsWith("content://") || track.audioUrl?.startsWith("file://"))) {
+        nativeUri = track.audioUrl;
+      }
+      if (!nativeUri) {
+        nativeUri = finalAudioUrl;
+      }
+      console.log(`[LAYAM_JS] Play click: trackId=${track.id} title=${track.title} resolvedUri=${nativeUri}`);
+      if (nativeUri.startsWith("blob:")) {
+        console.warn(`[LAYAM_JS] WARNING: URI is blob URL on Android: ${nativeUri}`);
+      }
       void androidMedia3.playTrack({
-        uri: finalAudioUrl,
+        uri: nativeUri,
         title: track.title,
         artist: track.artist,
         album: track.album || "Layam Vault",

@@ -78,10 +78,12 @@ export class AndroidMedia3Bridge {
   public async playTrack(payload: NativeTrackPayload): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
     try {
+      console.log(`[LAYAM_JS] calling native playTrack: uri=${payload.uri} title=${payload.title} posMs=${payload.positionMs}`);
       const res = await LayamNativeAudio.playTrack(payload);
+      console.log(`[LAYAM_JS] native playTrack resolved: success=${res.success}`);
       return res.success;
     } catch (e) {
-      console.warn("[AndroidMedia3Bridge] playTrack error:", e);
+      console.error("[LAYAM_JS] native error received:", e);
       return false;
     }
   }

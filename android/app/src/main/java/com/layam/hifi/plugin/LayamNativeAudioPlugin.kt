@@ -38,6 +38,7 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
     fun playTrack(call: PluginCall) {
         val uri = call.getString("uri")
         if (uri.isNullOrBlank()) {
+            android.util.Log.e("LAYAM_PLAY", "[LAYAM_PLAY] playTrack REJECTED: URI is null or blank")
             call.reject("URI is required")
             return
         }
@@ -51,11 +52,16 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
             ?: call.getLong("positionMs")
             ?: call.data.optLong("positionMs", 0L)
 
+        val parsedUri = try { Uri.parse(uri) } catch (_: Exception) { null }
+        android.util.Log.i("LAYAM_PLAY", "[LAYAM_PLAY] playTrack CALLED: uri=$uri title=$title artist=$artist album=$album positionMs=$positionMs scheme=${parsedUri?.scheme} authority=${parsedUri?.authority}")
+
         activity?.runOnUiThread {
             try {
                 playerManager.playTrack(uri, title, artist, album, artworkUri, positionMs)
+                android.util.Log.i("LAYAM_PLAY", "[LAYAM_PLAY] playTrack SUCCESS dispatch to playerManager")
                 call.resolve(JSObject().apply { put("success", true) })
             } catch (e: Exception) {
+                android.util.Log.e("LAYAM_PLAY", "[LAYAM_PLAY] playTrack EXCEPTION: ${e.javaClass.name} - ${e.message}", e)
                 call.reject("Native playback failed: ${e.message}", e)
             }
         }
