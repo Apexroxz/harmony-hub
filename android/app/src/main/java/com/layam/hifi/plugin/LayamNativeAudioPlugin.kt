@@ -46,7 +46,10 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
         val artist = call.getString("artist")
         val album = call.getString("album")
         val artworkUri = call.getString("artworkUri")
-        val positionMs = call.getLong("positionMs") ?: 0L
+        val positionMs = call.getDouble("positionMs")?.toLong()
+            ?: call.getInt("positionMs")?.toLong()
+            ?: call.getLong("positionMs")
+            ?: call.data.optLong("positionMs", 0L)
 
         activity?.runOnUiThread {
             try {
@@ -76,7 +79,11 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
 
     @PluginMethod
     fun seekTo(call: PluginCall) {
-        val positionMs = call.getLong("positionMs")
+        val positionMs = call.getDouble("positionMs")?.toLong()
+            ?: call.getInt("positionMs")?.toLong()
+            ?: call.getLong("positionMs")
+            ?: if (call.data.has("positionMs")) call.data.optLong("positionMs", 0L) else null
+
         if (positionMs == null) {
             call.reject("positionMs is required")
             return
@@ -90,7 +97,10 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
 
     @PluginMethod
     fun setVolume(call: PluginCall) {
-        val volume = call.getFloat("volume") ?: 1.0f
+        val volume = call.getDouble("volume")?.toFloat()
+            ?: call.getFloat("volume")
+            ?: call.getInt("volume")?.toFloat()
+            ?: 1.0f
         activity?.runOnUiThread {
             playerManager.setVolume(volume)
             call.resolve(JSObject().apply { put("success", true) })
