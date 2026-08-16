@@ -2,6 +2,7 @@ import type { Track } from "@/domain/music/types";
 import { getAudioBlobUrl } from "../../storage-core/src/indexedDbAudio";
 import { getGuaranteedAudioUrl } from "./synthAudio";
 import { globalDspEngine, type SoundProfile, type SpatialRoomPreset } from "./dsp.engine";
+import { androidMedia3, LayamNativeAudio } from "./native/android-media3.bridge";
 
 export type PlayerStatus = "idle" | "loading" | "buffering" | "playing" | "paused" | "error";
 
@@ -92,6 +93,38 @@ export class AudioEngine {
   }
 
   private attachAudioListeners(): void {
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      try {
+        LayamNativeAudio.addListener("onPlaybackStateChanged", (data) => {
+          this.setState({
+            isPlaying: data.isPlaying,
+            status: data.isPlaying ? "playing" : (data.state === "BUFFERING" ? "buffering" : "paused"),
+            currentTime: data.positionMs / 1000,
+            duration: data.durationMs > 0 ? data.durationMs / 1000 : (this.state.duration || 0),
+            progress: data.durationMs > 0 ? Math.min(100, (data.positionMs / data.durationMs) * 100) : 0,
+          });
+        });
+
+        LayamNativeAudio.addListener("onPositionDiscontinuity", (data) => {
+          const dur = this.state.duration || 0;
+          this.setState({
+            currentTime: data.positionMs / 1000,
+            progress: dur > 0 ? Math.min(100, (data.positionMs / (dur * 1000)) * 100) : 0,
+          });
+        });
+
+        LayamNativeAudio.addListener("onError", (data) => {
+          this.setState({
+            status: "error",
+            errorMessage: data.errorMessage,
+            isPlaying: false,
+          });
+        });
+      } catch (err) {
+        console.warn("[AudioEngine] Native listener attachment note:", err);
+      }
+    }
+
     const a = this.audio;
     if (!a) return;
 
@@ -235,6 +268,25 @@ export class AudioEngine {
 
     if (seq !== this.loadSeq) return;
 
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.playTrack({
+        uri: finalAudioUrl,
+        title: track.title,
+        artist: track.artist,
+        album: track.album || "Layam Vault",
+        artworkUri: track.coverUrl,
+        positionMs: 0,
+      });
+      this.setState({
+        isPlaying: true,
+        isLoading: false,
+        status: "playing",
+        currentTrack: track,
+      });
+      this.setupMediaSession(track);
+      return;
+    }
+
     audio.src = finalAudioUrl;
     audio.load();
 
@@ -261,7 +313,6 @@ export class AudioEngine {
   }
 
   public togglePlay(): void {
-    if (!this.audio) return;
     if (this.state.isPlaying) {
       this.pause();
     } else {
@@ -270,6 +321,12 @@ export class AudioEngine {
   }
 
   public pause(): void {
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.pause();
+      this.setState({ isPlaying: false, status: "paused" });
+      return;
+    }
+
     if (!this.audio) return;
     if (this.playPromise) {
       this.playPromise
@@ -287,6 +344,12 @@ export class AudioEngine {
   }
 
   public resume(): void {
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.resume();
+      this.setState({ isPlaying: true, status: "playing" });
+      return;
+    }
+
     if (!this.audio) return;
     if (this.playPromise) return;
 
@@ -314,36 +377,52 @@ export class AudioEngine {
   }
 
   public seek(percent: number): void {
-    if (!this.audio) return;
-    const dur = this.audio.duration || this.state.currentTrack?.duration || 0;
+    const dur = this.state.duration || this.audio?.duration || this.state.currentTrack?.duration || 0;
     if (dur > 0) {
       const ratio = percent > 1 ? Math.max(0, Math.min(100, percent)) / 100 : Math.max(0, Math.min(1, percent));
       const targetTime = ratio * dur;
-      this.audio.currentTime = targetTime;
-      this.setState({ currentTime: targetTime, progress: ratio * 100 });
+
+      if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+        void androidMedia3.seekToSeconds(targetTime);
+        this.setState({ currentTime: targetTime, progress: ratio * 100 });
+        return;
+      }
+
+      if (this.audio) {
+        this.audio.currentTime = targetTime;
+        this.setState({ currentTime: targetTime, progress: ratio * 100 });
+      }
     }
   }
 
   public seekToTime(seconds: number): void {
-    if (!this.audio) return;
-    const dur = this.audio.duration || this.state.currentTrack?.duration || 0;
+    const dur = this.state.duration || this.audio?.duration || this.state.currentTrack?.duration || 0;
     if (dur > 0) {
       const clampedTime = Math.max(0, Math.min(dur, seconds));
-      this.audio.currentTime = clampedTime;
-      this.setState({ currentTime: clampedTime, progress: (clampedTime / dur) * 100 });
+
+      if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+        void androidMedia3.seekToSeconds(clampedTime);
+        this.setState({ currentTime: clampedTime, progress: (clampedTime / dur) * 100 });
+        return;
+      }
+
+      if (this.audio) {
+        this.audio.currentTime = clampedTime;
+        this.setState({ currentTime: clampedTime, progress: (clampedTime / dur) * 100 });
+      }
     }
   }
 
   public seekRelative(deltaSeconds: number): void {
-    if (!this.audio) return;
-    const dur = this.audio.duration || this.state.currentTrack?.duration || 0;
-    const cur = this.audio.currentTime ?? this.state.currentTime ?? 0;
-    const target = Math.max(0, Math.min(dur > 0 ? dur : cur + deltaSeconds, cur + deltaSeconds));
-    this.seekToTime(target);
+    const cur = this.state.currentTime;
+    this.seekToTime(cur + deltaSeconds);
   }
 
   public setVolume(vol: number): void {
     const clamped = Math.max(0, Math.min(1, vol));
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setVolume(clamped);
+    }
     if (this.audio) this.audio.volume = clamped;
     this.setState({ volume: clamped });
   }

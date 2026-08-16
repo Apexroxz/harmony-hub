@@ -4,3 +4,4 @@
 
 export * from "./dsp.engine";
 export * from "./audio.engine";
+export * from "./native/android-media3.bridge";

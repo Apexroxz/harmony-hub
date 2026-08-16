@@ -1,3 +1,5 @@
+import { androidMedia3 } from "./native/android-media3.bridge";
+
 export const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
 
 export const EQ_PRESETS: Record<string, number[]> = {
@@ -11,6 +13,8 @@ export const EQ_PRESETS: Record<string, number[]> = {
   Electronic: [6, 4, 2, 0, -2, 0, 2, 4, 6, 6],
   Acoustic: [4, 2, 2, 4, 2, 0, -2, -2, 0, 2],
 };
+
+export type SoundProfilePreset = "Audiophile Pure" | "Warm Tube" | "Crisp Air" | "Punchy Dynamic";
 
 export type SpatialRoomPreset =
   | "pure"
@@ -442,6 +446,10 @@ export class DspEngine {
       this.isBypassed = false;
     }
 
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setEqualizerEnabled(!this.isBypassed);
+    }
+
     if (typeof window !== "undefined") {
       (window as any).__LAYAM_DSP_BYPASSED__ = this.isBypassed;
     }
@@ -496,6 +504,9 @@ export class DspEngine {
 
   public setEqGains(gains: number[]): void {
     gains.forEach((gain, index) => this.setEqGain(index, gain));
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setEqualizerGains(gains);
+    }
   }
 
   public setEqPreset(presetName: string): number[] {
@@ -520,6 +531,9 @@ export class DspEngine {
     if (bass && ctx) {
       const clamped = Math.max(0, Math.min(10, levelDb));
       bass.gain.setTargetAtTime(clamped, ctx.currentTime, 0.05);
+    }
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setBassBoostStrength(Math.round(levelDb * 100));
     }
   }
 
@@ -559,6 +573,9 @@ export class DspEngine {
       // Safe, subtle scaling: 0.0 = Mono (M only), 1.0 = Standard Stereo, up to 1.5x subtle width
       const clamped = Math.max(0, Math.min(1.5, width));
       side.gain.setTargetAtTime(clamped, ctx.currentTime, 0.05);
+    }
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setVirtualizerStrength(Math.round(width * 666));
     }
   }
 
