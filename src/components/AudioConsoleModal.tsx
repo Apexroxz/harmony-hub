@@ -69,9 +69,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const analyser = getAnalyserNode();
-    const bufferLength = analyser ? analyser.frequencyBinCount : 64;
-    const dataArray = new Uint8Array(bufferLength);
+    let dataArray = new Uint8Array(64);
 
     const render = () => {
       animationFrameRef.current = requestAnimationFrame(render);
@@ -97,13 +95,20 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
         ctx.stroke();
       }
 
-      if (analyser && isPlaying) {
+      const liveAnalyser = getAnalyserNode();
+
+      if (liveAnalyser && isPlaying) {
+        const bufferLength = liveAnalyser.frequencyBinCount;
+        if (dataArray.length !== bufferLength) {
+          dataArray = new Uint8Array(bufferLength);
+        }
+
         if (visualizerMode === "bars") {
-          analyser.getByteFrequencyData(dataArray);
+          liveAnalyser.getByteFrequencyData(dataArray);
 
           const barCount = 40;
           const barWidth = width / barCount - 2.5;
-          const step = Math.floor(bufferLength / barCount);
+          const step = Math.max(1, Math.floor(bufferLength / barCount));
 
           for (let i = 0; i < barCount; i++) {
             const val = dataArray[i * step] || 0;
@@ -128,7 +133,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
           }
         } else {
           // Oscilloscope wave
-          analyser.getByteTimeDomainData(dataArray);
+          liveAnalyser.getByteTimeDomainData(dataArray);
           ctx.lineWidth = 2;
           ctx.strokeStyle = "#D99A2B";
           ctx.shadowColor = "rgba(217, 154, 43, 0.75)";

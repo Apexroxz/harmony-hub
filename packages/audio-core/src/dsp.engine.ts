@@ -42,7 +42,9 @@ export interface SoundProfile {
  */
 export class DspEngine {
   private ctx: AudioContext | null = null;
+  private sourceNode: MediaElementAudioSourceNode | null = null;
   private filters: BiquadFilterNode[] = [];
+  private headroomGain: GainNode | null = null;
   private bassNode: BiquadFilterNode | null = null;
   private trebleNode: BiquadFilterNode | null = null;
   private compressor: DynamicsCompressorNode | null = null;
@@ -52,19 +54,150 @@ export class DspEngine {
 
   private isInitialized = false;
 
-  public init(_audio?: HTMLAudioElement): void {
-    // Pure bit-perfect playback: audio element output is direct PCM without MediaElementSource tap
-    this.isInitialized = true;
+  public init(audio?: HTMLAudioElement): void {
+    if (this.isInitialized || typeof window === "undefined" || !audio) return;
+
+    const AudioCtx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    try {
+      const win = window as unknown as {
+        __LAYAM_AUDIO_CTX__?: AudioContext;
+        __LAYAM_AUDIO_SOURCE__?: MediaElementAudioSourceNode;
+        __LAYAM_EQ_FILTERS__?: BiquadFilterNode[];
+        __LAYAM_HEADROOM_GAIN__?: GainNode;
+      };
+
+      if (!win.__LAYAM_AUDIO_CTX__) {
+        win.__LAYAM_AUDIO_CTX__ = new AudioCtx();
+      }
+      this.ctx = win.__LAYAM_AUDIO_CTX__;
+
+      if (!win.__LAYAM_AUDIO_SOURCE__) {
+        win.__LAYAM_AUDIO_SOURCE__ = this.ctx.createMediaElementSource(audio);
+      }
+      this.sourceNode = win.__LAYAM_AUDIO_SOURCE__;
+
+      // Phase 3: 10-band peaking filter nodes (32Hz -> 16kHz, Q=1.4, ±12dB)
+      if (!win.__LAYAM_EQ_FILTERS__ || win.__LAYAM_EQ_FILTERS__.length !== EQ_FREQUENCIES.length) {
+        win.__LAYAM_EQ_FILTERS__ = (EQ_FREQUENCIES as readonly number[]).map((freq) => {
+          const filter = this.ctx!.createBiquadFilter();
+          filter.type = "peaking";
+          filter.frequency.value = freq;
+          filter.Q.value = 1.4;
+          filter.gain.value = 0;
+          return filter;
+        });
+      }
+      this.filters = win.__LAYAM_EQ_FILTERS__;
+      win.__LAYAM_EQ_1K_NODE__ = this.filters[5];
+
+      // Headroom Protection: -3 dB gain node after EQ chain to prevent clipping on multi-band boosts
+      if (!win.__LAYAM_HEADROOM_GAIN__) {
+        const headroom = this.ctx.createGain();
+        // -3dB = 10^(-3/20) ≈ 0.70794578
+        headroom.gain.value = 0.70794578;
+        win.__LAYAM_HEADROOM_GAIN__ = headroom;
+      }
+      this.headroomGain = win.__LAYAM_HEADROOM_GAIN__;
+
+      // Parallel Read-Only Analyser Tap (does NOT alter audio path to destination)
+      if (!win.__LAYAM_ANALYSER_NODE__) {
+        const analyser = this.ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.8;
+        analyser.minDecibels = -90;
+        analyser.maxDecibels = -10;
+        win.__LAYAM_ANALYSER_NODE__ = analyser;
+      }
+      this.analyser = win.__LAYAM_ANALYSER_NODE__;
+
+      // Connect series chain: sourceNode -> filter[0] -> filter[1] -> ... -> filter[9] -> headroomGain -> destination
+      try {
+        this.sourceNode.disconnect();
+      } catch {}
+
+      let prevNode: AudioNode = this.sourceNode;
+      for (const filter of this.filters) {
+        try {
+          filter.disconnect();
+        } catch {}
+        prevNode.connect(filter);
+        prevNode = filter;
+      }
+
+      try {
+        this.headroomGain.disconnect();
+      } catch {}
+      prevNode.connect(this.headroomGain);
+      this.headroomGain.connect(this.ctx.destination);
+
+      // Connect parallel read-only tap (headroomGain -> analyser)
+      try {
+        this.analyser.disconnect();
+      } catch {}
+      this.headroomGain.connect(this.analyser);
+
+      this.isInitialized = true;
+    } catch (err) {
+      console.warn("[DspEngine] Web Audio tap initialization deferred:", err);
+    }
   }
 
   public async resume(): Promise<void> {
-    // No-op for direct HTML5 audio playback
+    if (this.ctx && this.ctx.state === "suspended") {
+      try {
+        await this.ctx.resume();
+      } catch (err) {
+        console.warn("[DspEngine] AudioContext resume failed:", err);
+      }
+    }
+  }
+
+  public getCtx(): AudioContext | null {
+    if (!this.ctx && typeof window !== "undefined") {
+      const win = window as unknown as { __LAYAM_AUDIO_CTX__?: AudioContext };
+      if (win.__LAYAM_AUDIO_CTX__) {
+        this.ctx = win.__LAYAM_AUDIO_CTX__;
+      }
+    }
+    return this.ctx;
+  }
+
+  public getFilters(): BiquadFilterNode[] {
+    if ((!this.filters || this.filters.length === 0) && typeof window !== "undefined") {
+      const win = window as unknown as { __LAYAM_EQ_FILTERS__?: BiquadFilterNode[] };
+      if (win.__LAYAM_EQ_FILTERS__ && win.__LAYAM_EQ_FILTERS__.length === EQ_FREQUENCIES.length) {
+        this.filters = win.__LAYAM_EQ_FILTERS__;
+      }
+    }
+    return this.filters;
+  }
+
+  public getAnalyserNode(): AnalyserNode | null {
+    if (!this.analyser && typeof window !== "undefined") {
+      const win = window as unknown as { __LAYAM_ANALYSER_NODE__?: AnalyserNode };
+      if (win.__LAYAM_ANALYSER_NODE__) {
+        this.analyser = win.__LAYAM_ANALYSER_NODE__;
+      }
+    }
+    return this.analyser;
   }
 
   public setEqGain(bandIndex: number, gainDb: number): void {
-    if (this.filters[bandIndex] && this.ctx) {
-      this.filters[bandIndex].gain.setTargetAtTime(gainDb, this.ctx.currentTime, 0.05);
+    const filters = this.getFilters();
+    const ctx = this.getCtx();
+    if (filters[bandIndex] && ctx) {
+      const clamped = Math.max(-12, Math.min(12, gainDb));
+      filters[bandIndex].gain.setTargetAtTime(clamped, ctx.currentTime, 0.05);
     }
+  }
+
+  public getFilterGain(index: number): number {
+    const filters = this.getFilters();
+    return filters[index] ? filters[index].gain.value : 0;
   }
 
   public setEqGains(gains: number[]): void {

@@ -87,6 +87,7 @@ export class AudioEngine {
     }
     this.audio = win.__LAYAM_MASTER_AUDIO__;
     this.attachAudioListeners();
+    globalDspEngine.init(this.audio);
     return this.audio;
   }
 
@@ -164,6 +165,8 @@ export class AudioEngine {
   public async playTrack(track: Track, newQueue?: Track[]): Promise<void> {
     if (!this.audio) this.initAudioElement();
     const audio = this.audio!;
+    globalDspEngine.init(audio);
+    void globalDspEngine.resume();
 
     const seq = ++this.loadSeq;
     this.recordedPlayTrackId = null;
@@ -283,6 +286,9 @@ export class AudioEngine {
   public resume(): void {
     if (!this.audio) return;
     if (this.playPromise) return;
+
+    globalDspEngine.init(this.audio);
+    void globalDspEngine.resume();
 
     try {
       this.playPromise = this.audio.play();
