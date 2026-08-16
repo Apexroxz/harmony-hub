@@ -90,17 +90,19 @@ test.describe("Hard Reload & Real-Time Frequency Energy EQ Bypass Verification",
     await eq1kSlider.fill("12");
     await page.waitForTimeout(300);
 
-    // Verify node instance gain value
+    // Verify node instance gain value and real graph connection target
     const boostedFilterNode = await page.evaluate(() => {
       const win = window as any;
       return {
         filterGain: win.__LAYAM_EQ_FILTERS__[5].gain.value,
         isBypassed: win.__LAYAM_DSP_BYPASSED__ ?? false,
+        sourceConnectedTo: win.__LAYAM_SOURCE_CONNECTED_TO__,
       };
     });
     console.log("Boosted (+12dB) Filter Node Telemetry:", boostedFilterNode);
     expect(boostedFilterNode.filterGain).toBeGreaterThan(11.5);
     expect(boostedFilterNode.isBypassed).toBe(false);
+    expect(boostedFilterNode.sourceConnectedTo).toBe("filters[0]");
 
     // Verify physical FFT energy increased
     const boostedEnergy = await get1kEnergy();
@@ -121,11 +123,14 @@ test.describe("Hard Reload & Real-Time Frequency Energy EQ Bypass Verification",
       return {
         filterGainPreserved: win.__LAYAM_EQ_FILTERS__[5].gain.value,
         isBypassed: win.__LAYAM_DSP_BYPASSED__,
+        sourceConnectedTo: win.__LAYAM_SOURCE_CONNECTED_TO__,
       };
     });
     console.log("Bypass State Telemetry (Settings preserved on hardware node):", bypassTelemetry);
     expect(bypassTelemetry.filterGainPreserved).toBeGreaterThan(11.5);
     expect(bypassTelemetry.isBypassed).toBe(true);
+    // CRITICAL: sourceNode is physically connected to headroomGain directly!
+    expect(bypassTelemetry.sourceConnectedTo).toBe("headroomGain");
 
     // Verify output energy drops back down towards flat level because +12dB filter is bypassed
     const bypassedEnergy = await get1kEnergy();
@@ -144,11 +149,13 @@ test.describe("Hard Reload & Real-Time Frequency Energy EQ Bypass Verification",
       return {
         filterGainRestored: win.__LAYAM_EQ_FILTERS__[5].gain.value,
         isBypassed: win.__LAYAM_DSP_BYPASSED__,
+        sourceConnectedTo: win.__LAYAM_SOURCE_CONNECTED_TO__,
       };
     });
     console.log("Restored Active State Telemetry:", restoredTelemetry);
     expect(restoredTelemetry.filterGainRestored).toBeGreaterThan(11.5);
     expect(restoredTelemetry.isBypassed).toBe(false);
+    expect(restoredTelemetry.sourceConnectedTo).toBe("filters[0]");
 
     // Verify output energy spikes back up to boosted level
     const restoredEnergy = await get1kEnergy();

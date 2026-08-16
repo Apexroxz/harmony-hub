@@ -344,8 +344,10 @@ export class DspEngine {
 
       if (this.isBypassed) {
         this.sourceNode.connect(this.headroomGain);
+        (win as any).__LAYAM_SOURCE_CONNECTED_TO__ = "headroomGain";
       } else {
         this.sourceNode.connect(this.filters[0]);
+        (win as any).__LAYAM_SOURCE_CONNECTED_TO__ = "filters[0]";
       }
 
       this.isInitialized = true;
@@ -415,12 +417,21 @@ export class DspEngine {
       // True hardware bypass: direct link from source to headroom output
       source.connect(headroom);
       this.isBypassed = true;
+      if (typeof window !== "undefined") {
+        (window as any).__LAYAM_SOURCE_CONNECTED_TO__ = "headroomGain";
+      }
     } else {
       // Active DSP processing: route source into first EQ band filter
       if (filters.length > 0) {
         source.connect(filters[0]);
+        if (typeof window !== "undefined") {
+          (window as any).__LAYAM_SOURCE_CONNECTED_TO__ = "filters[0]";
+        }
       } else {
         source.connect(headroom);
+        if (typeof window !== "undefined") {
+          (window as any).__LAYAM_SOURCE_CONNECTED_TO__ = "headroomGain";
+        }
       }
       this.isBypassed = false;
     }
@@ -428,6 +439,19 @@ export class DspEngine {
     if (typeof window !== "undefined") {
       (window as any).__LAYAM_DSP_BYPASSED__ = this.isBypassed;
     }
+  }
+
+  public getGraphAudit() {
+    if (typeof window === "undefined") return null;
+    const win = window as any;
+    return {
+      isBypassed: this.isBypassed,
+      sourceConnectedTo: win.__LAYAM_SOURCE_CONNECTED_TO__,
+      hasSource: Boolean(win.__LAYAM_AUDIO_SOURCE__),
+      filter1kGain: win.__LAYAM_EQ_FILTERS__ ? win.__LAYAM_EQ_FILTERS__[5].gain.value : 0,
+      hasHeadroom: Boolean(win.__LAYAM_HEADROOM_GAIN__),
+      hasAnalyser: Boolean(win.__LAYAM_ANALYSER_NODE__),
+    };
   }
 
   public getFilters(): BiquadFilterNode[] {
