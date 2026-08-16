@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAppMode } from "@/lib/mode";
 import { usePlayer } from "@/lib/player";
+import { OnlineMetadataService } from "@layam/storage-core";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +37,12 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
   } = useAppMode();
 
   const { crossfadeDuration, setCrossfadeDuration } = usePlayer();
+  const [onlineOptIn, setOnlineOptIn] = useState(() => OnlineMetadataService.isOptInEnabled());
+
+  const handleToggleOnlineMetadata = (enabled: boolean) => {
+    OnlineMetadataService.setOptIn(enabled);
+    setOnlineOptIn(enabled);
+  };
 
   if (!open) return null;
 
@@ -167,6 +175,36 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
                     {buf}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Opt-In Online Metadata Enhancement */}
+            <div className="rounded-2xl border border-border/40 bg-surface-raised p-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-bold text-foreground">Fetch Online Metadata</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant={onlineOptIn ? "default" : "outline"}
+                  onClick={() => handleToggleOnlineMetadata(!onlineOptIn)}
+                  className={cn(
+                    "rounded-full text-xs font-bold h-7 px-3",
+                    onlineOptIn
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {onlineOptIn ? "OPT-IN ENABLED" : "LOCAL ONLY"}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Enhances missing high-res cover art (iTunes) and synchronized lyrics (LRCLIB) when connected. Cached in IndexedDB for permanent offline access.
+              </p>
+              <div className="mt-2.5 flex items-center gap-2 text-[10px] font-mono text-muted-foreground/80">
+                <span className={cn("inline-block h-2 w-2 rounded-full", typeof navigator !== "undefined" && navigator.onLine ? "bg-emerald-500" : "bg-zinc-500")} />
+                <span>{typeof navigator !== "undefined" && navigator.onLine ? "ONLINE CONNECTION ACTIVE" : "OFFLINE / LOCAL STORAGE"}</span>
               </div>
             </div>
 

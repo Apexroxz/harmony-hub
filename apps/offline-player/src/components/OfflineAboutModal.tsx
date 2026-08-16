@@ -18,6 +18,7 @@ import {
 } from "../services";
 import { useLocalVault } from "../providers/LocalVaultProvider";
 import { BrandLogo } from "@layam/design-system";
+import { OnlineMetadataService } from "@layam/storage-core";
 import { useEffect } from "react";
 
 export function OfflineAboutModal() {
@@ -25,6 +26,7 @@ export function OfflineAboutModal() {
   const [activeTab, setActiveTab] = useState<"about" | "privacy" | "support" | "feedback">("about");
   const [copied, setCopied] = useState(false);
   const [telemetryEnabled, setTelemetryEnabled] = useState(() => analytics.isTelemetryEnabled());
+  const [onlineOptIn, setOnlineOptIn] = useState(() => OnlineMetadataService.isOptInEnabled());
 
   // Feedback form
   const [feedbackCategory, setFeedbackCategory] = useState<"bug" | "feature_request" | "audio_quality" | "general">("general");
@@ -190,6 +192,31 @@ export function OfflineAboutModal() {
                   onChange={(e) => handleToggleTelemetry(e.target.checked)}
                   className="h-4 w-4 accent-[#e59e38] cursor-pointer"
                 />
+              </div>
+
+              {/* Opt-In Online Metadata (Artwork & Synced Lyrics) */}
+              <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-[#0c0d10] p-3.5">
+                <div className="max-w-sm">
+                  <h5 className="font-semibold text-[#f2f3f5]">Fetch Online Metadata</h5>
+                  <p className="text-[10px] text-[#6b7280] mt-0.5 leading-relaxed">
+                    Auto-enhances missing high-res cover art (iTunes) and synchronized lyrics (LRCLIB). Cached in IndexedDB for offline use. Disabled by default.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !onlineOptIn;
+                    OnlineMetadataService.setOptIn(next);
+                    setOnlineOptIn(next);
+                  }}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-mono font-bold transition-all cursor-pointer border ${
+                    onlineOptIn
+                      ? "border-[#e59e38]/50 bg-[#e59e38]/15 text-[#e59e38]"
+                      : "border-white/[0.1] bg-[#16181e] text-[#9ba1ad] hover:text-[#f2f3f5]"
+                  }`}
+                >
+                  {onlineOptIn ? "OPT-IN ENABLED" : "LOCAL ONLY"}
+                </button>
               </div>
             </div>
           )}

@@ -12,3 +12,5 @@ export * from "./favorites/favorites.service";
 export * from "./history/history.service";
 export * from "./analysis/analysis.service";
 export * from "./artwork/artwork.service";
+export * from "./metadata/onlineMetadata.service";
+

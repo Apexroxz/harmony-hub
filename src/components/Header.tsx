@@ -269,6 +269,15 @@ export function Header() {
 
           {/* Right Section: Compact Symmetrical Actions + Always Visible Sign-in / User Menu */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Settings Quick Icon Button */}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-surface/80 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
+              title="Offline Settings"
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </button>
+
             {/* Search Quick Icon Button */}
             {!isOffline && (
               <Link
