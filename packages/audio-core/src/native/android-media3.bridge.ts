@@ -9,6 +9,19 @@ export interface NativeTrackPayload {
   positionMs?: number;
 }
 
+export interface NativeFileInfo {
+  uri: string;
+  name: string;
+  sizeBytes: number;
+  mimeType: string;
+  title: string;
+  artist: string;
+  album: string;
+  durationMs: number;
+  bitrate: number;
+  format: string;
+}
+
 export interface NativePlaybackState {
   isPlaying: boolean;
   positionMs: number;
@@ -27,7 +40,7 @@ export interface ILayamNativeAudioPlugin {
   setBassBoostStrength(options: { strength: number }): Promise<{ success: boolean }>;
   setVirtualizerStrength(options: { strength: number }): Promise<{ success: boolean }>;
   getPlaybackState(): Promise<NativePlaybackState>;
-  openDocumentPicker(): Promise<{ cancelled: boolean; files: string[] }>;
+  openDocumentPicker(): Promise<{ cancelled: boolean; files: NativeFileInfo[] }>;
   addListener(
     eventName: "onPlaybackStateChanged",
     listenerFunc: (data: { isPlaying: boolean; state: string; positionMs: number; durationMs: number }) => void,
@@ -54,18 +67,12 @@ export class AndroidMedia3Bridge {
   private constructor() {}
 
   public static getInstance(): AndroidMedia3Bridge {
-    if (!this.instance) {
-      this.instance = new AndroidMedia3Bridge();
-    }
+    if (!this.instance) this.instance = new AndroidMedia3Bridge();
     return this.instance;
   }
 
   public isNativeAndroid(): boolean {
-    return (
-      typeof window !== "undefined" &&
-      Capacitor.isNativePlatform() &&
-      Capacitor.getPlatform() === "android"
-    );
+    return typeof window !== "undefined" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
   }
 
   public async playTrack(payload: NativeTrackPayload): Promise<boolean> {
@@ -81,102 +88,50 @@ export class AndroidMedia3Bridge {
 
   public async pause(): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
-    try {
-      const res = await LayamNativeAudio.pause();
-      return res.success;
-    } catch (e) {
-      console.warn("[AndroidMedia3Bridge] pause error:", e);
-      return false;
-    }
+    try { return (await LayamNativeAudio.pause()).success; } catch { return false; }
   }
 
   public async resume(): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
-    try {
-      const res = await LayamNativeAudio.resume();
-      return res.success;
-    } catch (e) {
-      console.warn("[AndroidMedia3Bridge] resume error:", e);
-      return false;
-    }
+    try { return (await LayamNativeAudio.resume()).success; } catch { return false; }
   }
 
   public async seekToSeconds(seconds: number): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
-    try {
-      const res = await LayamNativeAudio.seekTo({ positionMs: Math.round(seconds * 1000) });
-      return res.success;
-    } catch (e) {
-      console.warn("[AndroidMedia3Bridge] seekTo error:", e);
-      return false;
-    }
+    try { return (await LayamNativeAudio.seekTo({ positionMs: Math.round(seconds * 1000) })).success; } catch { return false; }
   }
 
   public async setVolume(volume: number): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
-    try {
-      const res = await LayamNativeAudio.setVolume({ volume: Math.max(0, Math.min(1, volume)) });
-      return res.success;
-    } catch (e) {
-      console.warn("[AndroidMedia3Bridge] setVolume error:", e);
-      return false;
-    }
+    try { return (await LayamNativeAudio.setVolume({ volume: Math.max(0, Math.min(1, volume)) })).success; } catch { return false; }
   }
 
   public async setEqualizerEnabled(enabled: boolean): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
-    try {
-      const res = await LayamNativeAudio.setEqualizerEnabled({ enabled });
-      return res.success;
-    } catch (e) {
-      console.warn("[AndroidMedia3Bridge] setEqualizerEnabled error:", e);
-      return false;
-    }
+    try { return (await LayamNativeAudio.setEqualizerEnabled({ enabled })).success; } catch { return false; }
   }
 
   public async setEqualizerGains(gains: number[]): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
-    try {
-      const res = await LayamNativeAudio.setEqualizerGains({ gains });
-      return res.success;
-    } catch (e) {
-      console.warn("[AndroidMedia3Bridge] setEqualizerGains error:", e);
-      return false;
-    }
+    try { return (await LayamNativeAudio.setEqualizerGains({ gains })).success; } catch { return false; }
   }
 
   public async setBassBoostStrength(strength: number): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
-    try {
-      const res = await LayamNativeAudio.setBassBoostStrength({ strength });
-      return res.success;
-    } catch (e) {
-      console.warn("[AndroidMedia3Bridge] setBassBoostStrength error:", e);
-      return false;
-    }
+    try { return (await LayamNativeAudio.setBassBoostStrength({ strength })).success; } catch { return false; }
   }
 
   public async setVirtualizerStrength(strength: number): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
-    try {
-      const res = await LayamNativeAudio.setVirtualizerStrength({ strength });
-      return res.success;
-    } catch (e) {
-      console.warn("[AndroidMedia3Bridge] setVirtualizerStrength error:", e);
-      return false;
-    }
+    try { return (await LayamNativeAudio.setVirtualizerStrength({ strength })).success; } catch { return false; }
   }
 
   public async getPlaybackState(): Promise<NativePlaybackState | null> {
     if (!this.isNativeAndroid()) return null;
-    try {
-      return await LayamNativeAudio.getPlaybackState();
-    } catch {
-      return null;
-    }
+    try { return await LayamNativeAudio.getPlaybackState(); } catch { return null; }
   }
 
-  public async openDocumentPicker(): Promise<string[]> {
+  public async openDocumentPicker(): Promise<NativeFileInfo[]> {
     if (!this.isNativeAndroid()) return [];
     try {
       const result = await LayamNativeAudio.openDocumentPicker();
