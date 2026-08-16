@@ -105,6 +105,7 @@ export class AudioEngine {
         duration: dur,
         progress: Math.min(100, pct),
       });
+      this.updateMediaSessionPositionState();
 
       // Play counting trigger: 10s playback
       const track = this.state.currentTrack;
@@ -127,11 +128,13 @@ export class AudioEngine {
 
     a.addEventListener("play", () => {
       this.setState({ isPlaying: true, status: "playing" });
+      this.updateMediaSessionPlaybackState("playing");
     });
 
     a.addEventListener("pause", () => {
       if (this.state.status !== "loading") {
         this.setState({ isPlaying: false, status: "paused" });
+        this.updateMediaSessionPlaybackState("paused");
       }
     });
 
@@ -373,6 +376,18 @@ export class AudioEngine {
     }
   }
 
+  public playNextInQueue(track: Track): void {
+    const { queue, queueIndex } = this.state;
+    if (queue.length === 0) {
+      void this.playTrack(track);
+      return;
+    }
+    const filtered = queue.filter((t) => t.id !== track.id);
+    const insertIdx = Math.max(0, queueIndex + 1);
+    filtered.splice(insertIdx, 0, track);
+    this.setState({ queue: filtered });
+  }
+
   public removeFromQueue(index: number): void {
     const updated = this.state.queue.filter((_, i) => i !== index);
     this.setState({ queue: updated });
@@ -396,6 +411,14 @@ export class AudioEngine {
       globalDspEngine.setBypass(false);
     }
     this.setState({ eqGains: nextGains, eqPreset: "Custom", eqEnabled: true });
+  }
+
+  public setEqGains(gains: number[], presetName: string = "Custom"): void {
+    globalDspEngine.setEqGains(gains);
+    if (!this.state.eqEnabled) {
+      globalDspEngine.setBypass(false);
+    }
+    this.setState({ eqGains: [...gains], eqPreset: presetName, eqEnabled: true });
   }
 
   public setEqPreset(preset: string): void {
@@ -471,31 +494,68 @@ export class AudioEngine {
     });
   }
 
-  public setExpanded(expanded: boolean): void {
-    this.setState({ isExpanded: expanded });
+  public updateMediaSessionPositionState(): void {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    try {
+      if ("setPositionState" in navigator.mediaSession && this.state.duration > 0) {
+        navigator.mediaSession.setPositionState({
+          duration: Math.max(0, this.state.duration),
+          playbackRate: this.state.playbackRate || 1,
+          position: Math.min(Math.max(0, this.state.currentTime), this.state.duration),
+        });
+      }
+    } catch {}
+  }
+
+  public updateMediaSessionPlaybackState(playbackState: "none" | "paused" | "playing"): void {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    try {
+      navigator.mediaSession.playbackState = playbackState;
+    } catch {}
   }
 
   private setupMediaSession(track: Track): void {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.title,
-        artist: track.artistName,
-        album: track.album || "Layam Audiophile Stream",
-        artwork: track.coverImage ? [{ src: track.coverImage, sizes: "512x512", type: "image/jpeg" }] : [],
+        title: track.title || "Unknown Title",
+        artist: track.artistName || "Local Artist",
+        album: track.album || "Layam Audio Vault",
+        artwork: track.coverImage
+          ? [
+              { src: track.coverImage, sizes: "96x96", type: "image/jpeg" },
+              { src: track.coverImage, sizes: "128x128", type: "image/jpeg" },
+              { src: track.coverImage, sizes: "256x256", type: "image/jpeg" },
+              { src: track.coverImage, sizes: "512x512", type: "image/jpeg" },
+            ]
+          : [],
       });
+
+      navigator.mediaSession.playbackState = "playing";
 
       navigator.mediaSession.setActionHandler("play", () => this.resume());
       navigator.mediaSession.setActionHandler("pause", () => this.pause());
       navigator.mediaSession.setActionHandler("previoustrack", () => this.playPrevious());
       navigator.mediaSession.setActionHandler("nexttrack", () => this.playNext());
+      navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+        this.seekRelative(-(details.seekOffset || 10));
+      });
+      navigator.mediaSession.setActionHandler("seekforward", (details) => {
+        this.seekRelative(details.seekOffset || 10);
+      });
       navigator.mediaSession.setActionHandler("seekto", (details) => {
         if (details.seekTime != null && this.state.duration > 0) {
           this.seek(details.seekTime / this.state.duration);
         }
       });
+      this.updateMediaSessionPositionState();
     } catch {}
+  }
+
+  public setExpanded(expanded: boolean): void {
+    this.setState({ isExpanded: expanded });
   }
 }
 
 export const globalAudioEngine = new AudioEngine();
+

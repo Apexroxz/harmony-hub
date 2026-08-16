@@ -60,6 +60,38 @@ export function PlayerBar() {
   const { isOffline } = useAppMode();
   const [queueOpen, setQueueOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverPercent, setHoverPercent] = useState<number>(0);
+  const [prevVolume, setPrevVolume] = useState<number>(0.8);
+
+  const toggleMute = () => {
+    if (volume > 0) {
+      setPrevVolume(volume);
+      setVolume(0);
+    } else {
+      setVolume(prevVolume > 0 ? prevVolume : 0.8);
+    }
+  };
+
+  const handleVolumeWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    const next = Math.min(1, Math.max(0, Math.round((volume + delta) * 100) / 100));
+    setVolume(next);
+  };
+
+  const handleSeekMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!duration || duration <= 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+    setHoverPercent(pct * 100);
+    setHoverTime(pct * duration);
+  };
+
+  const handleSeekMouseLeave = () => {
+    setHoverTime(null);
+  };
 
   // If no track is loaded, display sleek hardware standby chassis
   if (!currentTrack) {
@@ -327,7 +359,19 @@ export function PlayerBar() {
                 {formatDuration(currentTime)}
               </span>
 
-              <div className="relative flex-1">
+              <div
+                onMouseMove={handleSeekMouseMove}
+                onMouseLeave={handleSeekMouseLeave}
+                className="relative flex-1 group cursor-pointer py-1"
+              >
+                {hoverTime !== null && (
+                  <div
+                    style={{ left: `${hoverPercent}%` }}
+                    className="absolute -top-6 -translate-x-1/2 rounded bg-[#0D0E12] border border-[#D99A2B]/50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#D99A2B] shadow-[0_0_10px_rgba(217,154,43,0.3)] pointer-events-none z-30 tabular-nums"
+                  >
+                    {formatDuration(hoverTime)}
+                  </div>
+                )}
                 <Waveform
                   seed={currentTrack.id}
                   peaks={currentTrack.waveform}
@@ -438,17 +482,22 @@ export function PlayerBar() {
               <Maximize2 className="h-4 w-4 text-[#D99A2B]" />
             </Button>
 
-            {/* Precision Volume Slider */}
-            <div className="hidden items-center gap-2 lg:flex">
+            {/* Precision Volume Slider with Wheel Adjustment */}
+            <div
+              onWheel={handleVolumeWheel}
+              className="hidden items-center gap-2 lg:flex p-1 rounded-lg hover:bg-white/[0.02] transition-colors"
+              title="Adjust Volume (Scroll wheel: ±5%)"
+            >
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label={volume === 0 ? "Unmute" : "Mute"}
-                onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
-                className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg"
+                onClick={toggleMute}
+                className="h-8 w-8 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-lg cursor-pointer"
+                title={volume === 0 ? "Unmute" : "Mute (M)"}
               >
                 {volume === 0 ? (
-                  <VolumeX className="h-4 w-4" />
+                  <VolumeX className="h-4 w-4 text-rose-400" />
                 ) : (
                   <Volume2 className="h-4 w-4 text-[#D99A2B]" />
                 )}

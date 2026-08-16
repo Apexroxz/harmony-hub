@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -19,6 +19,9 @@ import {
   Layers,
   Flame,
   Radio,
+  FileText,
+  Music,
+  Upload,
 } from "lucide-react";
 import { usePlayer } from "@/lib/player";
 import { useAppMode, type LocalTrack } from "@/lib/mode";
@@ -28,6 +31,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { LocalLyricsService, type StoredTrackLyrics } from "@layam/storage-core";
 
 interface FullscreenAudiophilePlayerProps {
   open: boolean;
@@ -66,8 +70,61 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
   const [isShuffle, setIsShuffle] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
+  const [viewMode, setViewMode] = useState<"artwork" | "lyrics">("artwork");
+  const [lyricsData, setLyricsData] = useState<StoredTrackLyrics | null>(null);
+  const lyricsFileInputRef = useRef<HTMLInputElement>(null);
+  const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+
+  // Load lyrics when currentTrack changes
+  useEffect(() => {
+    if (currentTrack?.id) {
+      LocalLyricsService.getLyrics(currentTrack.id).then(setLyricsData);
+    } else {
+      setLyricsData(null);
+    }
+  }, [currentTrack?.id]);
+
+  // Compute active lyric line index
+  const activeLyricIndex = useMemo(() => {
+    if (!lyricsData || !lyricsData.lines || lyricsData.lines.length === 0) return -1;
+    const currentMs = (currentTime || 0) * 1000;
+    for (let i = lyricsData.lines.length - 1; i >= 0; i--) {
+      if (lyricsData.lines[i].timeMs <= currentMs) {
+        return i;
+      }
+    }
+    return 0;
+  }, [lyricsData, currentTime]);
+
+  // Auto-scroll lyrics smoothly
+  useEffect(() => {
+    if (viewMode === "lyrics" && activeLyricIndex >= 0 && lyricsContainerRef.current) {
+      const activeEl = lyricsContainerRef.current.children[activeLyricIndex] as HTMLElement;
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [viewMode, activeLyricIndex]);
+
+  const handleImportLyricsFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && currentTrack) {
+      try {
+        const imported = await LocalLyricsService.importLyricsFromFile(
+          currentTrack.id,
+          currentTrack.title,
+          currentTrack.artistName,
+          file
+        );
+        setLyricsData(imported);
+      } catch (err) {
+        console.warn("[LyricsImportError]", err);
+      }
+    }
+    e.target.value = "";
+  };
 
   // Live FFT spectrum visualizer loop
   useEffect(() => {
@@ -200,31 +257,117 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
 
         {/* ── Main Centered Audiophile Player Body ── */}
         <main className="relative z-10 mx-auto flex flex-1 w-full max-w-xl flex-col items-center justify-center px-6 py-2 overflow-y-auto">
-          {/* Large Centered Artwork Frame with Hardware Aesthetics */}
-          <div className="relative aspect-square w-full max-w-[280px] sm:max-w-[340px] md:max-w-[380px] shrink-0 overflow-hidden rounded-3xl bg-[#0D0E12] shadow-[0_30px_90px_rgba(0,0,0,0.98)] border border-[#D99A2B]/25 group mb-6">
-            <img
-              src={currentTrack.coverImage || "/placeholder.svg"}
-              alt={currentTrack.title}
+          {/* View Mode Switcher */}
+          <div className="flex items-center gap-1 bg-[#0D0E12] p-1 rounded-xl border border-white/[0.08] mb-4">
+            <button
+              onClick={() => setViewMode("artwork")}
               className={cn(
-                "h-full w-full object-cover transition-transform duration-700 ease-out",
-                isPlaying ? "scale-100" : "scale-[0.98] opacity-90"
+                "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer",
+                viewMode === "artwork"
+                  ? "bg-[#D99A2B]/20 text-[#D99A2B] font-bold border border-[#D99A2B]/40 shadow-sm"
+                  : "text-[#9ba1ad] hover:text-[#f2f3f5]"
               )}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#08090B]/90 via-transparent to-transparent opacity-60 pointer-events-none" />
-
-            {/* Micro Live Spectrum Visualizer Bar at Artwork Base */}
-            <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
-              <canvas
-                ref={canvasRef}
-                width={140}
-                height={26}
-                className="h-6 w-32 rounded opacity-90"
-              />
-              <span className="text-[10px] font-mono font-bold text-[#D99A2B] bg-[#08090B]/90 px-2.5 py-0.5 rounded border border-[#D99A2B]/35 shadow-sm">
-                64-BIT PCM DIRECT
-              </span>
-            </div>
+            >
+              <Disc3 className="h-3.5 w-3.5" />
+              <span>Artwork & Spectrum</span>
+            </button>
+            <button
+              onClick={() => setViewMode("lyrics")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer",
+                viewMode === "lyrics"
+                  ? "bg-[#D99A2B]/20 text-[#D99A2B] font-bold border border-[#D99A2B]/40 shadow-sm"
+                  : "text-[#9ba1ad] hover:text-[#f2f3f5]"
+              )}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>Lyrics</span>
+            </button>
           </div>
+
+          {/* Hidden Lyrics File Input */}
+          <input
+            type="file"
+            ref={lyricsFileInputRef}
+            onChange={handleImportLyricsFile}
+            accept=".lrc,.txt,.srt"
+            className="hidden"
+          />
+
+          {viewMode === "artwork" ? (
+            /* Large Centered Artwork Frame with Hardware Aesthetics */
+            <div className="relative aspect-square w-full max-w-[280px] sm:max-w-[340px] md:max-w-[380px] shrink-0 overflow-hidden rounded-3xl bg-[#0D0E12] shadow-[0_30px_90px_rgba(0,0,0,0.98)] border border-[#D99A2B]/25 group mb-6">
+              <img
+                src={currentTrack.coverImage || "/placeholder.svg"}
+                alt={currentTrack.title}
+                className={cn(
+                  "h-full w-full object-cover transition-transform duration-700 ease-out",
+                  isPlaying ? "scale-100" : "scale-[0.98] opacity-90"
+                )}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#08090B]/90 via-transparent to-transparent opacity-60 pointer-events-none" />
+
+              {/* Micro Live Spectrum Visualizer Bar at Artwork Base */}
+              <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+                <canvas
+                  ref={canvasRef}
+                  width={140}
+                  height={26}
+                  className="h-6 w-32 rounded opacity-90"
+                />
+                <span className="text-[10px] font-mono font-bold text-[#D99A2B] bg-[#08090B]/90 px-2.5 py-0.5 rounded border border-[#D99A2B]/35 shadow-sm">
+                  64-BIT PCM DIRECT
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* Synchronized Lyrics Container */
+            <div className="relative w-full max-w-[420px] h-[280px] sm:h-[340px] md:h-[380px] shrink-0 overflow-hidden rounded-3xl bg-[#0D0E12] shadow-inner border border-white/[0.08] p-5 mb-6 flex flex-col">
+              {lyricsData && lyricsData.lines && lyricsData.lines.length > 0 ? (
+                <div
+                  ref={lyricsContainerRef}
+                  className="flex-1 overflow-y-auto space-y-4 text-center py-12 px-2 scroll-smooth"
+                >
+                  {lyricsData.lines.map((line, idx) => {
+                    const isActive = activeLyricIndex === idx;
+                    return (
+                      <p
+                        key={idx}
+                        onClick={() => {
+                          if (duration && duration > 0) {
+                            seek(line.timeMs / 1000 / duration);
+                          }
+                        }}
+                        className={cn(
+                          "transition-all duration-300 cursor-pointer font-sans select-none",
+                          isActive
+                            ? "text-[#D99A2B] text-lg sm:text-xl font-extrabold scale-105 drop-shadow-[0_0_12px_rgba(217,154,43,0.4)]"
+                            : "text-[#9ba1ad]/60 hover:text-[#f2f3f5] text-sm sm:text-base font-medium"
+                        )}
+                      >
+                        {line.text}
+                      </p>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                  <FileText className="h-10 w-10 text-[#9ba1ad]/40 mb-3" />
+                  <p className="text-sm font-semibold text-[#f2f3f5]">No Synced Lyrics in Local Vault</p>
+                  <p className="text-xs text-[#9ba1ad] mt-1 max-w-xs leading-relaxed">
+                    Import a .LRC sidecar file or enable online metadata in Settings.
+                  </p>
+                  <button
+                    onClick={() => lyricsFileInputRef.current?.click()}
+                    className="mt-4 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#D99A2B]/15 hover:bg-[#D99A2B]/25 text-[#D99A2B] border border-[#D99A2B]/30 text-xs font-mono font-bold transition-colors cursor-pointer"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Import .LRC File
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Symmetrical Track Typography & Information */}
           <div className="w-full text-center mb-5 px-2">

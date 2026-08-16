@@ -1,9 +1,10 @@
-import React, { useState, useRef } from "react";
-import { Plus, FolderOpen, Sliders, Info } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plus, FolderOpen, Sliders, Info, Settings } from "lucide-react";
 import { BrandLogo } from "@layam/design-system";
 import { PlayerBar } from "@/components/PlayerBar";
 import { AudioConsoleModal } from "@/components/AudioConsoleModal";
 import { FullscreenAudiophilePlayer } from "@/components/FullscreenAudiophilePlayer";
+import { OfflineSettingsModal } from "@/components/OfflineSettingsModal";
 import { usePlayer } from "@/lib/player";
 import { useAppMode } from "@/lib/mode";
 import { OfflinePlayerAdapter } from "./adapters/OfflinePlayerAdapter";
@@ -13,7 +14,15 @@ import { OfflineAboutModal } from "./components/OfflineAboutModal";
 import { useLocalVault } from "./providers/LocalVaultProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-function StandaloneBrandHeader({ onOpenAbout, onOpenConsole }: { onOpenAbout: () => void; onOpenConsole: () => void }) {
+function StandaloneBrandHeader({
+  onOpenAbout,
+  onOpenConsole,
+  onOpenSettings,
+}: {
+  onOpenAbout: () => void;
+  onOpenConsole: () => void;
+  onOpenSettings: () => void;
+}) {
   const { importLocalFiles } = useAppMode();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +95,14 @@ function StandaloneBrandHeader({ onOpenAbout, onOpenConsole }: { onOpenAbout: ()
           </button>
 
           <button
+            onClick={onOpenSettings}
+            className="flex items-center rounded-lg border border-white/[0.08] bg-[#111216] p-1.5 text-xs font-medium text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-[#16181e] transition-colors cursor-pointer"
+            title="Hi-Fi Settings & Hotkeys"
+          >
+            <Settings className="h-4 w-4 text-[#e59e38]" />
+          </button>
+
+          <button
             onClick={onOpenAbout}
             className="flex items-center rounded-lg border border-white/[0.08] bg-[#111216] p-1.5 text-xs font-medium text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-[#16181e] transition-colors cursor-pointer"
             title="About Layam & Privacy Settings"
@@ -100,6 +117,7 @@ function StandaloneBrandHeader({ onOpenAbout, onOpenConsole }: { onOpenAbout: ()
 
 function OfflinePlayerLayout() {
   const { isAboutOpen, setIsAboutOpen } = useLocalVault();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const {
     isConsoleOpen,
     openConsole,
@@ -114,11 +132,19 @@ function OfflinePlayerLayout() {
     onToggleConsole: toggleConsole,
   });
 
+  // Ensure no legacy anonymous device id remains in localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem("layam_offline_anonymous_device_id");
+    } catch {}
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#090a0c] text-[#f2f3f5] pb-[env(safe-area-inset-bottom)] antialiased">
       <StandaloneBrandHeader
         onOpenAbout={() => setIsAboutOpen(true)}
         onOpenConsole={openConsole}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       <main className="pb-36">
         <OfflineLibrary />
@@ -130,6 +156,7 @@ function OfflinePlayerLayout() {
       {/* Top-Level Global Modals (Mounted Independently) */}
       <AudioConsoleModal open={isConsoleOpen} onClose={closeConsole} />
       <FullscreenAudiophilePlayer open={isExpanded} onClose={collapsePlayer} />
+      <OfflineSettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <OfflineAboutModal />
     </div>
   );

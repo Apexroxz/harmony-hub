@@ -30,6 +30,8 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
 *.zip
+# Test outputs
+test-results/
+playwright-report/
 

@@ -185,8 +185,8 @@ export function ModeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearOfflineCache = useCallback(() => {
-    OfflineService.saveTracks(LOCAL_SAMPLE_TRACKS);
-    toast.success("Offline cache cleared; restored sample library");
+    OfflineService.saveTracks([]);
+    toast.success("Offline cache cleared");
   }, []);
 
   const saveTrackOffline = useCallback(async (track: Track) => {

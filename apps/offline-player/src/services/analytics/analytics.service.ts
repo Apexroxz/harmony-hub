@@ -8,8 +8,6 @@
  * - PROHIBITED: Track names, artist tags, album names, file paths, or listening history.
  */
 
-import { AnonymousDeviceService } from "../identity/anonymous-device.service";
-
 export type AnalyticsEventType =
   | "APP_OPENED"
   | "IMPORT_COMPLETED"
@@ -21,7 +19,6 @@ export type AnalyticsEventType =
 
 export interface AnalyticsPayload {
   eventType: AnalyticsEventType;
-  deviceId?: string;
   metadata?: Record<string, string | number | boolean>;
   timestamp: string;
 }
@@ -63,7 +60,6 @@ export class AnalyticsService implements IAnalyticsService {
 
     const payload: AnalyticsPayload = {
       eventType,
-      deviceId: AnonymousDeviceService.getDeviceId(),
       metadata,
       timestamp: new Date().toISOString(),
     };
@@ -82,7 +78,6 @@ export class AnalyticsService implements IAnalyticsService {
       message: error.message,
       stack: error.stack,
       context,
-      deviceId: AnonymousDeviceService.getDeviceId(),
       timestamp: new Date().toISOString(),
     };
 
@@ -91,3 +86,4 @@ export class AnalyticsService implements IAnalyticsService {
 }
 
 export const analytics = AnalyticsService.getInstance();
+

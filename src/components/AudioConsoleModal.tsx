@@ -17,6 +17,10 @@ import {
   Power,
   ShieldAlert,
   Cpu,
+  Plus,
+  Trash2,
+  Save,
+  Check,
 } from "lucide-react";
 import { usePlayer } from "@/lib/player";
 import {
@@ -29,6 +33,30 @@ import {
 } from "@layam/audio-core";
 import { cn } from "@/lib/utils";
 
+interface CustomPreset {
+  name: string;
+  gains: number[];
+}
+
+const CUSTOM_PRESETS_STORAGE_KEY = "layam_custom_eq_presets";
+
+function loadSavedCustomPresets(): CustomPreset[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_PRESETS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomPresetsToStorage(presets: CustomPreset[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CUSTOM_PRESETS_STORAGE_KEY, JSON.stringify(presets));
+  } catch {}
+}
+
 interface AudioConsoleModalProps {
   open: boolean;
   onClose: () => void;
@@ -38,6 +66,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
   const {
     eqGains,
     setEqGain,
+    setEqGains,
     eqPreset,
     setEqPreset,
     eqEnabled,
@@ -59,6 +88,43 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
     isPlaying,
     currentTrack,
   } = usePlayer();
+
+  const [customPresets, setCustomPresets] = useState<CustomPreset[]>(loadSavedCustomPresets);
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [presetNameInput, setPresetNameInput] = useState("");
+
+  const handleSaveCustomPreset = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const name = presetNameInput.trim();
+    if (!name) return;
+    const existingIdx = customPresets.findIndex((p) => p.name.toLowerCase() === name.toLowerCase());
+    let next: CustomPreset[];
+    if (existingIdx >= 0) {
+      next = [...customPresets];
+      next[existingIdx] = { name, gains: [...eqGains] };
+    } else {
+      next = [...customPresets, { name, gains: [...eqGains] }];
+    }
+    setCustomPresets(next);
+    saveCustomPresetsToStorage(next);
+    setEqGains([...eqGains], name);
+    setIsSavingPreset(false);
+    setPresetNameInput("");
+  };
+
+  const handleDeleteCustomPreset = (nameToDelete: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = customPresets.filter((p) => p.name !== nameToDelete);
+    setCustomPresets(next);
+    saveCustomPresetsToStorage(next);
+    if (eqPreset === nameToDelete) {
+      setEqPreset("Flat");
+    }
+  };
+
+  const handleApplyCustomPreset = (preset: CustomPreset) => {
+    setEqGains(preset.gains, preset.name);
+  };
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -364,7 +430,7 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               {Object.keys(EQ_PRESETS).map((preset) => (
                 <button
                   key={preset}
@@ -379,6 +445,70 @@ export function AudioConsoleModal({ open, onClose }: AudioConsoleModalProps) {
                   {preset}
                 </button>
               ))}
+
+              {/* Custom User Presets */}
+              {customPresets.map((preset) => (
+                <div
+                  key={preset.name}
+                  onClick={() => handleApplyCustomPreset(preset)}
+                  className={cn(
+                    "group flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer border",
+                    eqPreset === preset.name
+                      ? "bg-[#D99A2B]/20 text-[#D99A2B] border-[#D99A2B]/60 shadow-[0_0_12px_rgba(217,154,43,0.25)] font-bold"
+                      : "bg-[#0D0E12] text-[#9ba1ad] border-dashed border-white/[0.15] hover:text-[#f2f3f5] hover:bg-[#14161C]"
+                  )}
+                >
+                  <span>{preset.name}</span>
+                  <button
+                    onClick={(e) => handleDeleteCustomPreset(preset.name, e)}
+                    className="p-0.5 text-[#9ba1ad]/60 hover:text-rose-400 hover:bg-white/[0.05] rounded transition-colors"
+                    title={`Delete "${preset.name}" preset`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+
+              {/* Add Custom Preset Button / Inline Form */}
+              {!isSavingPreset ? (
+                <button
+                  onClick={() => setIsSavingPreset(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-[#D99A2B] bg-[#D99A2B]/10 hover:bg-[#D99A2B]/20 border border-[#D99A2B]/30 transition-all cursor-pointer"
+                >
+                  <Plus className="h-3 w-3" />
+                  SAVE AS PRESET
+                </button>
+              ) : (
+                <form onSubmit={handleSaveCustomPreset} className="flex items-center gap-1.5 bg-[#040405] border border-[#D99A2B]/50 rounded-lg px-2 py-1">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Preset name..."
+                    value={presetNameInput}
+                    onChange={(e) => setPresetNameInput(e.target.value)}
+                    className="bg-transparent text-xs font-mono text-[#f2f3f5] placeholder:text-[#9ba1ad]/50 focus:outline-none w-28 sm:w-36"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!presetNameInput.trim()}
+                    className="p-1 text-[#D99A2B] hover:bg-[#D99A2B]/20 rounded disabled:opacity-30 cursor-pointer"
+                    title="Save Preset"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSavingPreset(false);
+                      setPresetNameInput("");
+                    }}
+                    className="p-1 text-[#9ba1ad] hover:text-white rounded cursor-pointer"
+                    title="Cancel"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </form>
+              )}
             </div>
           </div>
 

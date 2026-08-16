@@ -57,6 +57,31 @@ const LOCAL_PLAYLISTS_KEY = "layam_local_playlists";
 const OFFLINE_SETTINGS_KEY = "layam_offline_settings";
 const OFFLINE_EVENT = "layam:offline-updated";
 
+const DEMO_TRACK_IDS = new Set([
+  "midnight-protocol",
+  "chain-reaction",
+  "phantom-waves",
+  "validator-dreams",
+  "hash-rate",
+  "genesis-block",
+]);
+
+const DEMO_ARTIST_NAMES = new Set([
+  "neon drifter",
+  "solana siren",
+  "byte bass",
+  "soundhelix collective",
+]);
+
+const DEMO_TITLES = new Set([
+  "midnight protocol",
+  "chain reaction",
+  "phantom waves",
+  "validator dreams",
+  "hash rate",
+  "genesis block",
+]);
+
 export const LOCAL_SAMPLE_TRACKS: LocalTrack[] = [];
 
 export const DEFAULT_OFFLINE_SETTINGS: OfflineSettings = {
@@ -81,7 +106,29 @@ export class OfflineService {
       const stored = localStorage.getItem(LOCAL_TRACKS_KEY);
       if (!stored) return [];
       const parsed = JSON.parse(stored) as LocalTrack[];
-      return parsed.map((t) => {
+
+      // Clean out legacy demo/mock items while strictly preserving all user-imported music
+      const userTracks = parsed.filter((t) => {
+        if (!t) return false;
+        // User-imported tracks always have local identifiers or offline blob origins
+        if (t.id && (t.id.startsWith("local-imported-") || t.id.startsWith("local-"))) {
+          return true;
+        }
+        // Filter out legacy demo/mock catalog tracks
+        const normTitle = (t.title || "").toLowerCase().trim();
+        const normArtist = (t.artistName || t.artist || "").toLowerCase().trim();
+        if (DEMO_TRACK_IDS.has(t.id)) return false;
+        if (DEMO_TITLES.has(normTitle) && DEMO_ARTIST_NAMES.has(normArtist)) return false;
+        return true;
+      });
+
+      // If any legacy demo tracks were pruned, update localStorage silently
+      if (userTracks.length !== parsed.length) {
+        const persistent = userTracks.map((t) => ({ ...t, audioUrl: "" }));
+        localStorage.setItem(LOCAL_TRACKS_KEY, JSON.stringify(persistent));
+      }
+
+      return userTracks.map((t) => {
         const cachedUrl = getCachedAudioBlobUrl(t.id);
         if (cachedUrl) {
           return { ...t, audioUrl: cachedUrl };

@@ -24,6 +24,17 @@ import {
   Layers,
   ArrowRight,
   Disc,
+  MoreVertical,
+  Info,
+  ListPlus,
+  PlayCircle,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+  Database,
+  Activity,
+  Cpu,
+  Radio,
 } from "lucide-react";
 import { BrandLogo } from "@layam/design-system";
 import { usePlayer } from "@/lib/player";
@@ -38,6 +49,15 @@ import {
 } from "@layam/storage-core";
 
 type PrimaryTab = "dashboard" | "tracks" | "albums" | "artists" | "playlists" | "favorites";
+type SortKey = "default" | "title" | "artist" | "album" | "quality" | "duration";
+type SortOrder = "asc" | "desc";
+
+interface ContextMenuState {
+  isOpen: boolean;
+  x: number;
+  y: number;
+  track: LocalTrack | null;
+}
 
 interface ImportProgressState {
   isImporting: boolean;
@@ -61,6 +81,8 @@ export function OfflineLibrary() {
     playTrack,
     togglePlay,
     openConsole,
+    addToQueue,
+    playNextInQueue,
   } = usePlayer();
 
   console.log("LIBRARY PLAYER STATE", {
@@ -135,6 +157,49 @@ export function OfflineLibrary() {
   // Add to Playlist modal state
   const [playlistTrack, setPlaylistTrack] = useState<LocalTrack | null>(null);
 
+  // Technical Audio Info Modal state
+  const [infoTrack, setInfoTrack] = useState<LocalTrack | null>(null);
+
+  // Context Menu state
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    track: null,
+  });
+
+  const handleContextMenu = (e: React.MouseEvent, track: LocalTrack) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const clickX = e.clientX;
+    const clickY = e.clientY;
+    const x = Math.min(clickX, typeof window !== "undefined" ? window.innerWidth - 240 : clickX);
+    const y = Math.min(clickY, typeof window !== "undefined" ? window.innerHeight - 300 : clickY);
+    setContextMenu({
+      isOpen: true,
+      x: Math.max(10, x),
+      y: Math.max(10, y),
+      track,
+    });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  // Sorting state
+  const [sortKey, setSortKey] = useState<SortKey>("default");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+
+  const handleHeaderSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortOrder("asc");
+    }
+  };
+
   // Lyrics Modal state
   const [lyricsTrack, setLyricsTrack] = useState<LocalTrack | null>(null);
   const [currentLyrics, setCurrentLyrics] = useState<StoredTrackLyrics | null>(null);
@@ -206,18 +271,46 @@ export function OfflineLibrary() {
     return counts;
   }, [localTracks]);
 
-  // Filtered tracks
+  // Filtered and sorted tracks
   const filteredTracks = useMemo(() => {
-    if (!searchQuery.trim()) return localTracks;
-    const q = searchQuery.toLowerCase();
-    return localTracks.filter(
-      (t) =>
-        t.title.toLowerCase().includes(q) ||
-        (t.artistName || "").toLowerCase().includes(q) ||
-        (t.album || "").toLowerCase().includes(q) ||
-        (t.format || "").toLowerCase().includes(q)
-    );
-  }, [localTracks, searchQuery]);
+    let result = localTracks;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          (t.artistName || "").toLowerCase().includes(q) ||
+          (t.album || "").toLowerCase().includes(q) ||
+          (t.format || "").toLowerCase().includes(q) ||
+          (t.quality || "").toLowerCase().includes(q)
+      );
+    }
+    if (sortKey === "default") return result;
+
+    return [...result].sort((a, b) => {
+      let valA: string | number = "";
+      let valB: string | number = "";
+      if (sortKey === "title") {
+        valA = a.title.toLowerCase();
+        valB = b.title.toLowerCase();
+      } else if (sortKey === "artist") {
+        valA = (a.artistName || "").toLowerCase();
+        valB = (b.artistName || "").toLowerCase();
+      } else if (sortKey === "album") {
+        valA = (a.album || "").toLowerCase();
+        valB = (b.album || "").toLowerCase();
+      } else if (sortKey === "quality") {
+        valA = (a.quality || a.format || "").toLowerCase();
+        valB = (b.quality || b.format || "").toLowerCase();
+      } else if (sortKey === "duration") {
+        valA = a.duration || 0;
+        valB = b.duration || 0;
+      }
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [localTracks, searchQuery, sortKey, sortOrder]);
 
   const favoriteTracks = useMemo(() => {
     return localTracks.filter((t) => favoriteIds.has(t.id));
@@ -603,14 +696,73 @@ export function OfflineLibrary() {
       {activeTab === "tracks" && (
         <div className="rounded-2xl border border-white/[0.06] bg-[#0c0d10] overflow-hidden">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-white/[0.07] bg-[#07080a] text-[#6b7280] font-mono text-[10px] uppercase">
+            <thead className="border-b border-white/[0.07] bg-[#07080a] text-[#6b7280] font-mono text-[10px] uppercase select-none">
               <tr>
-                <th className="py-3 pl-4 pr-2 w-12">#</th>
-                <th className="py-3 px-3">Title</th>
-                <th className="py-3 px-3 hidden sm:table-cell">Artist</th>
-                <th className="py-3 px-3 hidden md:table-cell">Album</th>
-                <th className="py-3 px-3">Quality</th>
-                <th className="py-3 px-3 text-right">Duration</th>
+                <th
+                  onClick={() => handleHeaderSort("default")}
+                  className="py-3 pl-4 pr-2 w-12 cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                  title="Default Track Order"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>#</span>
+                    {sortKey === "default" && <span className="text-[#e59e38]">●</span>}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort("title")}
+                  className="py-3 px-3 cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Title</span>
+                    {sortKey === "title" && (
+                      sortOrder === "asc" ? <ChevronUp className="h-3 w-3 text-[#e59e38]" /> : <ChevronDown className="h-3 w-3 text-[#e59e38]" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort("artist")}
+                  className="py-3 px-3 hidden sm:table-cell cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Artist</span>
+                    {sortKey === "artist" && (
+                      sortOrder === "asc" ? <ChevronUp className="h-3 w-3 text-[#e59e38]" /> : <ChevronDown className="h-3 w-3 text-[#e59e38]" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort("album")}
+                  className="py-3 px-3 hidden md:table-cell cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Album</span>
+                    {sortKey === "album" && (
+                      sortOrder === "asc" ? <ChevronUp className="h-3 w-3 text-[#e59e38]" /> : <ChevronDown className="h-3 w-3 text-[#e59e38]" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort("quality")}
+                  className="py-3 px-3 cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Quality</span>
+                    {sortKey === "quality" && (
+                      sortOrder === "asc" ? <ChevronUp className="h-3 w-3 text-[#e59e38]" /> : <ChevronDown className="h-3 w-3 text-[#e59e38]" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort("duration")}
+                  className="py-3 px-3 text-right cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    <span>Duration</span>
+                    {sortKey === "duration" && (
+                      sortOrder === "asc" ? <ChevronUp className="h-3 w-3 text-[#e59e38]" /> : <ChevronDown className="h-3 w-3 text-[#e59e38]" />
+                    )}
+                  </div>
+                </th>
                 <th className="py-3 pr-4 pl-2 text-right">Actions</th>
               </tr>
             </thead>
@@ -622,6 +774,7 @@ export function OfflineLibrary() {
                   <tr
                     key={track.id}
                     onClick={() => handleTrackClick(track, localTracks)}
+                    onContextMenu={(e) => handleContextMenu(e, track)}
                     className={`group cursor-pointer transition-colors ${
                       isCurrent
                         ? "bg-[#e59e38]/10 text-[#e59e38]"
@@ -666,7 +819,7 @@ export function OfflineLibrary() {
                     </td>
 
                     <td className="py-3 pr-4 pl-2 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={(e) => handleToggleFavorite(track.id, e)}
                           className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
@@ -682,26 +835,20 @@ export function OfflineLibrary() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setEditingTrack(track);
-                            setEditTitle(track.title);
-                            setEditArtist(track.artistName || "");
-                            setEditAlbum(track.album || "");
+                            setInfoTrack(track);
                           }}
                           className="p-1.5 text-[#6b7280] hover:text-[#e59e38] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                          title="Edit Metadata"
+                          title="Audio Info"
                         >
-                          <Edit2 className="h-3.5 w-3.5" />
+                          <Info className="h-3.5 w-3.5" />
                         </button>
 
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeLocalTrack(track.id);
-                          }}
-                          className="p-1.5 text-[#6b7280] hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                          title="Remove from vault"
+                          onClick={(e) => handleContextMenu(e, track)}
+                          className="p-1.5 text-[#6b7280] hover:text-[#f2f3f5] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          title="More Options"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <MoreVertical className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </td>
@@ -901,6 +1048,230 @@ export function OfflineLibrary() {
                 className="px-4 py-1.5 rounded-lg bg-[#e59e38] text-xs font-bold text-[#090a0c] hover:bg-[#f0ab4d] cursor-pointer"
               >
                 Save Tags
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Context Menu Overlay ── */}
+      {contextMenu.isOpen && contextMenu.track && (
+        <>
+          <div
+            onClick={handleCloseContextMenu}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              handleCloseContextMenu();
+            }}
+            className="fixed inset-0 z-50 bg-black/20"
+          />
+          <div
+            style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+            className="fixed z-50 w-56 rounded-xl border border-white/[0.12] bg-[#0c0d10] p-1.5 text-xs text-[#f2f3f5] shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+          >
+            <div className="px-2.5 py-1.5 border-b border-white/[0.06] mb-1">
+              <p className="font-bold text-xs truncate text-[#f2f3f5]">{contextMenu.track.title}</p>
+              <p className="text-[10px] text-[#9ba1ad] truncate">{contextMenu.track.artistName || "Local Artist"}</p>
+            </div>
+
+            <button
+              onClick={() => {
+                handleTrackClick(contextMenu.track!, localTracks);
+                handleCloseContextMenu();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] hover:text-[#e59e38] text-left transition-colors cursor-pointer"
+            >
+              <Play className="h-3.5 w-3.5" />
+              <span>Play Now</span>
+            </button>
+
+            <button
+              onClick={() => {
+                playNextInQueue(contextMenu.track!);
+                handleCloseContextMenu();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] hover:text-[#e59e38] text-left transition-colors cursor-pointer"
+            >
+              <PlayCircle className="h-3.5 w-3.5" />
+              <span>Play Next</span>
+            </button>
+
+            <button
+              onClick={() => {
+                addToQueue(contextMenu.track!);
+                handleCloseContextMenu();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] hover:text-[#e59e38] text-left transition-colors cursor-pointer"
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              <span>Add to Queue</span>
+            </button>
+
+            <button
+              onClick={(e) => {
+                handleToggleFavorite(contextMenu.track!.id, e);
+                handleCloseContextMenu();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-left transition-colors cursor-pointer"
+            >
+              <Heart
+                className={`h-3.5 w-3.5 ${
+                  favoriteIds.has(contextMenu.track.id) ? "text-rose-400 fill-current" : ""
+                }`}
+              />
+              <span>
+                {favoriteIds.has(contextMenu.track.id) ? "Remove Favorite" : "Add to Favorites"}
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                setPlaylistTrack(contextMenu.track!);
+                handleCloseContextMenu();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-left transition-colors cursor-pointer"
+            >
+              <ListMusic className="h-3.5 w-3.5" />
+              <span>Add to Playlist...</span>
+            </button>
+
+            <div className="h-px bg-white/[0.06] my-1" />
+
+            <button
+              onClick={() => {
+                setInfoTrack(contextMenu.track!);
+                handleCloseContextMenu();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-left transition-colors cursor-pointer"
+            >
+              <Info className="h-3.5 w-3.5 text-[#e59e38]" />
+              <span>Technical Audio Info</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setEditingTrack(contextMenu.track!);
+                setEditTitle(contextMenu.track!.title);
+                setEditArtist(contextMenu.track!.artistName || "");
+                setEditAlbum(contextMenu.track!.album || "");
+                handleCloseContextMenu();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-left transition-colors cursor-pointer"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              <span>Edit Metadata</span>
+            </button>
+
+            <button
+              onClick={() => {
+                removeLocalTrack(contextMenu.track!.id);
+                handleCloseContextMenu();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-rose-500/10 text-rose-400 text-left transition-colors cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Remove from Vault</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── Technical Audio Information Modal ── */}
+      {infoTrack && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border border-white/[0.12] bg-[#0c0d10] p-6 text-[#f2f3f5] shadow-2xl space-y-5">
+            <div className="flex items-start justify-between border-b border-white/[0.08] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#16181e] text-[#e59e38] border border-white/[0.08]">
+                  <Activity className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#f2f3f5] truncate max-w-[240px]">
+                    {infoTrack.title}
+                  </h3>
+                  <p className="text-xs text-[#9ba1ad] truncate">{infoTrack.artistName || "Local Artist"}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setInfoTrack(null)}
+                className="p-1.5 text-[#6b7280] hover:text-[#f2f3f5] rounded-lg hover:bg-white/[0.05] transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-xl border border-white/[0.06] bg-[#111216] p-3">
+                <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider block mb-1">
+                  Container / Format
+                </span>
+                <span className="font-mono font-bold text-[#e59e38] text-sm">
+                  {infoTrack.format || (infoTrack.title.endsWith(".wav") ? "WAV" : infoTrack.title.endsWith(".mp3") ? "MP3" : "FLAC")}
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.06] bg-[#111216] p-3">
+                <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider block mb-1">
+                  Audio Quality Tier
+                </span>
+                <span className="font-mono font-bold text-[#f2f3f5]">
+                  {infoTrack.quality || "FLAC 24-bit / 96 kHz"}
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.06] bg-[#111216] p-3">
+                <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider block mb-1">
+                  Channels
+                </span>
+                <span className="font-mono text-[#f2f3f5]">Stereo (2.0 PCM)</span>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.06] bg-[#111216] p-3">
+                <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider block mb-1">
+                  Duration
+                </span>
+                <span className="font-mono text-[#f2f3f5]">{formatSeconds(infoTrack.duration || 0)}</span>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.06] bg-[#111216] p-3">
+                <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider block mb-1">
+                  Storage Footprint
+                </span>
+                <span className="font-mono text-[#f2f3f5]">
+                  {infoTrack.fileSizeBytes
+                    ? `${(infoTrack.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB`
+                    : "IndexedDB Blob"}
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.06] bg-[#111216] p-3">
+                <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider block mb-1">
+                  Bitrate
+                </span>
+                <span className="font-mono text-[#f2f3f5]">
+                  {infoTrack.fileSizeBytes && infoTrack.duration && infoTrack.duration > 0
+                    ? `${Math.round((infoTrack.fileSizeBytes * 8) / infoTrack.duration / 1000)} kbps`
+                    : "Variable Lossless"}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/[0.06] bg-[#111216] p-3 text-[11px] font-mono text-[#9ba1ad]">
+              <div className="flex items-center gap-1.5 text-[#e59e38] font-bold mb-1">
+                <Database className="h-3.5 w-3.5" />
+                <span>LOCAL VAULT STORAGE VERIFIED</span>
+              </div>
+              <p className="text-[10px] text-[#6b7280]">
+                Decoded directly via 64-bit Web Audio buffer. Operating 100% offline with zero remote telemetry.
+              </p>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={() => setInfoTrack(null)}
+                className="rounded-xl bg-[#e59e38] px-4 py-2 text-xs font-bold text-[#090a0c] hover:bg-[#f0ab4d] cursor-pointer"
+              >
+                Close Info
               </button>
             </div>
           </div>

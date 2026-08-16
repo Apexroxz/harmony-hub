@@ -43,6 +43,7 @@ export interface PlayerContextValue extends AudioEngineState {
   playNext: () => void;
   playPrevious: () => void;
   addToQueue: (track: Track) => void;
+  playNextInQueue: (track: Track) => void;
   removeFromQueue: (index: number) => void;
   playFromQueue: (index: number) => void;
   clearQueue: () => void;
@@ -57,6 +58,7 @@ export interface PlayerContextValue extends AudioEngineState {
   toggleConsole: () => void;
   // EQ & DSP
   setEqGain: (bandIndex: number, gainDb: number) => void;
+  setEqGains: (gains: number[], presetName?: string) => void;
   setEqPreset: (preset: string) => void;
   setEqEnabled: (enabled: boolean) => void;
   toggleEq: () => void;
@@ -139,6 +141,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     globalAudioEngine.addToQueue(track);
   }, []);
 
+  const playNextInQueue = useCallback((track: Track) => {
+    globalAudioEngine.playNextInQueue(track);
+  }, []);
+
   const removeFromQueue = useCallback((idx: number) => {
     globalAudioEngine.removeFromQueue(idx);
   }, []);
@@ -174,6 +180,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const setEqGain = useCallback((bandIndex: number, gainDb: number) => {
     globalAudioEngine.setEqGain(bandIndex, gainDb);
+  }, []);
+
+  const setEqGains = useCallback((gains: number[], presetName?: string) => {
+    globalAudioEngine.setEqGains(gains, presetName);
   }, []);
 
   const setEqPreset = useCallback((preset: string) => {
@@ -239,6 +249,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         playNext,
         playPrevious,
         addToQueue,
+        playNextInQueue,
         removeFromQueue,
         playFromQueue,
         clearQueue,
@@ -251,6 +262,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         closeConsole,
         toggleConsole,
         setEqGain,
+        setEqGains,
         setEqPreset,
         setEqEnabled,
         toggleEq,
