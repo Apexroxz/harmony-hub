@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Layam Hi-Fi Player</title>
     <meta name="application-name" content="Layam Hi-Fi Player" />
     <meta name="apple-mobile-web-app-title" content="Layam Hi-Fi" />
@@ -22,12 +22,21 @@
   <body class="bg-[#090a0c] text-[#f2f3f5] antialiased selection:bg-[#e59e38]/20 selection:text-[#e59e38]">
     <div id="root">
       <!-- Minimal Initial Launch Surface -->
-      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #090a0c; color: #f2f3f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #090a0c; color: #f2f3f5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;">
         <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
-          <img src="/logo.png" alt="Layam" width="48" height="48" style="border-radius: 12px; object-fit: contain;" />
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+            <circle cx="50" cy="20" r="6" fill="#e59e38"/>
+            <circle cx="71.2" cy="28.8" r="6" fill="#e59e38"/>
+            <circle cx="80" cy="50" r="6" fill="#e59e38"/>
+            <circle cx="71.2" cy="71.2" r="6" fill="#e59e38"/>
+            <circle cx="50" cy="80" r="6" fill="none" stroke="#e59e38" stroke-width="3.5"/>
+            <circle cx="28.8" cy="71.2" r="6" fill="#e59e38"/>
+            <circle cx="20" cy="50" r="6" fill="#e59e38"/>
+            <circle cx="28.8" cy="28.8" r="6" fill="#e59e38"/>
+          </svg>
           <div style="text-align: center;">
-            <div style="font-size: 18px; font-weight: 900; letter-spacing: 3px; color: #f2f3f5;">LAYAM</div>
-            <div style="font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #e59e38; margin-top: 4px;">Hi-Fi Player</div>
+            <div style="font-size: 16px; font-weight: 800; letter-spacing: 2px; color: #f2f3f5;">LAYAM <span style="color: #e59e38; font-weight: 700;">Hi-Fi</span></div>
+            <div style="font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #6b7280; margin-top: 4px; font-family: monospace;">Bit-Perfect Audio Engine</div>
           </div>
         </div>
       </div>

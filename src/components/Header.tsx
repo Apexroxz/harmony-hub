@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@layam/design-system";
 
 const onlineNav = [
   { to: "/", label: "Home" },
@@ -51,6 +52,11 @@ const onlineNav = [
   { to: "/library", label: "Library" },
 ];
 
+const studioNav = [
+  { to: "/dashboard", label: "Studio" },
+  { to: "/upload", label: "Upload" },
+];
+
 const offlineNav = [
   { to: "/library", search: { tab: "tracks" }, label: "Library", icon: Music2 },
   { to: "/library", search: { tab: "folders" }, label: "Folders", icon: FolderOpen },
@@ -60,73 +66,57 @@ const offlineNav = [
 ];
 
 export function Header() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { isOffline } = useAppMode();
+  const routerState = useRouterState();
+  const pathname = routerState.location.pathname;
+  const { isOffline, toggleMode } = useAppMode();
   const { openConsole } = usePlayer();
-  const { isArtist, isListener } = useAuth();
-  const { language, setLanguage, languages, t } = useI18n();
+  const { user } = useAuth();
+  const { language, setLanguage, t } = useI18n();
   const { state: gamificationState, levelInfo } = useGamification();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [gamificationOpen, setGamificationOpen] = useState(false);
   const [blindTestOpen, setBlindTestOpen] = useState(false);
 
-  const isStudioRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/upload");
+  const isStudioRoute =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/studio") ||
+    pathname.startsWith("/upload");
 
-  // Minimalist Primary Navigation
+  const isArtist = user?.role === "artist";
+
   const primaryNav = [
-    { to: "/", label: "Home", key: "nav.home" },
-    { to: "/stream", label: "Discover", key: "nav.discover" },
-    { to: "/library", label: "Library", key: "nav.library" },
+    { to: "/", key: "nav.home", label: "Home" },
+    { to: "/stream", key: "nav.discover", label: "Discover" },
+    { to: "/library", key: "nav.library", label: "Library" },
   ];
 
-  // Grouped Explore Dropdown for all platform features and proofs
   const exploreNav = [
-    { to: "/store", label: "Master Store", icon: ShoppingBag, desc: "DRM-free 24-Bit FLAC & WAV downloads" },
     { to: "/radio", label: "Lossless Radio", icon: Radio, desc: "Curated 24/96 streams & soundscapes" },
     { to: "/feed", label: "Community Feed", icon: Sparkles, desc: "Audiophile discussions & timestamps" },
     { to: "/artists", label: "Creators & Artists", icon: Users, desc: "Verified roster & discographies" },
-    { to: "/dashboard", label: "Creator Studio", icon: Layers, desc: "Artist portal, splits & analytics" },
-    { to: "/upload", label: "Upload Master", icon: Sparkles, desc: "24-bit FLAC/WAV ingestion" },
+    { to: "/store", label: "Master Store", icon: ShoppingBag, desc: "Bit-perfect master recordings" },
   ];
 
   return (
     <>
       <header
         className={cn(
-          "fixed left-0 right-0 top-0 z-50 transition-all duration-300 border-b backdrop-blur-2xl",
-          isOffline
-            ? "border-emerald-500/20 bg-background/85 shadow-[0_4px_30px_rgba(0,0,0,0.8)]"
-            : isStudioRoute
-              ? "border-primary/30 bg-[#0d0e11]/90 shadow-[0_4px_30px_rgba(0,0,0,0.9)]"
-              : "border-border/40 bg-background/85 shadow-[0_4px_30px_rgba(0,0,0,0.8)]",
+          "fixed left-0 right-0 top-0 z-50 transition-all duration-300 border-b backdrop-blur-2xl bg-[#090a0c]/95 border-white/[0.07] shadow-[0_8px_24px_rgba(0,0,0,0.4)]"
         )}
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          {/* Left: Brand Identity */}
+          {/* Left: Brand Identity with The Cycle SVG */}
           <div className="flex items-center gap-4 lg:gap-6">
             <Link
               to={isStudioRoute ? "/dashboard" : "/"}
-              className="group flex items-center gap-2 text-foreground transition-opacity hover:opacity-90 flex-shrink-0"
+              className="group flex items-center gap-2 text-[#f2f3f5] transition-opacity hover:opacity-90 flex-shrink-0"
             >
-              <img
-                src="/logo.png"
-                alt="Layam"
-                width={28}
-                height={28}
-                className="h-7 w-7 rounded-lg object-contain drop-shadow-[0_0_12px_var(--color-glow)] transition-transform group-hover:scale-105"
+              <BrandLogo
+                variant="compact"
+                size="sm"
+                showBadge={isOffline || isStudioRoute}
+                badgeText={isOffline ? "HI-FI" : isStudioRoute ? "STUDIO" : undefined}
               />
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-base sm:text-lg font-extrabold tracking-tight text-foreground">LAYAM</span>
-                {isOffline ? (
-                  <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.2 text-[8px] font-mono font-bold tracking-widest text-emerald-400 border border-emerald-500/30">
-                    HI-FI
-                  </span>
-                ) : isStudioRoute ? (
-                  <span className="rounded-full bg-primary/20 px-1.5 py-0.2 text-[8px] font-mono font-bold tracking-widest text-primary border border-primary/40">
-                    STUDIO
-                  </span>
-                ) : null}
-              </div>
             </Link>
 
             {/* Center: Minimalist Compact Navigation */}

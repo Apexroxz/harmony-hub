@@ -99,33 +99,37 @@ function saveSubscription(artistId: string, tierId: string, userId?: string, pri
 
   // Persist to database if authenticated
   if (userId && !userId.startsWith("demo-")) {
-    void supabase
-      .from("artist_subscriptions")
-      .upsert(
-        {
-          user_id: userId,
-          artist_id: artistId,
-          tier: tierId,
-          status: "active",
-        },
-        { onConflict: "user_id,artist_id" },
-      )
-      .catch((err) => console.warn("[ArtistSubscription] Supabase note:", err));
+    try {
+      void (supabase as unknown as { from: (t: string) => { upsert: (d: unknown, opts: unknown) => Promise<unknown>; insert: (d: unknown) => Promise<unknown> } })
+        .from("artist_subscriptions")
+        .upsert(
+          {
+            user_id: userId,
+            artist_id: artistId,
+            tier: tierId,
+            status: "active",
+          },
+          { onConflict: "user_id,artist_id" },
+        )
+        .catch((err: unknown) => console.warn("[ArtistSubscription] Supabase note:", err));
 
-    // Write to royalty ledger for creator
-    void supabase
-      .from("royalty_transactions")
-      .insert({
-        creator_id: artistId,
-        event_type: "subscription",
-        amount: priceMonthly,
-        currency: "USD",
-        metadata: {
-          tier: tierId,
-          subscriberId: userId,
-        },
-      })
-      .catch(() => {});
+      // Write to royalty ledger for creator
+      void (supabase as unknown as { from: (t: string) => { insert: (d: unknown) => Promise<unknown> } })
+        .from("royalty_transactions")
+        .insert({
+          creator_id: artistId,
+          event_type: "subscription",
+          amount: priceMonthly,
+          currency: "USD",
+          metadata: {
+            tier: tierId,
+            subscriberId: userId,
+          },
+        })
+        .catch(() => {});
+    } catch {
+      // Ignored for offline/demo operation
+    }
   }
 }
 

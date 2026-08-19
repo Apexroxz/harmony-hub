@@ -73,6 +73,31 @@ export class LocalLyricsService {
   }
 
   /**
+   * Directly parses and saves raw LRC text.
+   */
+  public static async saveLrcText(
+    trackId: string,
+    rawText: string,
+    title = "Track",
+    artist = "Artist",
+  ): Promise<StoredTrackLyrics> {
+    const { format, lines, isSynced } = parseAnyLyricFormat(rawText, "lyrics.lrc");
+    const storedLyrics: StoredTrackLyrics = {
+      trackId,
+      title,
+      artist,
+      format,
+      rawText,
+      lines,
+      isSynced,
+      source: "manual_import",
+      importedAt: new Date().toISOString(),
+    };
+    await this.saveLyrics(storedLyrics);
+    return storedLyrics;
+  }
+
+  /**
    * Auto-detects sidecar lyrics file (e.g. song.lrc alongside song.flac).
    */
   public static findSidecarLyricsFile(

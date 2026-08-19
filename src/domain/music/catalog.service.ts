@@ -83,17 +83,15 @@ export class CatalogService {
         supabase
           .from("artists")
           .select(ARTIST_COLUMNS)
-          .order("followers", { ascending: false })
-          .returns<ArtistRow[]>(),
+          .order("followers", { ascending: false }),
         supabase
           .from("tracks")
           .select(TRACK_COLUMNS)
-          .order("created_at", { ascending: false })
-          .returns<TrackRow[]>(),
+          .order("created_at", { ascending: false }),
       ]);
 
-      const artistRows = artistsResult.data ?? [];
-      const trackRows = tracksResult.data ?? [];
+      const artistRows = (artistsResult.data as ArtistRow[]) ?? [];
+      const trackRows = (tracksResult.data as TrackRow[]) ?? [];
 
       const [coverLinks, audioLinks] = await Promise.all([
         signedUrls("covers", [
@@ -191,11 +189,12 @@ export class CatalogService {
 
     // 2. Query Supabase directly if missing from cache
     try {
-      const { data: row } = await supabase
+      const result = await supabase
         .from("tracks")
         .select(TRACK_COLUMNS)
         .eq("id", id)
-        .maybeSingle<TrackRow>();
+        .maybeSingle();
+      const row = result.data as TrackRow | null;
 
       if (row) {
         const [coverLinks, audioLinks] = await Promise.all([
@@ -248,11 +247,12 @@ export class CatalogService {
     if (found) return found;
 
     try {
-      const { data: row } = await supabase
+      const result = await supabase
         .from("artists")
         .select(ARTIST_COLUMNS)
         .eq("id", id)
-        .maybeSingle<ArtistRow>();
+        .maybeSingle();
+      const row = result.data as ArtistRow | null;
 
       if (row) {
         const coverLinks = row.avatar_path

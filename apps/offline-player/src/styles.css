@@ -1,3 +1,4 @@
+@import "../../../packages/design-system/src/tokens.css";
 @import "tailwindcss";
 @source "../../../src/**/*.{js,ts,jsx,tsx}";
 @source "../../../packages/**/*.{js,ts,jsx,tsx}";
@@ -5,40 +6,30 @@
 @source "./**/*.{js,ts,jsx,tsx}";
 
 @layer base {
-  :root {
-    --bg-obsidian: #090a0c;
-    --surface-charcoal: #111216;
-    --surface-raised: #16181e;
-    --surface-active: #1e2027;
-    --surface-sunken: #060708;
-    
-    --border-subtle: rgba(255, 255, 255, 0.07);
-    --border-medium: rgba(255, 255, 255, 0.12);
-    --border-amber: rgba(229, 158, 56, 0.35);
-
-    --accent-amber: #e59e38;
-    --accent-amber-hover: #f0ab4d;
-    --accent-amber-dim: rgba(229, 158, 56, 0.15);
-
-    --text-primary: #f2f3f5;
-    --text-secondary: #9ba1ad;
-    --text-tertiary: #6b7280;
-    --text-amber: #e59e38;
-  }
-
   body {
     background-color: var(--bg-obsidian);
     color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-ui);
     letter-spacing: -0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overscroll-behavior: none;
     user-select: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 
   /* Audiophile Mono Technical Typography */
   .font-tech {
-    font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+    font-family: var(--font-tech);
     font-feature-settings: "tnum" 1, "zero" 1;
   }
 
@@ -57,9 +48,9 @@
     border-radius: 50%;
     background: var(--accent-amber);
     border: 2px solid #090a0c;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
     cursor: pointer;
-    transition: transform 0.1s ease;
+    transition: transform 0.12s ease-out;
   }
 
   input[type="range"]::-webkit-slider-thumb:hover {
@@ -72,7 +63,7 @@
     border-radius: 50%;
     background: var(--accent-amber);
     border: 2px solid #090a0c;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
     cursor: pointer;
   }
 
@@ -85,10 +76,21 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+@layer utilities {
+  .shadow-floating {
+    box-shadow: var(--shadow-floating);
+  }
+
+  .tap-active:active {
+    transform: scale(0.97);
+    transition: transform 0.12s ease-out;
   }
 }

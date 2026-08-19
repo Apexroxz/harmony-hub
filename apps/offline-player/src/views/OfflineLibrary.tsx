@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
   Music2,
   Disc3,
@@ -36,9 +37,11 @@ import {
   Cpu,
   Radio,
 } from "lucide-react";
+import { toast } from "sonner";
 import { BrandLogo } from "@layam/design-system";
 import { usePlayer } from "@/lib/player";
 import { useLocalVault } from "../providers/LocalVaultProvider";
+import { androidMedia3 } from "@layam/audio-core";
 import {
   OfflineService,
   LocalLyricsService,
@@ -80,7 +83,6 @@ export function OfflineLibrary() {
     isPlaying,
     playTrack,
     togglePlay,
-    openConsole,
     addToQueue,
     playNextInQueue,
   } = usePlayer();
@@ -131,6 +133,21 @@ export function OfflineLibrary() {
     LocalFavoritesService.getAllFavoriteIds().then((ids) => {
       setFavoriteIds(new Set(ids));
     });
+
+    const unsubscribe = LocalFavoritesService.subscribeFavorites(
+      ({ trackId, isFavorite }) => {
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          if (isFavorite) next.add(trackId);
+          else next.delete(trackId);
+          return next;
+        });
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleToggleFavorite = async (trackId: string, e: React.MouseEvent) => {
@@ -141,6 +158,9 @@ export function OfflineLibrary() {
       if (isFav) next.add(trackId);
       else next.delete(trackId);
       return next;
+    });
+    toast(isFav ? "Added to Favorites" : "Removed from Favorites", {
+      icon: isFav ? "❤️" : "🤍",
     });
   };
 
@@ -205,6 +225,70 @@ export function OfflineLibrary() {
   const [currentLyrics, setCurrentLyrics] = useState<StoredTrackLyrics | null>(null);
 
   // File Handlers
+  const handleScanMusicFolder = async () => {
+    if (androidMedia3.isNativeAndroid()) {
+      const perm = await androidMedia3.checkAudioPermission();
+      if (!perm.granted) {
+        const req = await androidMedia3.requestAudioPermission();
+        if (!req.granted) {
+          toast.error("Audio Access Required", {
+            description: "Storage / Audio permission is required to scan music files on your device. Please grant permission in Android settings.",
+            duration: 5000,
+          });
+          return;
+        }
+      }
+      try {
+        toast.loading("Scanning device audio...", { id: "offline-device-scan" });
+        const files = await androidMedia3.scanDeviceAudioFiles();
+        toast.dismiss("offline-device-scan");
+        if (files.length === 0) {
+          const picked = await androidMedia3.openDocumentPicker();
+          if (picked.length > 0) {
+            const imported = OfflineService.importNativeAudioFiles(picked);
+            toast.success(`Imported ${imported.length} tracks.`);
+          }
+          return;
+        }
+        const imported = OfflineService.importNativeAudioFiles(files);
+        toast.success(`Discovered ${files.length} tracks on device (${imported.length} new)`);
+      } catch (err) {
+        toast.dismiss("offline-device-scan");
+        console.warn("[OfflineLibrary] MediaStore scan fallback to picker:", err);
+        const picked = await androidMedia3.openDocumentPicker();
+        if (picked.length > 0) {
+          const imported = OfflineService.importNativeAudioFiles(picked);
+          toast.success(`Imported ${imported.length} tracks.`);
+        }
+      }
+      return;
+    }
+    folderInputRef.current?.click();
+  };
+
+  const handleAddAudioFiles = async () => {
+    if (androidMedia3.isNativeAndroid()) {
+      const perm = await androidMedia3.checkAudioPermission();
+      if (!perm.granted) {
+        const req = await androidMedia3.requestAudioPermission();
+        if (!req.granted) {
+          toast.error("Audio Access Required", {
+            description: "Storage / Audio permission is required to select and play music on your device. Please grant permission in Android settings.",
+            duration: 5000,
+          });
+          return;
+        }
+      }
+      const files = await androidMedia3.openDocumentPicker();
+      if (files.length > 0) {
+        const imported = OfflineService.importNativeAudioFiles(files);
+        toast.success(`Imported ${imported.length} audio ${imported.length === 1 ? "track" : "tracks"}`);
+      }
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -279,7 +363,7 @@ export function OfflineLibrary() {
       result = result.filter(
         (t) =>
           t.title.toLowerCase().includes(q) ||
-          (t.artistName || "").toLowerCase().includes(q) ||
+          (t.artistName || t.artist || "").toLowerCase().includes(q) ||
           (t.album || "").toLowerCase().includes(q) ||
           (t.format || "").toLowerCase().includes(q) ||
           (t.quality || "").toLowerCase().includes(q)
@@ -294,8 +378,8 @@ export function OfflineLibrary() {
         valA = a.title.toLowerCase();
         valB = b.title.toLowerCase();
       } else if (sortKey === "artist") {
-        valA = (a.artistName || "").toLowerCase();
-        valB = (b.artistName || "").toLowerCase();
+        valA = (a.artistName || a.artist || "").toLowerCase();
+        valB = (b.artistName || b.artist || "").toLowerCase();
       } else if (sortKey === "album") {
         valA = (a.album || "").toLowerCase();
         valB = (b.album || "").toLowerCase();
@@ -320,6 +404,25 @@ export function OfflineLibrary() {
     return localTracks.slice(0, 6);
   }, [localTracks]);
 
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const rowVirtualizer = useWindowVirtualizer({
+    count: filteredTracks.length,
+    estimateSize: () => 52,
+    overscan: 10,
+    scrollMargin: tableContainerRef.current?.offsetTop ?? 0,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalVirtualSize = rowVirtualizer.getTotalSize();
+  const scrollOffsetMargin = tableContainerRef.current?.offsetTop ?? 0;
+  const paddingTop =
+    virtualRows.length > 0 ? Math.max(0, virtualRows[0].start - scrollOffsetMargin) : 0;
+  const paddingBottom =
+    virtualRows.length > 0
+      ? Math.max(0, totalVirtualSize - (virtualRows[virtualRows.length - 1].end - scrollOffsetMargin))
+      : 0;
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -333,7 +436,7 @@ export function OfflineLibrary() {
         ref={fileInputRef}
         onChange={handleFileSelect}
         multiple
-        accept="audio/*,.flac,.wav,.mp3,.alac,.m4a,.aac,.ogg"
+        accept="audio/*,.flac,.wav,.mp3,.alac,.m4a,.aac,.ogg,.opus,.aiff,.aif,.au,.snd,.ape,.wv,.wma,.ac3,.dts"
         className="hidden"
       />
       <input
@@ -390,133 +493,70 @@ export function OfflineLibrary() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* 1. ORIGINAL OFFLINE HARDWARE CONSOLE HERO BANNER                       */}
+      {/* 1. CONSOLIDATED LIBRARY TITLE & TELEMETRY STRIP                         */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#e59e38]/30 bg-gradient-to-br from-[#16181e] via-[#0c0d10] to-[#090a0c] p-6 sm:p-10 mb-8 shadow-2xl">
-        <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-[#e59e38]/10 via-transparent to-transparent pointer-events-none" />
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#e59e38]/40 bg-[#e59e38]/15 px-3.5 py-1 text-xs font-bold text-[#e59e38] mb-4">
-            <WifiOff className="h-3.5 w-3.5" />
-            <span className="tracking-wide">OFFLINE AUDIOPHILE CONSOLE · ZERO NETWORK ACTIVE</span>
-          </div>
-
-          <h1 className="text-2xl font-black tracking-tight text-[#f2f3f5] sm:text-4xl">
-            Hi-Fi Local Player & <br />
-            <span className="text-[#e59e38]">DSP Audio Console</span>
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-2 mb-4 border-b border-[var(--border-subtle,rgba(255,255,255,0.06))]">
+        <div className="flex items-baseline gap-2.5">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[var(--text-primary,#f2f3f5)]">
+            Local Audio Vault
           </h1>
-
-          <p className="mt-3 text-xs sm:text-sm text-[#9ba1ad] leading-relaxed">
-            Direct bit-perfect hardware playback from your local device storage. Supports uncompressed 24-bit/192kHz FLAC, WAV, and ALAC with real-time 10-band parametric equalization.
-          </p>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              onClick={() => folderInputRef.current?.click()}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#e59e38] px-4 py-2.5 text-xs font-bold text-[#090a0c] hover:bg-[#f0ab4d] active:bg-[#d48d2a] shadow-lg shadow-[#e59e38]/20 transition-colors cursor-pointer"
-            >
-              <FolderOpen className="h-4 w-4 stroke-[2.5]" />
-              Scan Music Folder
-            </button>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-[#16181e] px-4 py-2.5 text-xs font-semibold text-[#f2f3f5] hover:bg-[#1e2027] transition-colors cursor-pointer"
-            >
-              <Plus className="h-4 w-4 text-[#e59e38]" />
-              Add Audio Files
-            </button>
-
-            <button
-              onClick={openConsole}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#e59e38]/40 bg-[#e59e38]/10 px-4 py-2.5 text-xs font-bold text-[#e59e38] hover:bg-[#e59e38]/20 transition-colors cursor-pointer"
-            >
-              <Sliders className="h-4 w-4" />
-              Open Audio Console
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* 2. AUDIOPHILE HARDWARE STATS & TELEMETRY CARDS                         */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4 mb-8">
-        {/* Track Count */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0c0d10] p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[#9ba1ad] font-semibold">Local Tracks</p>
-            <Music2 className="h-4 w-4 text-[#e59e38]" />
-          </div>
-          <p className="mt-2 text-2xl sm:text-3xl font-extrabold text-[#f2f3f5]">{localTracks.length}</p>
-          <p className="text-[10px] sm:text-[11px] text-[#6b7280] mt-1 font-mono">Indexed in local vault</p>
+          <span className="text-[11px] font-mono text-[var(--text-tertiary,#6b7280)]">
+            Bit-Perfect Hardware Playback
+          </span>
         </div>
 
-        {/* Albums */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0c0d10] p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[#9ba1ad] font-semibold">Local Albums</p>
-            <Disc3 className="h-4 w-4 text-[#e59e38]" />
-          </div>
-          <p className="mt-2 text-2xl sm:text-3xl font-extrabold text-[#f2f3f5]">{localAlbums.length}</p>
-          <p className="text-[10px] sm:text-[11px] text-[#6b7280] mt-1 font-mono">Discovered groups</p>
-        </div>
-
-        {/* Storage Meter */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0c0d10] p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[#9ba1ad] font-semibold">Local Storage</p>
-            <HardDrive className="h-4 w-4 text-[#e59e38]" />
-          </div>
-          <p className="mt-2 text-2xl sm:text-3xl font-extrabold text-[#f2f3f5]">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-[var(--text-secondary,#9ba1ad)]">
+          <span className="text-[var(--text-primary,#f2f3f5)] font-semibold">
+            {localTracks.length} {localTracks.length === 1 ? "Track" : "Tracks"}
+          </span>
+          <span className="text-[var(--text-tertiary,#6b7280)]/40">·</span>
+          <span>
+            {localAlbums.length} {localAlbums.length === 1 ? "Album" : "Albums"}
+          </span>
+          <span className="text-[var(--text-tertiary,#6b7280)]/40">·</span>
+          <span>
             {parseFloat(storageUsedGb) >= 1 ? `${storageUsedGb} GB` : `${storageUsedMb} MB`}
-          </p>
-          <p className="text-[10px] sm:text-[11px] text-[#6b7280] mt-1 font-mono">IndexedDB local vault</p>
-        </div>
-
-        {/* Master Formats Breakdown */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0c0d10] p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[#9ba1ad] font-semibold">Master Formats</p>
-            <Layers className="h-4 w-4 text-[#e59e38]" />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {Object.keys(formatsSummary).length > 0 ? (
-              Object.entries(formatsSummary).map(([fmt, count]) => (
-                <span
-                  key={fmt}
-                  className="rounded bg-[#16181e] border border-white/[0.06] px-1.5 py-0.5 text-[10px] font-mono text-[#e59e38]"
-                >
-                  {fmt}: {count}
-                </span>
-              ))
-            ) : (
-              <span className="text-xs text-[#6b7280] font-mono">FLAC / WAV / ALAC</span>
-            )}
-          </div>
-          <p className="text-[10px] text-[#6b7280] mt-1 font-mono">Bit-perfect decode</p>
+          </span>
+          {Object.keys(formatsSummary).length > 0 && (
+            <>
+              <span className="text-[var(--text-tertiary,#6b7280)]/40">·</span>
+              <div className="inline-flex items-center gap-1">
+                {Object.entries(formatsSummary).map(([fmt, count]) => (
+                  <span
+                    key={fmt}
+                    className="text-[10px] font-mono text-[#e59e38] font-semibold"
+                  >
+                    {fmt}({count})
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* 3. LUXURY NAVIGATION TABS & SEARCH BAR                                */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/[0.07] pb-4 mb-6">
-        <div className="flex flex-wrap items-center gap-1.5 bg-[#0c0d10] p-1 rounded-xl border border-white/[0.06]">
+      {/* 3. SUB-NAVIGATION (TABS + SEARCH)                                     */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] pb-4 mb-6">
+        <div className="max-w-full overflow-x-auto no-scrollbar flex items-center gap-1.5 bg-[var(--surface-sunken,#060708)] p-1 rounded-[12px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] touch-pan-x">
           {[
             { id: "dashboard" as const, label: "Dashboard", icon: Disc },
-            { id: "tracks" as const, label: `Tracks (${localTracks.length})`, icon: Music2 },
-            { id: "albums" as const, label: `Albums (${localAlbums.length})`, icon: Disc3 },
+            { id: "tracks" as const, label: "Tracks", icon: Music2 },
+            { id: "albums" as const, label: "Albums", icon: Disc3 },
             { id: "artists" as const, label: "Artists", icon: Users },
-            { id: "playlists" as const, label: `Playlists (${localPlaylists.length})`, icon: ListMusic },
-            { id: "favorites" as const, label: `Favorites (${favoriteTracks.length})`, icon: Heart },
+            { id: "playlists" as const, label: "Playlists", icon: ListMusic },
+            { id: "favorites" as const, label: "Favorites", icon: Heart },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 rounded-[8px] px-3.5 py-2 min-h-[40px] text-xs font-semibold shrink-0 transition-colors cursor-pointer ${
                 activeTab === tab.id
-                  ? "bg-[#16181e] text-[#e59e38] border border-white/[0.08] shadow-sm"
-                  : "text-[#9ba1ad] hover:text-[#f2f3f5]"
+                  ? "bg-[var(--surface-raised,#16181e)] text-[#e59e38] border border-[var(--border-subtle,rgba(255,255,255,0.08))] shadow-sm"
+                  : "text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
               }`}
             >
               <tab.icon className="h-3.5 w-3.5" />
@@ -527,13 +567,13 @@ export function OfflineLibrary() {
 
         {/* Search Input */}
         <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6b7280]" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary,#6b7280)]" />
           <input
             type="text"
             placeholder="Search titles, artists, formats..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-white/[0.06] bg-[#0c0d10] py-2 pl-9 pr-3 text-xs text-[#f2f3f5] placeholder-[#6b7280] focus:border-[#e59e38]/50 focus:outline-none"
+            className="w-full rounded-[10px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-sunken,#060708)] py-2 pl-9 pr-3 text-xs text-[var(--text-primary,#f2f3f5)] placeholder-[var(--text-tertiary,#6b7280)] focus:border-[#e59e38]/50 focus:outline-none"
           />
         </div>
       </div>
@@ -548,10 +588,10 @@ export function OfflineLibrary() {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-[#f2f3f5] tracking-tight">
+                  <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary,#f2f3f5)] tracking-tight">
                     Recent Master Tracks
                   </h2>
-                  <p className="text-xs text-[#9ba1ad]">Lossless audio loaded from your local device.</p>
+                  <p className="text-xs text-[var(--text-secondary,#9ba1ad)]">Lossless audio loaded from your local device.</p>
                 </div>
                 <button
                   onClick={() => setActiveTab("tracks")}
@@ -561,48 +601,73 @@ export function OfflineLibrary() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {recentTracks.map((track) => {
                   const isCurrent = currentTrack?.id === track.id;
+                  const isFav = favoriteIds.has(track.id);
                   return (
                     <div
                       key={track.id}
                       onClick={() => handleTrackClick(track, localTracks)}
-                      className={`group flex items-center gap-3.5 rounded-2xl border p-3.5 transition-all cursor-pointer ${
+                      className={`group flex items-center gap-3 rounded-[12px] border p-2.5 sm:p-3 transition-colors cursor-pointer ${
                         isCurrent
-                          ? "border-[#e59e38] bg-[#e59e38]/10 shadow-[0_0_20px_rgba(229,158,56,0.15)]"
-                          : "border-white/[0.06] bg-[#0c0d10] hover:border-white/[0.12] hover:bg-[#111216]"
+                          ? "border-[#e59e38]/50 bg-[#e59e38]/[0.08]"
+                          : "border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-charcoal,#111216)] hover:border-[var(--border-medium,rgba(255,255,255,0.12))] hover:bg-[var(--surface-raised,#16181e)]"
                       }`}
                     >
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#16181e] border border-white/[0.06]">
+                      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[8px] bg-[var(--surface-raised,#16181e)] border border-[var(--border-subtle,rgba(255,255,255,0.06))]">
                         <img
                           src={track.coverImage || "/logo.png"}
                           alt={track.title}
                           className="h-full w-full object-cover"
                         />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className={`absolute inset-0 flex items-center justify-center bg-black/50 transition-opacity ${
+                          isCurrent && isPlaying ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                        }`}>
                           {isCurrent && isPlaying ? (
-                            <Pause className="h-5 w-5 text-[#e59e38] fill-current" />
+                            <div className="flex items-end gap-0.5 h-3.5">
+                              <span className="w-1 bg-[#e59e38] rounded-full animate-[bounce_0.8s_infinite] h-3" />
+                              <span className="w-1 bg-[#e59e38] rounded-full animate-[bounce_1.1s_infinite] h-2" />
+                              <span className="w-1 bg-[#e59e38] rounded-full animate-[bounce_0.9s_infinite] h-3.5" />
+                            </div>
                           ) : (
-                            <Play className="h-5 w-5 text-[#e59e38] fill-current ml-0.5" />
+                            <Play className="h-4 w-4 text-[#e59e38] fill-current ml-0.5" />
                           )}
                         </div>
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs sm:text-sm font-semibold text-[#f2f3f5] group-hover:text-[#e59e38] transition-colors">
+                        <p className={`truncate text-xs sm:text-sm font-semibold transition-colors ${
+                          isCurrent ? "text-[#e59e38]" : "text-[var(--text-primary,#f2f3f5)] group-hover:text-[#e59e38]"
+                        }`}>
                           {track.title}
                         </p>
-                        <p className="truncate text-xs text-[#9ba1ad]">{track.artistName || "Local Artist"}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="rounded bg-[#16181e] border border-white/[0.06] px-1.5 py-0.2 text-[9px] font-mono text-[#e59e38]">
-                            {track.quality || "FLAC 24/96"}
+                        <p className="truncate text-xs text-[var(--text-secondary,#9ba1ad)]">{track.artistName || "Local Artist"}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="rounded-[4px] bg-[var(--surface-raised,#16181e)] border border-[var(--border-subtle,rgba(255,255,255,0.06))] px-1.5 py-0.2 text-[9px] font-mono text-[#e59e38]">
+                            {track.format || track.quality || "AUDIO"}
                           </span>
-                          <span className="text-[10px] font-mono text-[#6b7280]">
+                          <span className="text-[10px] font-mono text-[var(--text-tertiary,#6b7280)]">
                             {formatSeconds(track.duration || 0)}
                           </span>
                         </div>
                       </div>
+
+                      <button
+                        onClick={(e) => handleToggleFavorite(track.id, e)}
+                        className={`p-2 rounded-[8px] transition-colors cursor-pointer shrink-0 ${
+                          isFav
+                            ? "text-[#C6604F]"
+                            : "text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)]"
+                        }`}
+                        title={isFav ? "Remove from Favorites" : "Add to Favorites"}
+                      >
+                        <Heart
+                          className={`h-4 w-4 transition-transform ${
+                            isFav ? "fill-current" : ""
+                          }`}
+                        />
+                      </button>
                     </div>
                   );
                 })}
@@ -615,10 +680,10 @@ export function OfflineLibrary() {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-[#f2f3f5] tracking-tight">
+                  <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary,#f2f3f5)] tracking-tight">
                     Local Albums
                   </h2>
-                  <p className="text-xs text-[#9ba1ad]">Albums detected in your local collection.</p>
+                  <p className="text-xs text-[var(--text-secondary,#9ba1ad)]">Albums detected in your local collection.</p>
                 </div>
                 <button
                   onClick={() => setActiveTab("albums")}
@@ -632,10 +697,10 @@ export function OfflineLibrary() {
                 {localAlbums.slice(0, 4).map((album) => (
                   <div
                     key={album.name}
-                    className="group rounded-2xl border border-white/[0.06] bg-[#0c0d10] p-3.5 hover:border-[#e59e38]/40 transition-all flex flex-col cursor-pointer"
+                    className="group rounded-[14px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-charcoal,#111216)] p-3.5 hover:border-[#e59e38]/40 hover:bg-[var(--surface-raised,#16181e)] transition-all flex flex-col cursor-pointer"
                     onClick={() => handleTrackClick(album.tracks[0], album.tracks)}
                   >
-                    <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#16181e] mb-3 border border-white/[0.06]">
+                    <div className="relative aspect-square w-full overflow-hidden rounded-[10px] bg-[var(--surface-sunken,#060708)] mb-3 border border-[var(--border-subtle,rgba(255,255,255,0.06))]">
                       <img
                         src={album.coverImage}
                         alt={album.name}
@@ -648,11 +713,11 @@ export function OfflineLibrary() {
                       </div>
                     </div>
 
-                    <h3 className="font-bold text-xs sm:text-sm text-[#f2f3f5] truncate group-hover:text-[#e59e38] transition-colors">
+                    <h3 className="font-bold text-xs sm:text-sm text-[var(--text-primary,#f2f3f5)] truncate group-hover:text-[#e59e38] transition-colors">
                       {album.name}
                     </h3>
-                    <p className="text-xs text-[#9ba1ad] truncate mt-0.5">{album.artistName}</p>
-                    <span className="text-[10px] font-mono text-[#6b7280] mt-1">
+                    <p className="text-xs text-[var(--text-secondary,#9ba1ad)] truncate mt-0.5">{album.artistName}</p>
+                    <span className="text-[10px] font-mono text-[var(--text-tertiary,#6b7280)] mt-1">
                       {album.trackCount} {album.trackCount === 1 ? "track" : "tracks"}
                     </span>
                   </div>
@@ -663,24 +728,24 @@ export function OfflineLibrary() {
 
           {/* Empty Vault State */}
           {localTracks.length === 0 && (
-            <div className="rounded-3xl border border-white/[0.06] bg-[#0c0d10] p-12 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#16181e] text-[#e59e38] mx-auto mb-4 border border-white/[0.08]">
-                <HardDrive className="h-8 w-8" />
+            <div className="rounded-[20px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-charcoal,#111216)] p-12 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-[14px] bg-[var(--surface-raised,#16181e)] text-[#e59e38] mx-auto mb-4 border border-[var(--border-subtle,rgba(255,255,255,0.08))]">
+                <HardDrive className="h-8 w-8 stroke-[1.75]" />
               </div>
-              <h3 className="text-base font-bold text-[#f2f3f5]">Your local audio vault is empty</h3>
-              <p className="text-xs text-[#9ba1ad] max-w-md mx-auto mt-2 leading-relaxed">
+              <h3 className="text-base font-bold text-[var(--text-primary,#f2f3f5)]">Your local audio vault is empty</h3>
+              <p className="text-xs text-[var(--text-secondary,#9ba1ad)] max-w-md mx-auto mt-2 leading-relaxed">
                 Scan your music folder or import audio files directly from your computer. Everything is stored privately inside your device's browser vault.
               </p>
               <div className="mt-6 flex justify-center gap-3">
                 <button
-                  onClick={() => folderInputRef.current?.click()}
-                  className="rounded-xl bg-[#e59e38] px-4 py-2 text-xs font-bold text-[#090a0c] hover:bg-[#f0ab4d] cursor-pointer"
+                  onClick={handleScanMusicFolder}
+                  className="rounded-[10px] bg-[#e59e38] px-4 py-2 text-xs font-bold text-[#090a0c] hover:bg-[#f0ab4d] cursor-pointer"
                 >
                   Scan Music Folder
                 </button>
                 <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-xl border border-white/[0.08] bg-[#16181e] px-4 py-2 text-xs font-semibold text-[#f2f3f5] hover:bg-[#1e2027] cursor-pointer"
+                  onClick={handleAddAudioFiles}
+                  className="rounded-[10px] border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-raised,#16181e)] px-4 py-2 text-xs font-semibold text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-active,#1e2027)] cursor-pointer"
                 >
                   Add Files
                 </button>
@@ -691,16 +756,19 @@ export function OfflineLibrary() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* 5. ALL TRACKS CATALOG TABLE                                           */}
+      {/* 5. ALL TRACKS CATALOG TABLE (Virtual Windowed for 10k-50k tracks)      */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "tracks" && (
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0c0d10] overflow-hidden">
+        <div
+          ref={tableContainerRef}
+          className="rounded-[14px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-charcoal,#111216)] overflow-hidden"
+        >
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-white/[0.07] bg-[#07080a] text-[#6b7280] font-mono text-[10px] uppercase select-none">
+            <thead className="border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] bg-[var(--surface-sunken,#060708)] text-[var(--text-tertiary,#6b7280)] font-mono text-[10px] uppercase select-none sticky top-0 z-10 backdrop-blur-md">
               <tr>
                 <th
                   onClick={() => handleHeaderSort("default")}
-                  className="py-3 pl-4 pr-2 w-12 cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                  className="py-3 pl-4 pr-2 w-12 cursor-pointer hover:text-[var(--text-primary,#f2f3f5)] transition-colors"
                   title="Default Track Order"
                 >
                   <div className="flex items-center gap-1">
@@ -710,7 +778,7 @@ export function OfflineLibrary() {
                 </th>
                 <th
                   onClick={() => handleHeaderSort("title")}
-                  className="py-3 px-3 cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                  className="py-3 px-3 cursor-pointer hover:text-[var(--text-primary,#f2f3f5)] transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     <span>Title</span>
@@ -721,7 +789,7 @@ export function OfflineLibrary() {
                 </th>
                 <th
                   onClick={() => handleHeaderSort("artist")}
-                  className="py-3 px-3 hidden sm:table-cell cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                  className="py-3 px-3 hidden sm:table-cell cursor-pointer hover:text-[var(--text-primary,#f2f3f5)] transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     <span>Artist</span>
@@ -732,7 +800,7 @@ export function OfflineLibrary() {
                 </th>
                 <th
                   onClick={() => handleHeaderSort("album")}
-                  className="py-3 px-3 hidden md:table-cell cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                  className="py-3 px-3 hidden md:table-cell cursor-pointer hover:text-[var(--text-primary,#f2f3f5)] transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     <span>Album</span>
@@ -743,7 +811,7 @@ export function OfflineLibrary() {
                 </th>
                 <th
                   onClick={() => handleHeaderSort("quality")}
-                  className="py-3 px-3 cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                  className="py-3 px-3 cursor-pointer hover:text-[var(--text-primary,#f2f3f5)] transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     <span>Quality</span>
@@ -754,7 +822,7 @@ export function OfflineLibrary() {
                 </th>
                 <th
                   onClick={() => handleHeaderSort("duration")}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-[#f2f3f5] transition-colors"
+                  className="py-3 px-3 text-right cursor-pointer hover:text-[var(--text-primary,#f2f3f5)] transition-colors"
                 >
                   <div className="flex items-center justify-end gap-1">
                     <span>Duration</span>
@@ -767,21 +835,32 @@ export function OfflineLibrary() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
-              {filteredTracks.map((track, idx) => {
+              {paddingTop > 0 && (
+                <tr>
+                  <td style={{ height: `${paddingTop}px` }} colSpan={7} />
+                </tr>
+              )}
+              {virtualRows.map((virtualRow) => {
+                const track = filteredTracks[virtualRow.index];
+                if (!track) return null;
+                const idx = virtualRow.index;
                 const isCurrent = currentTrack?.id === track.id;
                 const isFav = favoriteIds.has(track.id);
                 return (
                   <tr
                     key={track.id}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={virtualRow.index}
+                    id={`track-row-${idx}`}
                     onClick={() => handleTrackClick(track, localTracks)}
                     onContextMenu={(e) => handleContextMenu(e, track)}
                     className={`group cursor-pointer transition-colors ${
                       isCurrent
                         ? "bg-[#e59e38]/10 text-[#e59e38]"
-                        : "hover:bg-white/[0.03] text-[#f2f3f5]"
+                        : "hover:bg-[var(--surface-active,#1e2027)]/50 text-[var(--text-primary,#f2f3f5)]"
                     }`}
                   >
-                    <td className="py-3 pl-4 pr-2 font-mono text-[#6b7280]">
+                    <td className="py-3 pl-4 pr-2 font-mono text-[var(--text-tertiary,#6b7280)]">
                       {isCurrent && isPlaying ? (
                         <Volume2 className="h-3.5 w-3.5 text-[#e59e38] animate-pulse" />
                       ) : (
@@ -794,27 +873,27 @@ export function OfflineLibrary() {
                         <img
                           src={track.coverImage || "/logo.png"}
                           alt=""
-                          className="h-7 w-7 rounded-lg object-cover bg-[#16181e] shrink-0"
+                          className="h-7 w-7 rounded-[6px] object-cover bg-[var(--surface-raised,#16181e)] shrink-0"
                         />
                         <span className="truncate max-w-[200px] sm:max-w-xs">{track.title}</span>
                       </div>
                     </td>
 
-                    <td className="py-3 px-3 text-[#9ba1ad] hidden sm:table-cell truncate max-w-[150px]">
+                    <td className="py-3 px-3 text-[var(--text-secondary,#9ba1ad)] hidden sm:table-cell truncate max-w-[150px]">
                       {track.artistName || "Local Artist"}
                     </td>
 
-                    <td className="py-3 px-3 text-[#9ba1ad] hidden md:table-cell truncate max-w-[150px]">
+                    <td className="py-3 px-3 text-[var(--text-secondary,#9ba1ad)] hidden md:table-cell truncate max-w-[150px]">
                       {track.album || "Single Tracks"}
                     </td>
 
                     <td className="py-3 px-3">
-                      <span className="rounded bg-[#16181e] border border-white/[0.06] px-1.5 py-0.5 text-[9px] font-mono text-[#e59e38]">
-                        {track.quality || "FLAC 24/96"}
+                      <span className="rounded-[4px] bg-[var(--surface-raised,#16181e)] border border-[var(--border-subtle,rgba(255,255,255,0.06))] px-1.5 py-0.5 text-[9px] font-mono text-[#e59e38]">
+                        {track.format || track.quality || "AUDIO"}
                       </span>
                     </td>
 
-                    <td className="py-3 px-3 text-right font-mono text-[#6b7280]">
+                    <td className="py-3 px-3 text-right font-mono text-[var(--text-tertiary,#6b7280)]">
                       {formatSeconds(track.duration || 0)}
                     </td>
 
@@ -822,10 +901,10 @@ export function OfflineLibrary() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={(e) => handleToggleFavorite(track.id, e)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          className={`p-1.5 rounded-[6px] transition-colors cursor-pointer ${
                             isFav
-                              ? "text-rose-400"
-                              : "text-[#6b7280] hover:text-[#f2f3f5] opacity-0 group-hover:opacity-100"
+                              ? "text-[#C6604F]"
+                              : "text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] opacity-0 group-hover:opacity-100"
                           }`}
                           title={isFav ? "Favorited" : "Favorite"}
                         >
@@ -837,7 +916,7 @@ export function OfflineLibrary() {
                             e.stopPropagation();
                             setInfoTrack(track);
                           }}
-                          className="p-1.5 text-[#6b7280] hover:text-[#e59e38] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          className="p-1.5 text-[var(--text-tertiary,#6b7280)] hover:text-[#e59e38] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                           title="Audio Info"
                         >
                           <Info className="h-3.5 w-3.5" />
@@ -845,7 +924,7 @@ export function OfflineLibrary() {
 
                         <button
                           onClick={(e) => handleContextMenu(e, track)}
-                          className="p-1.5 text-[#6b7280] hover:text-[#f2f3f5] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          className="p-1.5 text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                           title="More Options"
                         >
                           <MoreVertical className="h-3.5 w-3.5" />
@@ -855,15 +934,46 @@ export function OfflineLibrary() {
                   </tr>
                 );
               })}
+              {paddingBottom > 0 && (
+                <tr>
+                  <td style={{ height: `${paddingBottom}px` }} colSpan={7} />
+                </tr>
+              )}
               {filteredTracks.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-xs text-[#9ba1ad]">
+                  <td colSpan={7} className="py-12 text-center text-xs text-[var(--text-secondary,#9ba1ad)]">
                     No audio tracks found in local vault. Click "Add Files" or "Scan Folder" above to import music.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+
+          {/* Adaptive Alphabet Fast-Scroller Rail (Reveals when collection > 35 tracks) */}
+          {filteredTracks.length >= 35 && activeTab === "tracks" && (
+            <div className="fixed right-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center py-2 px-1 rounded-full bg-black/60 backdrop-blur-md border border-white/[0.08] shadow-lg select-none">
+              {"ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("").map((letter) => (
+                <button
+                  key={letter}
+                  onClick={() => {
+                    const targetIdx = filteredTracks.findIndex((t) => {
+                      if (letter === "#") return /^[0-9\W]/.test(t.title);
+                      return t.title.toUpperCase().startsWith(letter);
+                    });
+                    if (targetIdx >= 0) {
+                      rowVirtualizer.scrollToIndex(targetIdx, {
+                        align: "center",
+                        behavior: "smooth",
+                      });
+                    }
+                  }}
+                  className="h-3.5 w-3.5 text-[8.5px] font-mono text-[#9ba1ad] hover:text-[#e59e38] hover:font-bold hover:scale-125 transition-all flex items-center justify-center cursor-pointer"
+                >
+                  {letter}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -969,27 +1079,94 @@ export function OfflineLibrary() {
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "favorites" && (
         <div className="space-y-4">
-          <h3 className="text-base font-bold text-[#f2f3f5]">Favorited Masters ({favoriteTracks.length})</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {favoriteTracks.map((track) => (
-              <div
-                key={track.id}
-                onClick={() => handleTrackClick(track, favoriteTracks)}
-                className="flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-[#0c0d10] p-3 hover:border-white/[0.12] transition-colors cursor-pointer"
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-[#f2f3f5]">
+              Favorited Masters ({favoriteTracks.length})
+            </h3>
+            {favoriteTracks.length > 0 && (
+              <button
+                onClick={() => handleTrackClick(favoriteTracks[0], favoriteTracks)}
+                className="text-xs font-semibold text-[#e59e38] hover:underline cursor-pointer flex items-center gap-1.5"
               >
-                <img
-                  src={track.coverImage || "/logo.png"}
-                  alt=""
-                  className="h-11 w-11 rounded-xl object-cover bg-[#16181e] shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-xs text-[#f2f3f5] truncate">{track.title}</p>
-                  <p className="text-xs text-[#9ba1ad] truncate">{track.artistName}</p>
-                </div>
-                <Heart className="h-4 w-4 text-rose-400 fill-current shrink-0" />
-              </div>
-            ))}
+                <Play className="h-3.5 w-3.5 fill-current" /> Play All
+              </button>
+            )}
           </div>
+
+          {favoriteTracks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-white/[0.08] bg-[#0c0d10]/50">
+              <div className="h-14 w-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-3">
+                <Heart className="h-7 w-7 text-red-400" />
+              </div>
+              <p className="text-sm font-bold text-[#f2f3f5]">No Favorited Tracks Yet</p>
+              <p className="text-xs text-[#9ba1ad] mt-1 max-w-xs leading-relaxed">
+                Tap the heart icon on the player bar, audiophile cockpit, or any track in your library to automatically add songs to this list.
+              </p>
+              <button
+                onClick={() => setActiveTab("tracks")}
+                className="mt-4 px-4 py-2 rounded-xl bg-[#e59e38] text-[#08090B] font-bold text-xs hover:brightness-110 transition-all cursor-pointer shadow-md"
+              >
+                Browse Library Tracks
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {favoriteTracks.map((track) => {
+                const isCurrent = currentTrack?.id === track.id;
+                return (
+                  <div
+                    key={track.id}
+                    onClick={() => handleTrackClick(track, favoriteTracks)}
+                    className={`group flex items-center gap-3 rounded-[12px] border p-2.5 sm:p-3 transition-colors cursor-pointer ${
+                      isCurrent
+                        ? "border-[#e59e38]/50 bg-[#e59e38]/[0.08]"
+                        : "border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-charcoal,#111216)] hover:border-[var(--border-medium,rgba(255,255,255,0.12))] hover:bg-[var(--surface-raised,#16181e)]"
+                    }`}
+                  >
+                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[8px] bg-[var(--surface-raised,#16181e)] border border-[var(--border-subtle,rgba(255,255,255,0.06))]">
+                      <img
+                        src={track.coverImage || "/logo.png"}
+                        alt={track.title}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {isCurrent && isPlaying ? (
+                          <Pause className="h-4 w-4 text-[#e59e38] fill-current" />
+                        ) : (
+                          <Play className="h-4 w-4 text-[#e59e38] fill-current ml-0.5" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className={`truncate text-xs sm:text-sm font-semibold transition-colors ${
+                        isCurrent ? "text-[#e59e38]" : "text-[var(--text-primary,#f2f3f5)] group-hover:text-[#e59e38]"
+                      }`}>
+                        {track.title}
+                      </p>
+                      <p className="truncate text-xs text-[var(--text-secondary,#9ba1ad)]">{track.artistName || "Local Artist"}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="rounded-[4px] bg-[var(--surface-raised,#16181e)] border border-[var(--border-subtle,rgba(255,255,255,0.06))] px-1.5 py-0.2 text-[9px] font-mono text-[#e59e38]">
+                          {track.format || track.quality || "AUDIO"}
+                        </span>
+                        <span className="text-[10px] font-mono text-[var(--text-tertiary,#6b7280)]">
+                          {formatSeconds(track.duration || 0)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={(e) => handleToggleFavorite(track.id, e)}
+                      className="p-2 rounded-[8px] text-[#C6604F] hover:text-[#C6604F]/80 transition-colors cursor-pointer shrink-0"
+                      title="Remove from Favorites"
+                    >
+                      <Heart className="h-4 w-4 fill-current" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

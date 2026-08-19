@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Track } from "@/domain/music/types";
+import { LocalFavoritesService } from "@layam/storage-core";
 import {
   globalAudioEngine,
   type AudioEngineState,
@@ -71,6 +72,13 @@ export interface PlayerContextValue extends AudioEngineState {
   setSpatialAmbience: (ambience: number) => void;
   applyFullSoundProfile: (profile: SoundProfile) => void;
   getAnalyserNode: () => AnalyserNode | null;
+  setSleepTimer: (minutes: number | "endOfTrack") => void;
+  cancelSleepTimer: () => void;
+  // Favorites Management
+  isCurrentTrackFavorite: boolean;
+  toggleCurrentTrackFavorite: () => Promise<boolean>;
+  toggleTrackFavorite: (trackId: string) => Promise<boolean>;
+  isTrackFavorite: (trackId: string) => boolean;
 }
 
 export const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -82,6 +90,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [engineState, setEngineState] = useState<AudioEngineState>(
     () => globalAudioEngine.state,
   );
+
+  // Reactive Favorites state synced across all components
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    LocalFavoritesService.getAllFavoriteIds().then((ids) => {
+      setFavoriteIds(new Set(ids));
+    });
+
+    const unsubscribeFavs = LocalFavoritesService.subscribeFavorites(
+      ({ trackId, isFavorite }) => {
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          if (isFavorite) next.add(trackId);
+          else next.delete(trackId);
+          return next;
+        });
+      }
+    );
+
+    return () => {
+      unsubscribeFavs();
+    };
+  }, []);
 
   // Subscribe to AudioEngine reactive updates and hook play counter
   useEffect(() => {
@@ -234,6 +266,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return globalDspEngine.getAnalyserNode();
   }, []);
 
+  const setSleepTimer = useCallback((minutes: number | "endOfTrack") => {
+    globalAudioEngine.setSleepTimer(minutes);
+  }, []);
+
+  const cancelSleepTimer = useCallback(() => {
+    globalAudioEngine.cancelSleepTimer();
+  }, []);
+
+  const isCurrentTrackFavorite = !!(
+    engineState.currentTrack && favoriteIds.has(engineState.currentTrack.id)
+  );
+
+  const toggleCurrentTrackFavorite = useCallback(async () => {
+    if (!engineState.currentTrack) return false;
+    return LocalFavoritesService.toggleFavorite(engineState.currentTrack.id);
+  }, [engineState.currentTrack]);
+
+  const toggleTrackFavorite = useCallback(async (trackId: string) => {
+    return LocalFavoritesService.toggleFavorite(trackId);
+  }, []);
+
+  const isTrackFavorite = useCallback(
+    (trackId: string) => favoriteIds.has(trackId),
+    [favoriteIds]
+  );
+
   return (
     <PlayerContext.Provider
       value={{
@@ -275,6 +333,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setSpatialAmbience,
         applyFullSoundProfile,
         getAnalyserNode,
+        setSleepTimer,
+        cancelSleepTimer,
+        isCurrentTrackFavorite,
+        toggleCurrentTrackFavorite,
+        toggleTrackFavorite,
+        isTrackFavorite,
       }}
     >
       {children}

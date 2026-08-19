@@ -100,17 +100,21 @@ export class RoyaltyLedgerService {
         ledgerEntries.push(entry);
 
         // Attempt server insert
-        void supabase
-          .from("royalty_transactions")
-          .insert({
-            track_id: trackId,
-            creator_id: split.creator_id,
-            event_type: eventType,
-            amount: entry.amount,
-            currency,
-            metadata: entry.metadata,
-          })
-          .catch((err) => console.warn("[RoyaltyLedger] Insert note:", err));
+        try {
+          void (supabase as unknown as { from: (t: string) => { insert: (d: unknown) => Promise<unknown> } })
+            .from("royalty_transactions")
+            .insert({
+              track_id: trackId,
+              creator_id: split.creator_id,
+              event_type: eventType,
+              amount: entry.amount,
+              currency,
+              metadata: entry.metadata,
+            })
+            .catch((err: unknown) => console.warn("[RoyaltyLedger] Insert note:", err));
+        } catch {
+          // Ignore for demo/offline
+        }
       }
 
       return ledgerEntries;

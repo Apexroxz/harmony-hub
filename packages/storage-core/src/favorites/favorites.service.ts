@@ -32,7 +32,16 @@ export class LocalFavoritesService {
 
       if (isFav) {
         const req = store.delete(trackId);
-        req.onsuccess = () => resolve(false);
+        req.onsuccess = () => {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("layam:favorite-change", {
+                detail: { trackId, isFavorite: false },
+              })
+            );
+          }
+          resolve(false);
+        };
         req.onerror = () => reject(req.error);
       } else {
         const record: FavoriteRecord = {
@@ -40,10 +49,33 @@ export class LocalFavoritesService {
           favoritedAt: Date.now(),
         };
         const req = store.put(record);
-        req.onsuccess = () => resolve(true);
+        req.onsuccess = () => {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("layam:favorite-change", {
+                detail: { trackId, isFavorite: true },
+              })
+            );
+          }
+          resolve(true);
+        };
         req.onerror = () => reject(req.error);
       }
     });
+  }
+
+  public static subscribeFavorites(
+    callback: (detail: { trackId: string; isFavorite: boolean }) => void
+  ): () => void {
+    if (typeof window === "undefined") return () => {};
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ trackId: string; isFavorite: boolean }>;
+      if (customEvent.detail) {
+        callback(customEvent.detail);
+      }
+    };
+    window.addEventListener("layam:favorite-change", handler);
+    return () => window.removeEventListener("layam:favorite-change", handler);
   }
 
   public static async getAllFavoriteIds(): Promise<string[]> {

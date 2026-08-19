@@ -332,7 +332,7 @@ function LibraryPage() {
               </Badge>
               {track.sampleRate && (
                 <span className="text-[10px] font-mono text-muted-foreground">
-                  {track.sampleRate >= 96000 ? "24/96" : "16/44.1"}
+                  {track.bitDepth ? `${track.bitDepth}/${Math.round(track.sampleRate / 1000)}k` : `${Math.round(track.sampleRate / 1000)}kHz`}
                 </span>
               )}
             </div>

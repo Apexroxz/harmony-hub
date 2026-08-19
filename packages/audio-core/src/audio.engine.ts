@@ -1,5 +1,5 @@
 import type { Track } from "@/domain/music/types";
-import { getAudioBlobUrl } from "../../storage-core/src/indexedDbAudio";
+import { getAudioBlobUrl, getNativeAudioUri } from "../../storage-core/src/indexedDbAudio";
 import { getGuaranteedAudioUrl } from "./synthAudio";
 import { globalDspEngine, type SoundProfile, type SpatialRoomPreset } from "./dsp.engine";
 import { androidMedia3, LayamNativeAudio } from "./native/android-media3.bridge";
@@ -31,6 +31,9 @@ export interface AudioEngineState {
   spatialMode: SpatialRoomPreset;
   spatialAmbience: number;
   isExpanded: boolean;
+  // Sleep Timer state
+  sleepTimerSecondsRemaining: number | null;
+  sleepTimerEndOnTrack: boolean;
 }
 
 /**
@@ -44,6 +47,8 @@ export class AudioEngine {
   private playPromise: Promise<void> | null = null;
   private recordedPlayTrackId: string | null = null;
   private listeners = new Set<() => void>();
+  private sleepTimerInterval: ReturnType<typeof setInterval> | null = null;
+  private preFadeVolume = 0.8;
   public onPlayRecorded?: (track: Track, durationSec: number) => void;
 
   public state: AudioEngineState = {
@@ -69,11 +74,66 @@ export class AudioEngine {
     crossfadeDuration: 0,
     spatialMode: "pure",
     spatialAmbience: 0.35,
+    sleepTimerSecondsRemaining: null,
+    sleepTimerEndOnTrack: false,
   };
 
   constructor() {
     if (typeof window !== "undefined") {
+      try {
+        const savedTrack = localStorage.getItem("layam_current_track");
+        if (savedTrack) {
+          const parsed = JSON.parse(savedTrack);
+          if (parsed && parsed.title) {
+            this.state.currentTrack = parsed;
+          }
+        }
+      } catch {}
       this.initAudioElement();
+      void this.syncNativeState();
+      window.addEventListener("focus", () => void this.syncNativeState());
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          void this.syncNativeState();
+        }
+      });
+    }
+  }
+
+  public async syncNativeState(): Promise<void> {
+    if (typeof window === "undefined" || !androidMedia3.isNativeAndroid()) return;
+    try {
+      const nativeState = await androidMedia3.getPlaybackState();
+      if (nativeState) {
+        console.log("[LAYAM_JS] syncNativeState result:", nativeState);
+        const dur = nativeState.durationMs > 0 ? nativeState.durationMs / 1000 : (this.state.duration || 0);
+        const pos = nativeState.positionMs > 0 ? nativeState.positionMs / 1000 : (this.state.currentTime || 0);
+        const progress = dur > 0 ? Math.min(100, (pos / dur) * 100) : 0;
+
+        let track = this.state.currentTrack;
+        if ((!track || !track.title) && (nativeState.title || nativeState.uri)) {
+          track = {
+            id: nativeState.uri || "native-active-track",
+            title: nativeState.title || "Playing Track",
+            artist: nativeState.artist || "Unknown Artist",
+            album: nativeState.album || "Layam Vault",
+            duration: dur,
+            coverUrl: nativeState.artworkUri || undefined,
+            source: "offline",
+          } as unknown as Track;
+        }
+
+        this.setState({
+          isPlaying: nativeState.isPlaying,
+          status: nativeState.isPlaying ? "playing" : (this.state.status === "loading" ? "loading" : "paused"),
+          currentTime: pos,
+          duration: dur,
+          progress,
+          ...(track ? { currentTrack: track } : {}),
+        });
+      }
+    } catch (e) {
+      console.warn("[AudioEngine] syncNativeState error:", e);
     }
   }
 
@@ -92,18 +152,56 @@ export class AudioEngine {
     return this.audio;
   }
 
+  private nativePositionTimer: ReturnType<typeof setInterval> | null = null;
+
+  private startNativePositionTicker(): void {
+    this.stopNativePositionTicker();
+    if (typeof window === "undefined" || !androidMedia3.isNativeAndroid()) return;
+
+    this.nativePositionTimer = setInterval(async () => {
+      if (!this.state.isPlaying) return;
+      try {
+        const res = (LayamNativeAudio.getPosition ? await LayamNativeAudio.getPosition() : await androidMedia3.getPlaybackState()) as { positionMs?: number; durationMs?: number } | null;
+        if (res && typeof res.positionMs === "number") {
+          const curSec = res.positionMs / 1000;
+          const durSec = (res.durationMs && res.durationMs > 0) ? res.durationMs / 1000 : (this.state.duration || this.state.currentTrack?.duration || 0);
+          const pct = durSec > 0 ? Math.min(100, (curSec / durSec) * 100) : 0;
+
+          this.setState({
+            currentTime: curSec,
+            duration: durSec,
+            progress: pct,
+          });
+        }
+      } catch {}
+    }, 50);
+  }
+
+  private stopNativePositionTicker(): void {
+    if (this.nativePositionTimer) {
+      clearInterval(this.nativePositionTimer);
+      this.nativePositionTimer = null;
+    }
+  }
+
   private attachAudioListeners(): void {
     if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
       try {
         LayamNativeAudio.addListener("onPlaybackStateChanged", (data) => {
           console.log(`[LAYAM_JS] native playback state received: isPlaying=${data.isPlaying} state=${data.state} posMs=${data.positionMs} durMs=${data.durationMs}`);
+          const isPlay = data.isPlaying;
           this.setState({
-            isPlaying: data.isPlaying,
-            status: data.isPlaying ? "playing" : (data.state === "BUFFERING" ? "buffering" : "paused"),
+            isPlaying: isPlay,
+            status: isPlay ? "playing" : (data.state === "BUFFERING" ? "buffering" : "paused"),
             currentTime: data.positionMs / 1000,
             duration: data.durationMs > 0 ? data.durationMs / 1000 : (this.state.duration || 0),
             progress: data.durationMs > 0 ? Math.min(100, (data.positionMs / data.durationMs) * 100) : 0,
           });
+          if (isPlay) {
+            this.startNativePositionTicker();
+          } else {
+            this.stopNativePositionTicker();
+          }
         });
 
         LayamNativeAudio.addListener("onPositionDiscontinuity", (data) => {
@@ -115,8 +213,31 @@ export class AudioEngine {
           });
         });
 
+        LayamNativeAudio.addListener("onTrackChanged", (data) => {
+          console.log(`[LAYAM_JS] native track changed:`, data);
+          if (data.title) {
+            const dur = data.durationMs > 0 ? data.durationMs / 1000 : (this.state.duration || 0);
+            const current = this.state.currentTrack;
+            const updatedTrack: Track = {
+              ...(current || {}),
+              id: current?.id || "native-track",
+              title: data.title,
+              artist: data.artist || current?.artist || "Unknown Artist",
+              album: data.album || current?.album || "Layam Vault",
+              coverImage: data.artworkUri || current?.coverImage,
+              duration: dur,
+              source: "offline",
+            } as unknown as Track;
+            this.setState({
+              currentTrack: updatedTrack,
+              duration: dur,
+            });
+          }
+        });
+
         LayamNativeAudio.addListener("onError", (data) => {
           console.error(`[LAYAM_JS] native error received: code=${data.errorCode} msg=${data.errorMessage}`);
+          this.stopNativePositionTicker();
           this.setState({
             status: "error",
             errorMessage: data.errorMessage,
@@ -227,6 +348,10 @@ export class AudioEngine {
       errorMessage: null,
     });
 
+    try {
+      localStorage.setItem("layam_current_track", JSON.stringify(track));
+    } catch {}
+
     // Resolve audio URL: for local/offline tracks, ALWAYS get a live fresh blob URL from active memory or IndexedDB
     let finalAudioUrl = "";
 
@@ -272,6 +397,17 @@ export class AudioEngine {
     if (seq !== this.loadSeq) return;
 
     if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      const hasPerm = await androidMedia3.ensureAudioPermission();
+      if (!hasPerm) {
+        console.warn("[LAYAM_JS] Audio playback blocked: permission not granted");
+        this.setState({
+          status: "error",
+          isLoading: false,
+          isPlaying: false,
+          errorMessage: "Storage/Audio permission denied. Please grant permission in Android settings.",
+        });
+        return;
+      }
       let nativeUri = getNativeAudioUri(track.id) || (track as any).nativeUri || (track as any).contentUri;
       if (!nativeUri && (track.audioUrl?.startsWith("content://") || track.audioUrl?.startsWith("file://"))) {
         nativeUri = track.audioUrl;
@@ -283,13 +419,23 @@ export class AudioEngine {
       if (nativeUri.startsWith("blob:")) {
         console.warn(`[LAYAM_JS] WARNING: URI is blob URL on Android: ${nativeUri}`);
       }
+
+      // ReplayGain resolution: prefer album gain if queue is an album context, otherwise track gain
+      const isAlbumContext = finalQueue.length > 1 && finalQueue.every((t) => (t as any).album && (t as any).album === (track as any).album);
+      const effectiveReplayGainDb = (isAlbumContext && (track as any).replayGainAlbum != null)
+        ? (track as any).replayGainAlbum
+        : ((track as any).replayGainTrack ?? 0);
+      const effectiveReplayGainPeak = (track as any).replayGainPeak ?? 1.0;
+
       void androidMedia3.playTrack({
         uri: nativeUri,
         title: track.title,
         artist: track.artist,
         album: track.album || "Layam Vault",
-        artworkUri: track.coverUrl,
+        artworkUri: track.coverImage,
         positionMs: 0,
+        replayGainDb: effectiveReplayGainDb,
+        replayGainPeak: effectiveReplayGainPeak,
       });
       this.setState({
         isPlaying: true,
@@ -297,9 +443,18 @@ export class AudioEngine {
         status: "playing",
         currentTrack: track,
       });
+      this.startNativePositionTicker();
       this.setupMediaSession(track);
       return;
     }
+
+    // Web Audio ReplayGain application
+    const isAlbumContextWeb = finalQueue.length > 1 && finalQueue.every((t) => (t as any).album && (t as any).album === (track as any).album);
+    const effectiveReplayGainDbWeb = (isAlbumContextWeb && (track as any).replayGainAlbum != null)
+      ? (track as any).replayGainAlbum
+      : ((track as any).replayGainTrack ?? 0);
+    const effectiveReplayGainPeakWeb = (track as any).replayGainPeak ?? 1.0;
+    globalDspEngine.setReplayGain(effectiveReplayGainDbWeb, effectiveReplayGainPeakWeb);
 
     audio.src = finalAudioUrl;
     audio.load();
@@ -335,6 +490,7 @@ export class AudioEngine {
   }
 
   public pause(): void {
+    this.stopNativePositionTicker();
     if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
       void androidMedia3.pause();
       this.setState({ isPlaying: false, status: "paused" });
@@ -361,6 +517,7 @@ export class AudioEngine {
     if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
       void androidMedia3.resume();
       this.setState({ isPlaying: true, status: "playing" });
+      this.startNativePositionTicker();
       return;
     }
 
@@ -390,46 +547,54 @@ export class AudioEngine {
     }
   }
 
-  public seek(percent: number): void {
+  private lastSeekTimestamp: number = 0;
+  private pendingSeekTimer: ReturnType<typeof setTimeout> | null = null;
+
+  public seek(percent: number, immediate: boolean = false): void {
     const dur = this.state.duration || this.audio?.duration || this.state.currentTrack?.duration || 0;
     if (dur > 0) {
       const ratio = percent > 1 ? Math.max(0, Math.min(100, percent)) / 100 : Math.max(0, Math.min(1, percent));
       const targetTime = ratio * dur;
-
-      if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
-        void androidMedia3.seekToSeconds(targetTime);
-        this.setState({ currentTime: targetTime, progress: ratio * 100 });
-        return;
-      }
-
-      if (this.audio) {
-        this.audio.currentTime = targetTime;
-        this.setState({ currentTime: targetTime, progress: ratio * 100 });
-      }
+      this.seekToTime(targetTime, immediate);
     }
   }
 
-  public seekToTime(seconds: number): void {
+  public seekToTime(seconds: number, immediate: boolean = true): void {
     const dur = this.state.duration || this.audio?.duration || this.state.currentTrack?.duration || 0;
     if (dur > 0) {
       const clampedTime = Math.max(0, Math.min(dur, seconds));
+      this.setState({ currentTime: clampedTime, progress: (clampedTime / dur) * 100 });
 
-      if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
-        void androidMedia3.seekToSeconds(clampedTime);
-        this.setState({ currentTime: clampedTime, progress: (clampedTime / dur) * 100 });
-        return;
-      }
-
-      if (this.audio) {
-        this.audio.currentTime = clampedTime;
-        this.setState({ currentTime: clampedTime, progress: (clampedTime / dur) * 100 });
+      const now = Date.now();
+      if (immediate || now - this.lastSeekTimestamp >= 45) {
+        this.lastSeekTimestamp = now;
+        if (this.pendingSeekTimer) {
+          clearTimeout(this.pendingSeekTimer);
+          this.pendingSeekTimer = null;
+        }
+        if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+          void androidMedia3.seekToSeconds(clampedTime);
+        } else if (this.audio) {
+          this.audio.currentTime = clampedTime;
+        }
+      } else {
+        if (this.pendingSeekTimer) clearTimeout(this.pendingSeekTimer);
+        this.pendingSeekTimer = setTimeout(() => {
+          this.lastSeekTimestamp = Date.now();
+          this.pendingSeekTimer = null;
+          if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+            void androidMedia3.seekToSeconds(clampedTime);
+          } else if (this.audio) {
+            this.audio.currentTime = clampedTime;
+          }
+        }, 45);
       }
     }
   }
 
   public seekRelative(deltaSeconds: number): void {
     const cur = this.state.currentTime;
-    this.seekToTime(cur + deltaSeconds);
+    this.seekToTime(cur + deltaSeconds, true);
   }
 
   public setVolume(vol: number): void {
@@ -446,20 +611,73 @@ export class AudioEngine {
     this.setState({ playbackRate: rate });
   }
 
+  public setSleepTimer(minutes: number | "endOfTrack"): void {
+    this.cancelSleepTimer();
+    if (minutes === "endOfTrack") {
+      this.setState({ sleepTimerSecondsRemaining: null, sleepTimerEndOnTrack: true });
+    } else {
+      const totalSeconds = Math.max(1, Math.round(minutes * 60));
+      this.preFadeVolume = this.state.volume;
+      this.setState({ sleepTimerSecondsRemaining: totalSeconds, sleepTimerEndOnTrack: false });
+
+      this.sleepTimerInterval = setInterval(() => {
+        const remaining = (this.state.sleepTimerSecondsRemaining ?? 0) - 1;
+        if (remaining <= 0) {
+          this.cancelSleepTimer();
+          this.pause();
+          this.setVolume(this.preFadeVolume);
+        } else {
+          if (remaining <= 5) {
+            const factor = remaining / 5;
+            this.setVolume(this.preFadeVolume * factor);
+          }
+          this.setState({ sleepTimerSecondsRemaining: remaining });
+        }
+      }, 1000);
+    }
+  }
+
+  public cancelSleepTimer(): void {
+    if (this.sleepTimerInterval) {
+      clearInterval(this.sleepTimerInterval);
+      this.sleepTimerInterval = null;
+    }
+    this.setState({ sleepTimerSecondsRemaining: null, sleepTimerEndOnTrack: false });
+  }
+
   public playNext(): void {
-    const { queue, queueIndex } = this.state;
-    if (queue.length === 0) return;
-    const nextIdx = (queueIndex + 1) % queue.length;
+    if (this.state.sleepTimerEndOnTrack) {
+      this.cancelSleepTimer();
+      this.pause();
+      return;
+    }
+    const { queue, queueIndex, currentTrack } = this.state;
+    if (queue.length === 0) {
+      if (currentTrack) void this.playTrack(currentTrack);
+      return;
+    }
+    let currentIdx = queueIndex;
+    if (currentIdx < 0 && currentTrack) {
+      currentIdx = queue.findIndex((t) => t.id === currentTrack.id);
+    }
+    const nextIdx = (currentIdx + 1) % queue.length;
     const nextTrack = queue[nextIdx];
-    if (nextTrack) void this.playTrack(nextTrack);
+    if (nextTrack) void this.playTrack(nextTrack, queue);
   }
 
   public playPrevious(): void {
-    const { queue, queueIndex } = this.state;
-    if (queue.length === 0) return;
-    const prevIdx = queueIndex > 0 ? queueIndex - 1 : queue.length - 1;
+    const { queue, queueIndex, currentTrack } = this.state;
+    if (queue.length === 0) {
+      if (currentTrack) void this.playTrack(currentTrack);
+      return;
+    }
+    let currentIdx = queueIndex;
+    if (currentIdx < 0 && currentTrack) {
+      currentIdx = queue.findIndex((t) => t.id === currentTrack.id);
+    }
+    const prevIdx = (currentIdx - 1 + queue.length) % queue.length;
     const prevTrack = queue[prevIdx];
-    if (prevTrack) void this.playTrack(prevTrack);
+    if (prevTrack) void this.playTrack(prevTrack, queue);
   }
 
   public addToQueue(track: Track): void {

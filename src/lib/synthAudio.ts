@@ -56,7 +56,8 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
   let offset = 44;
   for (let i = 0; i < numSamples; i++) {
     for (let channel = 0; channel < numChannels; channel++) {
-      const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+      const chan = channelData[channel];
+      const sample = chan ? Math.max(-1, Math.min(1, chan[i] ?? 0)) : 0;
       // Convert float to 16-bit PCM integer
       const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
       dataView.setInt16(offset, intSample, true);
@@ -162,7 +163,7 @@ export function generateSyntheticTrackWav(trackId: string, durationSeconds = 30)
     const osc = ctx.createOscillator();
     osc.type = "sawtooth";
 
-    const semitone = chordProgression[b % chordProgression.length];
+    const semitone = chordProgression[b % chordProgression.length] ?? 0;
     const bassFreq = (rootFreq / 2) * Math.pow(2, semitone / 12);
     osc.frequency.setValueAtTime(bassFreq, startTime);
 
@@ -352,9 +353,9 @@ export async function getGuaranteedAudioUrl(trackId: string, originalUrl?: strin
     const osc = ctx.createOscillator();
     osc.type = "sawtooth";
 
-    const semitone = chordProgression[b % chordProgression.length];
-    const bassFreq = (rootFreq / 2) * Math.pow(2, semitone / 12);
-    osc.frequency.setValueAtTime(bassFreq, startTime);
+    const semitone = chordProgression[b % chordProgression.length] ?? 0;
+    const leadFreq = rootFreq * Math.pow(2, semitone / 12);
+    osc.frequency.setValueAtTime(leadFreq, startTime);
 
     const bGain = ctx.createGain();
     bGain.gain.setValueAtTime(0.22, startTime);

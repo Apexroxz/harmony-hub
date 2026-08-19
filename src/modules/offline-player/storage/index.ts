@@ -43,7 +43,7 @@ export interface IOfflineStorageService {
 }
 
 export interface IOfflineIndexedDbService {
-  storeBlob(id: string, fileOrBlob: File | Blob, name?: string): Promise<void>;
+  storeBlob(id: string, fileOrBlob: File | Blob, name?: string): Promise<string | void>;
   getBlob(id: string): Promise<Blob | null>;
   getBlobUrl(id: string): Promise<string | null>;
   deleteBlob(id: string): Promise<void>;
@@ -60,7 +60,7 @@ export const offlineStorage = {
   savePlaylists: (playlists: OfflinePlaylist[]) =>
     OfflineService.savePlaylists(playlists as unknown as LocalPlaylist[]),
   getSettings: () => OfflineService.getSettings() as unknown as OfflineSettings,
-  saveSettings: (settings: OfflineSettings) => OfflineService.saveSettings(settings),
+  saveSettings: (settings: OfflineSettings) => OfflineService.saveSettings(settings as any),
   importFiles: (files: FileList | File[]) =>
     OfflineService.importFiles(files) as unknown as Promise<OfflineTrack[]>,
   getAlbums: () => OfflineService.getAlbums() as unknown as OfflineAlbum[],

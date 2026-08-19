@@ -26,9 +26,11 @@ import { AudioConsoleModal } from "../components/AudioConsoleModal";
 import { FullscreenAudiophilePlayer } from "../components/FullscreenAudiophilePlayer";
 import { usePlayer } from "../lib/player";
 import { useGlobalHotkeys } from "../lib/useGlobalHotkeys";
+import { useTheme } from "../lib/theme";
 
 function RootPlayerShell() {
   const { isConsoleOpen, closeConsole, isExpanded, collapsePlayer } = usePlayer();
+  useTheme();
   useGlobalHotkeys();
   return (
     <>

@@ -5,6 +5,7 @@ import type {
   AdminCreatorRecord,
   AdminUserRecord,
 } from "./admin.types";
+export type { AdminAuditLog, AdminCreatorRecord, AdminUserRecord };
 
 /**
  * Admin Control Plane Service
@@ -218,7 +219,7 @@ export class AdminService {
           avatar: artist.avatar,
           verified: artist.verified ?? true,
           status: "active",
-          tracksCount: artistTracks.length || (artist.tracks?.length ?? 1),
+          tracksCount: artistTracks.length || 1,
           totalStreams,
           royaltyEarnedUsd: Math.round(totalStreams * 0.004 * 100) / 100,
           subscribersCount: Math.round(totalStreams * 0.05) + 14,

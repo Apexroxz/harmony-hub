@@ -131,21 +131,21 @@ export function OfflineAboutModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-      <div className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-white/[0.08] bg-[#111216] shadow-2xl overflow-hidden">
+      <div className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-[var(--border-medium,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] shadow-2xl overflow-hidden text-[var(--text-primary,#f2f3f5)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] px-5 py-3.5 bg-[var(--surface-charcoal,#111216)]">
           <BrandLogo variant="compact" size="xs" showBadge badgeText="v1.0.0" />
           <button
             onClick={() => setIsAboutOpen(false)}
             aria-label="Close About"
-            className="rounded-lg p-1 text-[#6b7280] hover:bg-[#16181e] hover:text-[#f2f3f5] transition-colors cursor-pointer"
+            className="min-h-[44px] min-w-[44px] rounded-lg p-2 text-[var(--text-tertiary,#6b7280)] hover:bg-[var(--surface-active,#16181e)] hover:text-[var(--text-primary,#f2f3f5)] transition-colors cursor-pointer flex items-center justify-center"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-1.5 border-b border-white/[0.07] px-5 py-2 bg-[#0c0d10] overflow-x-auto">
+        <div className="flex items-center gap-1.5 border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] px-5 py-2 bg-[var(--surface-sunken,#0c0d10)] overflow-x-auto">
           {[
             { id: "about" as const, label: "About", icon: Info },
             { id: "updates" as const, label: "Updates", icon: RefreshCw },
@@ -156,10 +156,10 @@ export function OfflineAboutModal() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 min-h-[36px] text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
-                  ? "bg-[#16181e] text-[#e59e38] font-semibold border border-white/[0.08]"
-                  : "text-[#9ba1ad] hover:text-[#f2f3f5]"
+                  ? "bg-[var(--surface-active,#16181e)] text-[#e59e38] font-semibold border border-[var(--border-subtle,rgba(255,255,255,0.08))]"
+                  : "text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
               }`}
             >
               <tab.icon className="h-3.5 w-3.5" />
@@ -169,13 +169,13 @@ export function OfflineAboutModal() {
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-5 text-xs text-[#9ba1ad] space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 text-xs text-[var(--text-secondary,#9ba1ad)] space-y-4">
           {/* Tab 1: About */}
           {activeTab === "about" && (
             <div className="space-y-3.5">
-              <div className="rounded-xl border border-white/[0.06] bg-[#0c0d10] p-4 flex flex-col gap-3">
+              <div className="rounded-xl border border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-sunken,#0c0d10)] p-4 flex flex-col gap-3">
                 <BrandLogo variant="full" size="sm" showBadge badgeText="BIT-PERFECT" />
-                <p className="text-xs leading-relaxed text-[#9ba1ad]">
+                <p className="text-xs leading-relaxed text-[var(--text-secondary,#9ba1ad)]">
                   Engineered for listening to owned lossless music collections.
                   Featuring a 64-bit floating point DSP pipeline, 10-band hardware graphic equalizer,
                   biquad dynamics normalization, and bit-perfect local playback.

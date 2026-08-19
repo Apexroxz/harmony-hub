@@ -32,6 +32,13 @@ export const SUPPORTED_AUDIO_EXTENSIONS = [
   "alac",
   "aiff",
   "aif",
+  "au",
+  "snd",
+  "ape",
+  "wv",
+  "wma",
+  "ac3",
+  "dts",
 ];
 
 export function getAudioFormatName(fileName: string): string {
@@ -47,11 +54,25 @@ export function getAudioFormatName(fileName: string): string {
     case "aiff":
     case "aif":
       return "AIFF";
+    case "au":
+    case "snd":
+      return "AU/SND";
+    case "ape":
+      return "APE";
+    case "wv":
+      return "WavPack";
+    case "wma":
+      return "WMA";
+    case "ac3":
+      return "AC3";
+    case "dts":
+      return "DTS";
     case "aac":
       return "AAC";
     case "ogg":
-    case "opus":
       return "OGG";
+    case "opus":
+      return "OPUS";
     default:
       return "MP3";
   }

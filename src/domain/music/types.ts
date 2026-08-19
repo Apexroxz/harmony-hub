@@ -58,6 +58,12 @@ export interface Track {
   price?: number;
   /** true = download gated behind purchase. */
   monetized?: boolean;
+  /** ReplayGain/R128 track gain in dB (e.g. -6.5). */
+  replayGainTrack?: number | null | undefined;
+  /** ReplayGain/R128 album gain in dB (e.g. -5.2). */
+  replayGainAlbum?: number | null | undefined;
+  /** Peak sample/true-peak value (0.0 to 1.0+). */
+  replayGainPeak?: number | null | undefined;
   /** User IDs who bought this track. */
   purchasedBy?: string[];
   /** Audio fingerprint hash for copyright/duplicate verification. */

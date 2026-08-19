@@ -24,6 +24,15 @@ export type SpatialRoomPreset =
   | "concert_hall"
   | "club_bunker";
 
+export const SPATIAL_ROOM_PRESETS: SpatialRoomPreset[] = [
+  "pure",
+  "studio_control",
+  "control_room",
+  "vinyl_lounge",
+  "concert_hall",
+  "club_bunker",
+];
+
 export interface SoundProfile {
   id: string;
   name: string;
@@ -65,7 +74,12 @@ export class DspEngine {
   private panner: StereoPannerNode | null = null;
   private analyser: AnalyserNode | null = null;
   private gainNode: GainNode | null = null;
+  private replayGainNode: GainNode | null = null;
+  private currentReplayGainDb = 0;
+  private currentReplayGainPeak = 1.0;
+  private isNormalizerEnabled = true;
 
+  private isBypassed = false;
   private isInitialized = false;
 
   public init(audio?: HTMLAudioElement): void {
@@ -77,27 +91,32 @@ export class DspEngine {
     if (!AudioCtx) return;
 
     try {
-      const win = window as unknown as {
-        __LAYAM_AUDIO_CTX__?: AudioContext;
-        __LAYAM_AUDIO_SOURCE__?: MediaElementAudioSourceNode;
-        __LAYAM_EQ_FILTERS__?: BiquadFilterNode[];
-        __LAYAM_HEADROOM_GAIN__?: GainNode;
-      };
+      const win = window as unknown as Record<string, any>;
 
       if (!win.__LAYAM_AUDIO_CTX__) {
         win.__LAYAM_AUDIO_CTX__ = new AudioCtx();
       }
       this.ctx = win.__LAYAM_AUDIO_CTX__;
+      const ctx = this.ctx;
+      if (!ctx) return;
 
       if (!win.__LAYAM_AUDIO_SOURCE__) {
-        win.__LAYAM_AUDIO_SOURCE__ = this.ctx.createMediaElementSource(audio);
+        win.__LAYAM_AUDIO_SOURCE__ = ctx.createMediaElementSource(audio);
       }
       this.sourceNode = win.__LAYAM_AUDIO_SOURCE__;
+
+      // ReplayGain / R128 Input Stage: non-destructive metadata-based loudness scaling
+      if (!win.__LAYAM_REPLAY_GAIN_NODE__) {
+        const rgn = ctx.createGain();
+        rgn.gain.value = 1.0;
+        win.__LAYAM_REPLAY_GAIN_NODE__ = rgn;
+      }
+      this.replayGainNode = win.__LAYAM_REPLAY_GAIN_NODE__;
 
       // Phase 3: 10-band peaking filter nodes with calibrated ISO 1-octave Q (Q = 1.414, ±12dB)
       if (!win.__LAYAM_EQ_FILTERS__ || win.__LAYAM_EQ_FILTERS__.length !== EQ_FREQUENCIES.length) {
         win.__LAYAM_EQ_FILTERS__ = (EQ_FREQUENCIES as readonly number[]).map((freq) => {
-          const filter = this.ctx!.createBiquadFilter();
+          const filter = ctx.createBiquadFilter();
           filter.type = "peaking";
           filter.frequency.value = freq;
           filter.Q.value = 1.414; // Calibrated ISO 1-octave Q for smooth linear phase summing
@@ -110,7 +129,7 @@ export class DspEngine {
 
       // Sub-Bass Driver: 60Hz Low-Shelf Filter (0 to +10 dB)
       if (!win.__LAYAM_BASS_NODE__) {
-        const bass = this.ctx.createBiquadFilter();
+        const bass = ctx.createBiquadFilter();
         bass.type = "lowshelf";
         bass.frequency.value = 60;
         bass.gain.value = 0;
@@ -120,7 +139,7 @@ export class DspEngine {
 
       // Air & Clarity: 12kHz High-Shelf Filter (0 to +10 dB)
       if (!win.__LAYAM_TREBLE_NODE__) {
-        const treble = this.ctx.createBiquadFilter();
+        const treble = ctx.createBiquadFilter();
         treble.type = "highshelf";
         treble.frequency.value = 12000;
         treble.gain.value = 0;
@@ -130,34 +149,34 @@ export class DspEngine {
 
       // Soundstage Expansion: Mid/Side Stereo Widener with 120Hz Sub-Bass Mono-Maker
       if (!win.__LAYAM_SIDE_GAIN__) {
-        const splitter = this.ctx.createChannelSplitter(2);
-        const merger = this.ctx.createChannelMerger(2);
+        const splitter = ctx.createChannelSplitter(2);
+        const merger = ctx.createChannelMerger(2);
 
-        const midSum = this.ctx.createGain(); // M = 0.5*L + 0.5*R
+        const midSum = ctx.createGain(); // M = 0.5*L + 0.5*R
         midSum.gain.value = 0.5;
 
-        const sideDiffL = this.ctx.createGain(); // 0.5*L
+        const sideDiffL = ctx.createGain(); // 0.5*L
         sideDiffL.gain.value = 0.5;
 
-        const sideDiffR = this.ctx.createGain(); // -0.5*R
+        const sideDiffR = ctx.createGain(); // -0.5*R
         sideDiffR.gain.value = -0.5;
 
-        const sideGain = this.ctx.createGain(); // S control (default 1.0 = normal stereo)
+        const sideGain = ctx.createGain(); // S control (default 1.0 = normal stereo)
         sideGain.gain.value = 1.0;
 
         // Sub-Bass Mono-Maker: 120Hz Highpass on Side signal locks sub-bass in mono
-        const sideHighpass = this.ctx.createBiquadFilter();
+        const sideHighpass = ctx.createBiquadFilter();
         sideHighpass.type = "highpass";
         sideHighpass.frequency.value = 120;
         sideHighpass.Q.value = 0.707;
 
-        const outL = this.ctx.createGain(); // L = M + S_highpassed
+        const outL = ctx.createGain(); // L = M + S_highpassed
         outL.gain.value = 1.0;
 
-        const outR = this.ctx.createGain(); // R = M - S_highpassed
+        const outR = ctx.createGain(); // R = M - S_highpassed
         outR.gain.value = 1.0;
 
-        const sideInv = this.ctx.createGain(); // -S
+        const sideInv = ctx.createGain(); // -S
         sideInv.gain.value = -1.0;
 
         // Connections for M/S Matrix with Sub-Bass Mono Anchor:
@@ -194,34 +213,34 @@ export class DspEngine {
 
       // Spatial Room Reverb Network: 4-Channel Prime-Spaced Feedback Delay Network (FDN)
       if (!win.__LAYAM_ROOM_DRY__) {
-        const dryGain = this.ctx.createGain();
+        const dryGain = ctx.createGain();
         dryGain.gain.value = 1.0;
 
-        const wetGain = this.ctx.createGain();
+        const wetGain = ctx.createGain();
         wetGain.gain.value = 0.0;
 
         // 4 incommensurate prime delay lines (19.1ms, 23.3ms, 29.7ms, 37.1ms)
         const delayTimes = [0.0191, 0.0233, 0.0297, 0.0371];
         const delays = delayTimes.map((t) => {
-          const d = this.ctx!.createDelay(0.5);
+          const d = ctx.createDelay(0.5);
           d.delayTime.value = t;
           return d;
         });
 
         const damps = delays.map(() => {
-          const f = this.ctx!.createBiquadFilter();
+          const f = ctx.createBiquadFilter();
           f.type = "lowpass";
           f.frequency.value = 4800;
           return f;
         });
 
         const fbs = delays.map(() => {
-          const g = this.ctx!.createGain();
+          const g = ctx.createGain();
           g.gain.value = 0.22;
           return g;
         });
 
-        const roomMix = this.ctx.createGain();
+        const roomMix = ctx.createGain();
         roomMix.gain.value = 1.0;
 
         // Connect 4-channel circulating FDN:
@@ -253,7 +272,7 @@ export class DspEngine {
 
       // Post-DSP Mastering True-Peak Limiter / Dynamic Normalizer (Post-Reverb, Pre-Headroom)
       if (!win.__LAYAM_COMPRESSOR_NODE__) {
-        const comp = this.ctx.createDynamicsCompressor();
+        const comp = ctx.createDynamicsCompressor();
         // Transparent brickwall limiter profile: fast attack (1ms), smooth release (150ms)
         comp.threshold.value = 0; // Linear by default
         comp.ratio.value = 1;
@@ -266,7 +285,7 @@ export class DspEngine {
 
       // Headroom Protection: -3 dB gain node after limiter to prevent DAC inter-sample clipping
       if (!win.__LAYAM_HEADROOM_GAIN__) {
-        const headroom = this.ctx.createGain();
+        const headroom = ctx.createGain();
         // -3dB = 10^(-3/20) ≈ 0.70794578
         headroom.gain.value = 0.70794578;
         win.__LAYAM_HEADROOM_GAIN__ = headroom;
@@ -275,7 +294,7 @@ export class DspEngine {
 
       // Parallel Read-Only Analyser Tap (does NOT alter audio path to destination)
       if (!win.__LAYAM_ANALYSER_NODE__) {
-        const analyser = this.ctx.createAnalyser();
+        const analyser = ctx.createAnalyser();
         analyser.fftSize = 1024;
         analyser.smoothingTimeConstant = 0.8;
         analyser.minDecibels = -90;
@@ -286,78 +305,110 @@ export class DspEngine {
 
       // 1. Connect series DSP chain internally in mastering order:
       // filters[0..9] -> bassNode -> trebleNode -> stereoWidener (M/S) -> roomNetwork (4-FDN) -> masterLimiter -> headroomGain -> destination
-      let prevNode: AudioNode = this.filters[0];
-      for (let i = 1; i < this.filters.length; i++) {
-        try {
-          this.filters[i].disconnect();
-        } catch {}
-        prevNode.connect(this.filters[i]);
-        prevNode = this.filters[i];
-      }
-
-      try {
-        this.bassNode.disconnect();
-      } catch {}
-      prevNode.connect(this.bassNode);
-      prevNode = this.bassNode;
-
-      try {
-        this.trebleNode.disconnect();
-      } catch {}
-      prevNode.connect(this.trebleNode);
-      prevNode = this.trebleNode;
-
-      try {
-        if (this.stereoSplitter) {
-          prevNode.connect(this.stereoSplitter);
+      if (this.filters.length > 0 && this.filters[0]) {
+        let prevNode: AudioNode = this.filters[0];
+        for (let i = 1; i < this.filters.length; i++) {
+          const filter = this.filters[i];
+          if (filter) {
+            try {
+              filter.disconnect();
+            } catch {}
+            prevNode.connect(filter);
+            prevNode = filter;
+          }
         }
-      } catch {}
 
-      // From stereoMerger -> room network
-      let roomInput: AudioNode = this.stereoMerger ?? prevNode;
-      if (this.roomDry && this.roomWet && this.roomDelayL && this.roomDelayR && this.roomMix) {
+        if (this.bassNode) {
+          try {
+            this.bassNode.disconnect();
+          } catch {}
+          prevNode.connect(this.bassNode);
+          prevNode = this.bassNode;
+        }
+
+        if (this.trebleNode) {
+          try {
+            this.trebleNode.disconnect();
+          } catch {}
+          prevNode.connect(this.trebleNode);
+          prevNode = this.trebleNode;
+        }
+
         try {
-          roomInput.connect(this.roomDry);
-          roomInput.connect(this.roomDelayL);
-          roomInput.connect(this.roomDelayR);
+          if (this.stereoSplitter) {
+            prevNode.connect(this.stereoSplitter);
+          }
         } catch {}
-        prevNode = this.roomMix;
-      }
 
-      // Reverb -> Master Limiter -> Headroom Gain
-      try {
-        this.compressor.disconnect();
-      } catch {}
-      prevNode.connect(this.compressor);
-      prevNode = this.compressor;
+        // From stereoMerger -> room network
+        let roomInput: AudioNode = this.stereoMerger ?? prevNode;
+        if (this.roomDry && this.roomWet && this.roomDelayL && this.roomDelayR && this.roomMix) {
+          try {
+            roomInput.connect(this.roomDry);
+            roomInput.connect(this.roomDelayL);
+            roomInput.connect(this.roomDelayR);
+          } catch {}
+          prevNode = this.roomMix;
+        }
 
-      try {
-        this.headroomGain.disconnect();
-      } catch {}
-      prevNode.connect(this.headroomGain);
-      this.headroomGain.connect(this.ctx.destination);
+        // Reverb -> Master Limiter -> Headroom Gain
+        if (this.compressor) {
+          try {
+            this.compressor.disconnect();
+          } catch {}
+          prevNode.connect(this.compressor);
+          prevNode = this.compressor;
+        }
 
-      // Connect parallel read-only tap (headroomGain -> analyser)
-      try {
-        this.analyser.disconnect();
-      } catch {}
-      this.headroomGain.connect(this.analyser);
+        if (this.headroomGain && this.ctx) {
+          try {
+            this.headroomGain.disconnect();
+          } catch {}
+          prevNode.connect(this.headroomGain);
+          this.headroomGain.connect(this.ctx.destination);
 
-      // 2. Connect sourceNode according to bypass state:
-      if (typeof window !== "undefined" && (window as any).__LAYAM_DSP_BYPASSED__ !== undefined) {
-        this.isBypassed = Boolean((window as any).__LAYAM_DSP_BYPASSED__);
-      }
+          // Connect parallel read-only tap (headroomGain -> analyser)
+          if (this.analyser) {
+            try {
+              this.analyser.disconnect();
+            } catch {}
+            this.headroomGain.connect(this.analyser);
+          }
+        }
 
-      try {
-        this.sourceNode.disconnect();
-      } catch {}
+        // 2. Connect sourceNode through replayGainNode according to bypass state:
+        if (typeof window !== "undefined" && (window as any).__LAYAM_DSP_BYPASSED__ !== undefined) {
+          this.isBypassed = Boolean((window as any).__LAYAM_DSP_BYPASSED__);
+        }
 
-      if (this.isBypassed) {
-        this.sourceNode.connect(this.headroomGain);
-        (win as any).__LAYAM_SOURCE_CONNECTED_TO__ = "headroomGain";
-      } else {
-        this.sourceNode.connect(this.filters[0]);
-        (win as any).__LAYAM_SOURCE_CONNECTED_TO__ = "filters[0]";
+        if (this.sourceNode && this.headroomGain) {
+          try {
+            this.sourceNode.disconnect();
+          } catch {}
+
+          if (this.replayGainNode) {
+            try {
+              this.replayGainNode.disconnect();
+            } catch {}
+            this.sourceNode.connect(this.replayGainNode);
+
+            if (this.isBypassed) {
+              this.replayGainNode.connect(this.headroomGain);
+              (win as any).__LAYAM_SOURCE_CONNECTED_TO__ = "headroomGain";
+            } else if (this.filters[0]) {
+              this.replayGainNode.connect(this.filters[0]);
+              (win as any).__LAYAM_SOURCE_CONNECTED_TO__ = "filters[0]";
+            }
+          } else {
+            if (this.isBypassed) {
+              this.sourceNode.connect(this.headroomGain);
+              (win as any).__LAYAM_SOURCE_CONNECTED_TO__ = "headroomGain";
+            } else if (this.filters[0]) {
+              this.sourceNode.connect(this.filters[0]);
+              (win as any).__LAYAM_SOURCE_CONNECTED_TO__ = "filters[0]";
+            }
+          }
+        }
       }
 
       this.isInitialized = true;
@@ -589,7 +640,47 @@ export class DspEngine {
     return this.compressor;
   }
 
+  public getReplayGainNode(): GainNode | null {
+    if (!this.replayGainNode && typeof window !== "undefined") {
+      const win = window as unknown as { __LAYAM_REPLAY_GAIN_NODE__?: GainNode };
+      if (win.__LAYAM_REPLAY_GAIN_NODE__) {
+        this.replayGainNode = win.__LAYAM_REPLAY_GAIN_NODE__;
+      }
+    }
+    return this.replayGainNode;
+  }
+
+  public setReplayGain(gainDb: number, peak = 1.0): void {
+    this.currentReplayGainDb = gainDb;
+    this.currentReplayGainPeak = peak;
+    this.applyReplayGain();
+  }
+
+  private applyReplayGain(): void {
+    const node = this.getReplayGainNode();
+    const ctx = this.getCtx();
+    if (!node || !ctx) return;
+
+    if (!this.isNormalizerEnabled || this.currentReplayGainDb === 0) {
+      node.gain.setTargetAtTime(1.0, ctx.currentTime, 0.05);
+      return;
+    }
+
+    let linearGain = Math.pow(10, this.currentReplayGainDb / 20);
+    // Clipping prevention: clamp if positive gain would exceed 0 dBFS based on peak
+    if (this.currentReplayGainDb > 0 && this.currentReplayGainPeak > 0) {
+      const maxSafe = 1.0 / this.currentReplayGainPeak;
+      if (linearGain > maxSafe) {
+        linearGain = maxSafe;
+      }
+    }
+    const safeGain = Math.max(0.01, Math.min(2.0, linearGain));
+    node.gain.setTargetAtTime(safeGain, ctx.currentTime, 0.05);
+  }
+
   public setNormalizer(enabled: boolean): void {
+    this.isNormalizerEnabled = enabled;
+    this.applyReplayGain();
     const comp = this.getCompressorNode();
     const ctx = this.getCtx();
     if (comp && ctx) {
@@ -599,6 +690,9 @@ export class DspEngine {
       comp.threshold.setTargetAtTime(threshold, ctx.currentTime, 0.05);
       comp.ratio.setTargetAtTime(ratio, ctx.currentTime, 0.05);
       comp.knee.setTargetAtTime(knee, ctx.currentTime, 0.05);
+    }
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setNormalizerEnabled(enabled);
     }
   }
 
@@ -614,13 +708,13 @@ export class DspEngine {
         __LAYAM_ROOM_MIX__?: GainNode;
       };
       if (win.__LAYAM_ROOM_DRY__) {
-        this.roomDry = win.__LAYAM_ROOM_DRY__;
-        this.roomWet = win.__LAYAM_ROOM_WET__;
-        this.roomDelayL = win.__LAYAM_ROOM_DELAY_L__;
-        this.roomDelayR = win.__LAYAM_ROOM_DELAY_R__;
-        this.roomFbL = win.__LAYAM_ROOM_FB_L__;
-        this.roomFbR = win.__LAYAM_ROOM_FB_R__;
-        this.roomMix = win.__LAYAM_ROOM_MIX__;
+        this.roomDry = win.__LAYAM_ROOM_DRY__ ?? null;
+        this.roomWet = win.__LAYAM_ROOM_WET__ ?? null;
+        this.roomDelayL = win.__LAYAM_ROOM_DELAY_L__ ?? null;
+        this.roomDelayR = win.__LAYAM_ROOM_DELAY_R__ ?? null;
+        this.roomFbL = win.__LAYAM_ROOM_FB_L__ ?? null;
+        this.roomFbR = win.__LAYAM_ROOM_FB_R__ ?? null;
+        this.roomMix = win.__LAYAM_ROOM_MIX__ ?? null;
       }
     }
     return {
@@ -683,19 +777,15 @@ export class DspEngine {
     }
   }
 
-  public getAnalyserNode(): AnalyserNode | null {
-    return this.analyser;
-  }
-
   public getFrequencyData(array: Uint8Array): void {
     if (this.analyser) {
-      this.analyser.getByteFrequencyData(array);
+      this.analyser.getByteFrequencyData(array as any);
     }
   }
 
   public getTimeDomainData(array: Uint8Array): void {
     if (this.analyser) {
-      this.analyser.getByteTimeDomainData(array);
+      this.analyser.getByteTimeDomainData(array as any);
     }
   }
 

@@ -128,17 +128,18 @@ export class OnlineMetadataService {
               trackId,
               title: lrcData.trackName || cleanTitle,
               artist: lrcData.artistName || cleanArtist,
-              album: lrcData.albumName || album,
               format,
               rawText,
               lines,
               isSynced,
-              source: "lrclib_online",
+              source: "catalog",
               importedAt: new Date().toISOString(),
             };
 
             // Cache lyrics in IndexedDB for offline access
-            await LocalLyricsService.saveLyrics(fetchedLyrics);
+            if (fetchedLyrics) {
+              await LocalLyricsService.saveLyrics(fetchedLyrics);
+            }
           }
         }
       } catch {

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Search as SearchIcon, Music2, Users, Disc3, Globe, Loader2 } from "lucide-react";
+import { Search as SearchIcon, Music2, Users, Disc3, Globe, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { catalogQueryOptions, searchQueryOptions } from "@/domain/music/queries";
@@ -156,6 +156,7 @@ function SearchPage() {
   const appleCount = allTracks.filter((t) => t.id.startsWith("apple-")).length;
   const audiusCount = allTracks.filter((t) => t.id.startsWith("audius-")).length;
   const jamendoCount = allTracks.filter((t) => t.id.startsWith("jamendo-")).length;
+  const otherCount = Math.max(0, allTracks.length - appleCount - audiusCount - jamendoCount);
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-32 pt-20 sm:px-6 lg:px-8">

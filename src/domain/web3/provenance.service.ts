@@ -61,8 +61,13 @@ export class DigitalProvenanceService {
 
     try {
       // 1. Check existing certificate in database
-      const { data: cert, error } = await supabase
-        .from("digital_certificates")
+      const { data: cert, error } = await (supabase.from as unknown as (t: string) => {
+        select: (cols: string) => {
+          eq: (col: string, val: string) => {
+            maybeSingle: () => Promise<{ data?: Record<string, any> | null; error?: unknown }>;
+          };
+        };
+      })("digital_certificates")
         .select("id, track_id, creator_id, isrc_code, sha256_hash, audio_fingerprint, metadata_snapshot, certificate_signature, chain, issued_at")
         .eq("track_id", track.id)
         .maybeSingle();

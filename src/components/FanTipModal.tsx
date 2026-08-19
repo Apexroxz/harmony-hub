@@ -18,6 +18,7 @@ import { useWallet } from "@/lib/wallet";
 import { useGamification } from "@/lib/gamification";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 export interface TipRecord {
   id: string;
@@ -71,8 +72,8 @@ export async function fetchArtistTips(artistId: string): Promise<TipRecord[]> {
           id: t.id,
           artistId,
           artistName: "Artist",
-          donorName: prof?.display_name || "Layam Patron",
-          donorAvatar: prof?.avatar_url || undefined,
+          donorName: (prof as any)?.display_name || "Layam Patron",
+          donorAvatar: (prof as any)?.avatar_url || undefined,
           amountUsd: Number(t.amount),
           paymentMethod: (t.payment_method as "fiat" | "sol") || "fiat",
           message: t.message || undefined,

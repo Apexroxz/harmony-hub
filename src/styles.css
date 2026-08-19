@@ -1,3 +1,4 @@
+@import "../packages/design-system/src/tokens.css";
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -5,30 +6,22 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * LAYAM LUXURY AUDIOPHILE DESIGN SYSTEM
+ * LAYAM "OBSIDIAN" AUDIOPHILE DESIGN SYSTEM
  *
- * Aesthetics:
- * - Apple Music elegance & visual hierarchy
- * - Qobuz audiophile premium feel
- * - Spotify frictionless usability
- * - Poweramp professional audio hardware controls
- * - Nothing OS minimal geometry & typography
- *
- * Palette:
- * - True obsidian black background (#070707 / oklch 0.09)
- * - Matte dark charcoal cards & surfaces (#121212 / oklch 0.13)
- * - Warm luxury gold/orange metallic accents (#ff7a18 / oklch 0.72)
- * - Ultra-subtle hairline borders (rgba(255,255,255,0.06))
+ * Principles:
+ * - Minimal, calm, precise, premium
+ * - Progressive disclosure (Layers 1, 2, 3)
+ * - Whitespace as a structural tool
+ * - Amber accent used intentionally for active/key elements (< 15% screen)
+ * - No fake glow, gradients, or decorative drop shadows
  */
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 14px);
-  --radius-4xl: calc(var(--radius) + 20px);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -51,86 +44,44 @@
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
 
-  /* Audiophile Luxury Tokens */
-  --color-glow: var(--glow);
-  --color-glow-soft: var(--glow-soft);
-  --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-raised);
+  /* Obsidian Token Aliases */
+  --color-bg-obsidian: var(--bg-obsidian);
   --color-surface-sunken: var(--surface-sunken);
-  --color-gold: var(--gold);
-  --color-orange: var(--orange);
-  --color-amber: var(--amber);
-  --color-emerald: var(--emerald);
-  /* Compatibility aliases */
-  --color-violet: var(--orange);
-  --color-cyan: var(--amber);
-  --color-magenta: var(--orange);
-}
-
-:root {
-  --radius: 1rem;
-
-  /* True Obsidian Audiophile Night Theme */
-  --background: oklch(0.08 0.005 55);
-  --foreground: oklch(0.97 0.003 60);
-  --card: oklch(0.12 0.008 55);
-  --card-foreground: oklch(0.97 0.003 60);
-  --popover: oklch(0.12 0.008 55);
-  --popover-foreground: oklch(0.97 0.003 60);
-
-  /* Warm Luxury Gold/Orange Accent */
-  --primary: oklch(0.72 0.17 52);
-  --primary-foreground: oklch(0.08 0.005 55);
-
-  --secondary: oklch(0.16 0.008 55);
-  --secondary-foreground: oklch(0.92 0.005 60);
-  --muted: oklch(0.15 0.006 55);
-  --muted-foreground: oklch(0.62 0.012 60);
-  --accent: oklch(0.78 0.14 70);
-  --accent-foreground: oklch(0.08 0.005 55);
-  --destructive: oklch(0.56 0.18 24);
-  --destructive-foreground: oklch(0.97 0.003 60);
-
-  /* Hairline precision borders */
-  --border: oklch(0.22 0.008 55 / 45%);
-  --input: oklch(0.18 0.008 55 / 60%);
-  --ring: oklch(0.72 0.17 52 / 60%);
-
-  /* Audiophile surface depth */
-  --glow: oklch(0.72 0.17 52 / 30%);
-  --glow-soft: oklch(0.72 0.17 52 / 10%);
-  --surface: oklch(0.11 0.006 55);
-  --surface-raised: oklch(0.15 0.008 55);
-  --surface-sunken: oklch(0.06 0.004 55);
-  --gold: oklch(0.76 0.15 75);
-  --orange: oklch(0.72 0.17 52);
-  --amber: oklch(0.78 0.14 70);
-  --emerald: oklch(0.72 0.16 150);
+  --color-surface-charcoal: var(--surface-charcoal);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-active: var(--surface-active);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-amber-hover: var(--accent-amber-hover);
+  --color-accent-amber-dim: var(--accent-amber-dim);
+  --color-accent-gold: var(--accent-gold);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-medium: var(--border-medium);
+  --color-border-amber: var(--border-amber);
 }
 
 @layer base {
   * {
-    border-color: var(--color-border);
+    border-color: var(--border-subtle);
   }
 
   html {
     scroll-behavior: smooth;
     color-scheme: dark;
-    background-color: var(--color-background);
+    background-color: var(--bg-obsidian);
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-feature-settings:
-      "rlig" 1,
-      "calt" 1,
-      "cv02" 1,
-      "cv03" 1,
-      "cv04" 1;
+    background-color: var(--bg-obsidian);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: -0.011em;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Minimal audiophile scrollbar */
@@ -144,13 +95,13 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.24 0.008 55);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 9999px;
   }
 
-  /* Accessible focus indicators (WCAG 2.1 AA) */
+  /* Accessible focus indicators */
   :focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--accent-amber);
     outline-offset: 2px;
     border-radius: var(--radius-md);
   }
@@ -158,64 +109,20 @@
   button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
   }
+
+  .font-tech {
+    font-family: var(--font-tech);
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
 }
 
 @layer utilities {
-  .text-gradient {
-    background: linear-gradient(
-      135deg,
-      oklch(0.98 0.002 60) 0%,
-      oklch(0.78 0.14 70) 50%,
-      oklch(0.72 0.17 52) 100%
-    );
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .shadow-floating {
+    box-shadow: var(--shadow-floating);
   }
 
-  .text-gradient-gold {
-    background: linear-gradient(135deg, oklch(0.85 0.12 75) 0%, oklch(0.72 0.17 52) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .bg-glass {
-    background: oklch(0.11 0.006 55 / 75%);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-  }
-
-  .bg-glass-strong {
-    background: oklch(0.08 0.005 55 / 88%);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-  }
-
-  .glow-border {
-    box-shadow:
-      0 0 0 1px var(--color-border),
-      0 0 30px var(--color-glow-soft);
-  }
-
-  .glow-text {
-    text-shadow: 0 0 24px var(--color-glow);
-  }
-
-  .surface-raised {
-    background: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-  }
-
-  .surface-sunken {
-    background: var(--color-surface-sunken);
-    border: 1px solid var(--color-border);
-  }
-
-  /* Tactile interactive press feedback */
   .tap-active:active {
     transform: scale(0.97);
-    transition: transform 0.1s ease-out;
+    transition: transform 0.12s ease-out;
   }
 }
-

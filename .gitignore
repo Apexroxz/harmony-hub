@@ -34,4 +34,7 @@ dist-ssr
 # Test outputs
 test-results/
 playwright-report/
-
+*.wav
+*.apk
+*.tar.gz
+scratch/

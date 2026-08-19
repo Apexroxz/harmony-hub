@@ -47,12 +47,11 @@ function toOwnership(row: OwnershipRow): Ownership {
 async function fetchOwnershipRegistry(): Promise<Record<string, Ownership>> {
   const { data, error } = await supabase
     .from("track_ownership")
-    .select(sel(COLUMNS))
-    .returns<OwnershipRow[]>();
+    .select(sel(COLUMNS));
   if (error) throw error;
 
   const byTrackId: Record<string, Ownership> = {};
-  for (const row of data ?? []) byTrackId[row.track_id] = toOwnership(row);
+  for (const row of (data as OwnershipRow[]) ?? []) byTrackId[row.track_id] = toOwnership(row);
   return byTrackId;
 }
 

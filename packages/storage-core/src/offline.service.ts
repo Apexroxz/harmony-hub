@@ -1,7 +1,7 @@
 import type { Track, AudioFormat } from "@/domain/music/types";
-import { extractAudioMetadata, type ExtractedMetadata } from "./audioMetadata";
+import { extractAudioMetadata, cleanAudioText, type ExtractedMetadata } from "./audioMetadata";
 import { getAudioFormatName, SUPPORTED_AUDIO_EXTENSIONS } from "@/domain/music/quality-tier";
-import { storeAudioBlob, getAudioBlobUrl, deleteAudioBlob, getCachedAudioBlobUrl } from "./indexedDbAudio";
+import { storeAudioBlob, getAudioBlobUrl, deleteAudioBlob, getCachedAudioBlobUrl, registerNativeAudioUri } from "./indexedDbAudio";
 import cover1 from "@/assets/covers/cover-1.jpg";
 import cover2 from "@/assets/covers/cover-2.jpg";
 import cover3 from "@/assets/covers/cover-3.jpg";
@@ -122,13 +122,41 @@ export class OfflineService {
         return true;
       });
 
-      // If any legacy demo tracks were pruned, update localStorage silently
-      if (userTracks.length !== parsed.length) {
-        const persistent = userTracks.map((t) => ({ ...t, audioUrl: "" }));
+      let needsResave = false;
+      const sanitizedUserTracks = userTracks.map((t) => {
+        let cleanTitle = cleanAudioText(t.title);
+        const rawArtist = t.artistName || t.artist || "";
+        let cleanArtist = cleanAudioText(rawArtist);
+
+        if ((!cleanArtist || cleanArtist === "Local Artist" || cleanArtist === "Unknown Artist") && cleanTitle.includes(" - ")) {
+          const split = cleanTitle.split(" - ");
+          if (split.length === 2) {
+            cleanArtist = split[0].trim();
+            cleanTitle = split[1].trim();
+          }
+        }
+        const cleanAlbum = cleanAudioText(t.album || "Local Master Imports");
+
+        if (cleanTitle !== t.title || cleanArtist !== rawArtist || cleanAlbum !== t.album) {
+          needsResave = true;
+          return {
+            ...t,
+            title: cleanTitle,
+            artist: cleanArtist || "Local Artist",
+            artistName: cleanArtist || "Local Artist",
+            album: cleanAlbum,
+          };
+        }
+        return t;
+      });
+
+      // If any tracks were updated or legacy demo tracks pruned, update localStorage silently
+      if (needsResave || userTracks.length !== parsed.length) {
+        const persistent = sanitizedUserTracks.map((t) => ({ ...t, audioUrl: "" }));
         localStorage.setItem(LOCAL_TRACKS_KEY, JSON.stringify(persistent));
       }
 
-      return userTracks.map((t) => {
+      return sanitizedUserTracks.map((t) => {
         const cachedUrl = getCachedAudioBlobUrl(t.id);
         if (cachedUrl) {
           return { ...t, audioUrl: cachedUrl };
@@ -284,8 +312,8 @@ export class OfflineService {
         audioUrl: blobUrl, // Immediate active blob URL for playback
         duration: meta.duration || 180,
         genre: meta.genre || "Audiophile Master",
-        quality: meta.format || getAudioFormatName(ext),
-        format: meta.format || getAudioFormatName(ext),
+        quality: (meta.format || getAudioFormatName(ext)) as AudioFormat,
+        format: (meta.format || getAudioFormatName(ext)) as AudioFormat,
         source: "offline",
         bitrate: meta.bitrate || 1411,
         sampleRate: meta.sampleRate || 44100,
@@ -298,8 +326,11 @@ export class OfflineService {
         folderPath,
         album: meta.album || "Local Master Imports",
         year: meta.year,
-        trackNumber: meta.trackNumber,
+        trackNumber: typeof meta.trackNumber === "number" ? meta.trackNumber : meta.trackNumber ? parseInt(String(meta.trackNumber), 10) : undefined,
         fileSizeBytes: file.size,
+        replayGainTrack: meta.replayGainTrack,
+        replayGainAlbum: meta.replayGainAlbum,
+        replayGainPeak: meta.replayGainPeak,
       };
 
       newTracks.push(localTrack);
@@ -311,6 +342,65 @@ export class OfflineService {
     }
 
     return newTracks;
+  }
+
+  public static getAlbums(tracks?: LocalTrack[]): LocalAlbum[] {
+    const list = tracks ?? this.getTracks();
+    const map = new Map<string, LocalAlbum>();
+    for (const t of list) {
+      const albumName = t.album || "Local Master Imports";
+      if (!map.has(albumName)) {
+        map.set(albumName, {
+          name: albumName,
+          artistName: t.artistName || t.artist || "Unknown Artist",
+          coverImage: t.coverImage || "",
+          trackCount: 0,
+          tracks: [],
+        });
+      }
+      const grp = map.get(albumName)!;
+      grp.trackCount++;
+      grp.tracks.push(t);
+    }
+    return Array.from(map.values());
+  }
+
+  public static getArtistGroups(tracks?: LocalTrack[]): LocalArtistGroup[] {
+    const list = tracks ?? this.getTracks();
+    const map = new Map<string, LocalArtistGroup>();
+    for (const t of list) {
+      const name = t.artistName || t.artist || "Unknown Artist";
+      if (!map.has(name)) {
+        map.set(name, {
+          artistName: name,
+          trackCount: 0,
+          tracks: [],
+        });
+      }
+      const grp = map.get(name)!;
+      grp.trackCount++;
+      grp.tracks.push(t);
+    }
+    return Array.from(map.values());
+  }
+
+  public static getFolderGroups(tracks?: LocalTrack[]): LocalFolderGroup[] {
+    const list = tracks ?? this.getTracks();
+    const map = new Map<string, LocalFolderGroup>();
+    for (const t of list) {
+      const folder = t.folderPath || "Local Music";
+      if (!map.has(folder)) {
+        map.set(folder, {
+          folderPath: folder,
+          trackCount: 0,
+          tracks: [],
+        });
+      }
+      const grp = map.get(folder)!;
+      grp.trackCount++;
+      grp.tracks.push(t);
+    }
+    return Array.from(map.values());
   }
 
   public static isTrackDownloaded(trackId: string): boolean {
@@ -375,6 +465,10 @@ export class OfflineService {
       return t;
     });
     this.saveTracks(updated);
+  }
+
+  public static updateTrackMetadata(trackId: string, patch: Partial<LocalTrack>): void {
+    this.updateMetadata(trackId, patch);
   }
 
   public static createPlaylist(name: string): LocalPlaylist {
@@ -468,6 +562,68 @@ export class OfflineService {
       trackCount: groupTracks.length,
       tracks: groupTracks,
     }));
+  }
+
+  public static importNativeAudioFiles(files: Array<{
+    uri: string;
+    name: string;
+    sizeBytes: number;
+    mimeType: string;
+    title: string;
+    artist: string;
+    album: string;
+    durationMs: number;
+    bitrate: number;
+    format: string;
+  }>): LocalTrack[] {
+    const existing = this.getTracks();
+    const existingKeys = new Set(
+      existing.map((track) => `${track.title.toLowerCase()}|${track.fileSizeBytes || 0}`),
+    );
+    const imported: LocalTrack[] = [];
+
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i]!;
+      const key = `${file.title.toLowerCase()}|${file.sizeBytes || 0}`;
+      if (existingKeys.has(key)) continue;
+
+      const id = `local-imported-android-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`;
+      registerNativeAudioUri(id, file.uri);
+      imported.push({
+        id,
+        title: file.title || file.name.replace(/\.[^.]+$/, ""),
+        artistId: "local-device",
+        artistName: file.artist || "Local Artist",
+        artist: file.artist || "Local Artist",
+        coverImage: (file as any).coverImage || "",
+        audioUrl: "",
+        duration: file.durationMs > 0 ? file.durationMs / 1000 : 0,
+        genre: "Local Audio",
+        quality: (file.format || "MP3") as AudioFormat,
+        format: (file.format || "MP3") as AudioFormat,
+        source: "offline" as const,
+        bitrate: file.bitrate || 0,
+        sampleRate: 0,
+        bitDepth: 0,
+        playCount: 0,
+        likes: 0,
+        comments: 0,
+        createdAt: new Date().toISOString().slice(0, 10),
+        uploaderId: "local-device",
+        folderPath: "Android Music",
+        album: file.album || "Local Master Imports",
+        fileSizeBytes: file.sizeBytes || 0,
+        replayGainTrack: (file as any).replayGainTrack,
+        replayGainAlbum: (file as any).replayGainAlbum,
+        replayGainPeak: (file as any).replayGainPeak,
+      });
+      existingKeys.add(key);
+    }
+
+    if (imported.length > 0) {
+      this.saveTracks([...imported, ...existing]);
+    }
+    return imported;
   }
 
   public static subscribe(listener: () => void): () => void {

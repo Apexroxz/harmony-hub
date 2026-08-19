@@ -29,6 +29,9 @@ export interface Track {
   uploaderId?: string | null;
   price?: number;
   monetized?: boolean;
+  replayGainTrack?: number; // Loudness offset in dB (e.g. -6.5 dB)
+  replayGainAlbum?: number; // Album loudness offset in dB
+  replayGainPeak?: number;  // Peak amplitude 0.0 - 1.0+
 }
 
 export interface Playlist {

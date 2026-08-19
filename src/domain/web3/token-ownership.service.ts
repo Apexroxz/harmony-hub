@@ -51,8 +51,13 @@ export class TokenOwnershipService {
     const { trackId, walletAddress, signature, providerId = "phantom" } = params;
 
     // 1. Fetch track ownership config from database
-    const { data: ownership } = await supabase
-      .from("track_ownership")
+    const { data: ownership } = await (supabase.from as unknown as (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          maybeSingle: () => Promise<{ data?: { token_gated?: boolean; contract_address?: string; chain?: string } | null }>;
+        };
+      };
+    })("track_ownership")
       .select("token_gated, contract_address, chain")
       .eq("track_id", trackId)
       .maybeSingle();

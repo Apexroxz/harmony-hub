@@ -47,10 +47,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("likes")
         .select(sel("track_id"))
-        .eq("user_id", userId!)
-        .returns<EngagementRow[]>();
+        .eq("user_id", userId!);
       if (error) throw error;
-      return (data ?? []).map((row) => row.track_id);
+      return ((data as EngagementRow[]) ?? []).map((row) => row.track_id);
     },
   });
 
@@ -61,10 +60,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("reposts")
         .select(sel("track_id"))
-        .eq("user_id", userId!)
-        .returns<EngagementRow[]>();
+        .eq("user_id", userId!);
       if (error) throw error;
-      return (data ?? []).map((row) => row.track_id);
+      return ((data as EngagementRow[]) ?? []).map((row) => row.track_id);
     },
   });
 

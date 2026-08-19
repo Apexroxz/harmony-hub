@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AdminService } from "@/domain/admin/admin.service";
 import { ModerationService } from "@/domain/admin/moderation.service";
 import { AdminAnalyticsService } from "@/domain/admin/admin-analytics.service";
+import type { AdminAuditLog } from "@/domain/admin/admin.service";
 
 /**
  * Server Functions for Admin Control Plane
@@ -92,5 +93,6 @@ export const takedownTrackFn = createServerFn({ method: "POST" })
 export const getAdminAuditLogsFn = createServerFn({ method: "GET" })
   .validator((input: { limit?: number; resourceType?: string }) => input)
   .handler(async ({ data }) => {
-    return AdminService.getAuditLogs(data);
+    const logs = await AdminService.getAuditLogs(data);
+    return logs as any;
   });

@@ -64,7 +64,8 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminControlPlanePage() {
-  const { user, isDeveloper, isModerator } = useAuth();
+  const { user, isDeveloper } = useAuth();
+  const isModerator = user?.role === "moderator";
   const { playTrack } = usePlayer();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,7 +115,7 @@ function AdminControlPlanePage() {
       userId: userRec.id,
       status: nextStatus,
       reason: `Manual administrative toggle by ${user?.email || "Admin"}`,
-      adminId: user?.id,
+      ...(user?.id ? { adminId: user.id } : {}),
     });
 
     setUsersList((prev) =>
@@ -131,7 +132,7 @@ function AdminControlPlanePage() {
     await AdminService.verifyCreator({
       creatorId: creator.id,
       verified: nextVerified,
-      adminId: user?.id,
+      ...(user?.id ? { adminId: user.id } : {}),
     });
 
     setCreatorsList((prev) =>
@@ -152,7 +153,7 @@ function AdminControlPlanePage() {
       reportId,
       status,
       resolutionNotes: notes,
-      adminId: user?.id,
+      ...(user?.id ? { adminId: user.id } : {}),
     });
 
     setReportsList((prev) =>
@@ -168,7 +169,7 @@ function AdminControlPlanePage() {
     await ModerationService.takedownTrack({
       trackId: track.id,
       reason: `Administrative takedown of "${track.title}"`,
-      adminId: user?.id,
+      ...(user?.id ? { adminId: user.id } : {}),
     });
 
     setCatalogTracks((prev) => prev.filter((t) => t.id !== track.id));
@@ -495,7 +496,7 @@ function AdminControlPlanePage() {
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <Link to={`/artist/${creator.id}`}>
+                    <Link to="/artist/$id" params={{ id: creator.id }}>
                       <Button variant="outline" size="sm" className="rounded-full text-xs font-semibold h-8 gap-1">
                         Profile <ExternalLink className="h-3 w-3" />
                       </Button>
@@ -540,7 +541,7 @@ function AdminControlPlanePage() {
                       <tr key={track.id} className="hover:bg-surface/50">
                         <td className="p-3.5">
                           <div className="flex items-center gap-2.5">
-                            <img src={track.coverArt} alt="" className="h-8 w-8 rounded-lg object-cover" />
+                            <img src={track.coverImage || "/placeholder.svg"} alt="" className="h-8 w-8 rounded-lg object-cover" />
                             <div>
                               <p className="font-bold text-foreground truncate max-w-[200px]">{track.title}</p>
                               <p className="text-[10px] text-muted-foreground font-mono">{formatDuration(track.duration)}</p>

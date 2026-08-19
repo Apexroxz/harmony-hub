@@ -289,7 +289,7 @@ function ArtistDashboardPage() {
         <StatCard
           label="Total Stream Volume"
           value={totalStreams.toLocaleString()}
-          sub="Lossless 24/96 plays"
+          sub="Bit-perfect master plays"
           subColor="text-primary/80"
           icon={TrendingUp}
           iconColor="text-primary"
@@ -514,7 +514,7 @@ function ArtistDashboardPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm text-foreground truncate">{track.title}</p>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {track.artistName} · {formatDuration(track.duration)} · {track.quality || "FLAC 24/96"}
+                    {track.artistName} · {formatDuration(track.duration)} · {track.format || track.quality || "LOSSLESS"}
                   </p>
                 </div>
               </div>

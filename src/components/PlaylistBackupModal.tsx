@@ -21,17 +21,17 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface PlaylistBackupModalProps {
-  playlists: LocalPlaylist[];
-  allTracks: (LocalTrack | Track)[];
-  onImportPlaylist: (newPlaylist: LocalPlaylist) => void;
+  playlists?: LocalPlaylist[];
+  allTracks?: (LocalTrack | Track)[];
+  onImportPlaylist?: (newPlaylist: LocalPlaylist) => void;
   open: boolean;
   onClose: () => void;
 }
 
 export function PlaylistBackupModal({
-  playlists,
-  allTracks,
-  onImportPlaylist,
+  playlists = [],
+  allTracks = [],
+  onImportPlaylist = () => {},
   open,
   onClose,
 }: PlaylistBackupModalProps) {

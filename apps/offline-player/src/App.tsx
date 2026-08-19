@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Plus, FolderOpen, Sliders, Info, Settings } from "lucide-react";
+import { Toaster, toast } from "sonner";
 import { BrandLogo } from "@layam/design-system";
 import { PlayerBar } from "@/components/PlayerBar";
 import { AudioConsoleModal } from "@/components/AudioConsoleModal";
@@ -14,7 +15,8 @@ import { OfflineAboutModal } from "./components/OfflineAboutModal";
 import { useLocalVault } from "./providers/LocalVaultProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { androidMedia3 } from "@layam/audio-core";
-import { OfflineService, registerNativeAudioUri } from "@layam/storage-core";
+import { OfflineService } from "@layam/storage-core";
+import { useTheme } from "@/lib/theme";
 
 function StandaloneBrandHeader({
   onOpenAbout,
@@ -26,56 +28,61 @@ function StandaloneBrandHeader({
   onOpenSettings: () => void;
 }) {
   const { importLocalFiles } = useAppMode();
-  const { localTracks } = useLocalVault();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   const importNativeFiles = async () => {
+    const permResult = await androidMedia3.checkAudioPermission();
+    if (!permResult.granted) {
+      const requestResult = await androidMedia3.requestAudioPermission();
+      if (!requestResult.granted) {
+        toast.error("Audio Access Required", {
+          description: "Storage / Audio permission is required to import and play music on your device. Please grant permission in Android settings.",
+          duration: 5000,
+        });
+        return;
+      }
+    }
+
     const files = await androidMedia3.openDocumentPicker();
     if (files.length === 0) return;
 
-    const existingKeys = new Set(
-      localTracks.map((track) => `${track.title.toLowerCase()}|${track.fileSizeBytes || 0}`),
-    );
-    const imported = [];
+    const imported = OfflineService.importNativeAudioFiles(files);
+    if (imported.length > 0) {
+      toast.success(`Imported ${imported.length} audio ${imported.length === 1 ? "track" : "tracks"}`);
+    }
+  };
 
-    for (let i = 0; i < files.length; i += 1) {
-      const file = files[i]!;
-      const key = `${file.title.toLowerCase()}|${file.sizeBytes || 0}`;
-      if (existingKeys.has(key)) continue;
-
-      const id = `local-imported-android-${Date.now()}-${i}`;
-      registerNativeAudioUri(id, file.uri);
-      imported.push({
-        id,
-        title: file.title || file.name.replace(/\.[^.]+$/, ""),
-        artistId: "local-device",
-        artistName: file.artist || "Local Artist",
-        artist: file.artist || "Local Artist",
-        coverImage: "",
-        audioUrl: "",
-        duration: file.durationMs > 0 ? file.durationMs / 1000 : 0,
-        genre: "Local Audio",
-        quality: file.format || "AUDIO",
-        format: file.format || "AUDIO",
-        source: "offline" as const,
-        bitrate: file.bitrate || 0,
-        sampleRate: 0,
-        bitDepth: 0,
-        playCount: 0,
-        likes: 0,
-        comments: 0,
-        createdAt: new Date().toISOString().slice(0, 10),
-        uploaderId: "local-device",
-        folderPath: "Android Music",
-        album: file.album || "Local Master Imports",
-        fileSizeBytes: file.sizeBytes || 0,
-      });
-      existingKeys.add(key);
+  const scanNativeDeviceFolder = async () => {
+    const permResult = await androidMedia3.checkAudioPermission();
+    if (!permResult.granted) {
+      const requestResult = await androidMedia3.requestAudioPermission();
+      if (!requestResult.granted) {
+        toast.error("Audio Access Required", {
+          description: "Storage / Audio permission is required to scan music files on your device. Please grant permission in Android settings.",
+          duration: 5000,
+        });
+        return;
+      }
     }
 
-    if (imported.length > 0) {
-      OfflineService.saveTracks([...imported, ...localTracks]);
+    try {
+      toast.loading("Scanning device audio...", { id: "device-scan" });
+      const files = await androidMedia3.scanDeviceAudioFiles();
+      toast.dismiss("device-scan");
+      if (files.length === 0) {
+        toast.info("No MediaStore Tracks Found", {
+          description: "Opening file selector so you can pick music folders or files directly.",
+        });
+        await importNativeFiles();
+        return;
+      }
+      const imported = OfflineService.importNativeAudioFiles(files);
+      toast.success(`Discovered ${files.length} tracks on device (${imported.length} new)`);
+    } catch (err) {
+      toast.dismiss("device-scan");
+      console.warn("[App] scanDeviceAudioFiles fallback to picker:", err);
+      await importNativeFiles();
     }
   };
 
@@ -95,24 +102,28 @@ function StandaloneBrandHeader({
 
   const handleScanFolder = () => {
     if (androidMedia3.isNativeAndroid()) {
-      // Android SAF uses the multi-file audio picker here; folder-tree support can be added separately.
-      void importNativeFiles();
+      void scanNativeDeviceFolder();
       return;
     }
     folderInputRef.current?.click();
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#090a0c]/95 backdrop-blur-md px-4 sm:px-6 py-3">
-      <div className="mx-auto flex max-w-7xl items-center justify-between">
-        <BrandLogo variant="full" size="sm" showBadge badgeText="BIT-PERFECT" subtitle="LOSSLESS LOCAL PLAYBACK" />
+    <header className="sticky top-0 z-40 border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] bg-[var(--bg-obsidian,#090a0c)]/95 backdrop-blur-md px-3 sm:px-6 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2.5 sm:py-3">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
+        <div className="hidden sm:block">
+          <BrandLogo variant="full" size="sm" showBadge badgeText="BIT-PERFECT" subtitle="LOSSLESS LOCAL PLAYBACK" />
+        </div>
+        <div className="block sm:hidden">
+          <BrandLogo variant="compact" size="sm" showBadge={false} />
+        </div>
 
         <input
           type="file"
           ref={fileInputRef}
           onChange={handleFileSelect}
           multiple
-          accept="audio/*,.flac,.wav,.mp3,.alac,.m4a,.aac,.ogg"
+          accept="audio/*,.flac,.wav,.mp3,.alac,.m4a,.aac,.ogg,.opus,.aiff,.aif,.au,.snd,.ape,.wv,.wma,.ac3,.dts"
           className="hidden"
         />
         <input
@@ -125,28 +136,28 @@ function StandaloneBrandHeader({
           className="hidden"
         />
 
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <button onClick={handleAddFiles} className="flex items-center gap-1.5 rounded-lg bg-[#e59e38] px-3 py-1.5 text-xs font-semibold text-[#090a0c] hover:bg-[#f0ab4d] active:bg-[#d48d2a] transition-colors cursor-pointer shadow-sm">
-            <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <button onClick={handleAddFiles} className="min-h-[40px] flex items-center gap-1.5 rounded-lg bg-[#e59e38] px-3 py-2 text-xs font-semibold text-[#090a0c] hover:bg-[#f0ab4d] active:bg-[#d48d2a] transition-colors cursor-pointer shadow-sm">
+            <Plus className="h-4 w-4 stroke-[2.5]" />
             <span className="hidden sm:inline">Add Files</span>
             <span className="sm:hidden">Add</span>
           </button>
 
-          <button onClick={handleScanFolder} className="hidden sm:flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#111216] px-3 py-1.5 text-xs font-medium text-[#f2f3f5] hover:bg-[#16181e] active:bg-[#1e2027] transition-colors cursor-pointer">
-            <FolderOpen className="h-3.5 w-3.5 text-[#9ba1ad]" />
+          <button onClick={handleScanFolder} className="min-h-[40px] hidden sm:flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] px-3 py-2 text-xs font-medium text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] active:bg-[var(--surface-active,#1e2027)] transition-colors cursor-pointer">
+            <FolderOpen className="h-3.5 w-3.5 text-[var(--text-secondary,#9ba1ad)]" />
             Scan Folder
           </button>
 
-          <button onClick={onOpenConsole} className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#111216] px-2.5 sm:px-3 py-1.5 text-xs font-medium text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-[#16181e] transition-colors cursor-pointer" title="10-Band Hardware Equalizer">
-            <Sliders className="h-3.5 w-3.5 text-[#e59e38]" />
+          <button onClick={onOpenConsole} className="min-h-[40px] min-w-[40px] flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 sm:px-3 sm:py-2 text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="10-Band Hardware Equalizer">
+            <Sliders className="h-4 w-4 text-[#e59e38]" />
             <span className="hidden sm:inline">Audio Console</span>
           </button>
 
-          <button onClick={onOpenSettings} className="flex items-center rounded-lg border border-white/[0.08] bg-[#111216] p-1.5 text-xs font-medium text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-[#16181e] transition-colors cursor-pointer" title="Hi-Fi Settings & Hotkeys">
+          <button onClick={onOpenSettings} className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="Hi-Fi Settings & Hotkeys">
             <Settings className="h-4 w-4 text-[#e59e38]" />
           </button>
 
-          <button onClick={onOpenAbout} className="flex items-center rounded-lg border border-white/[0.08] bg-[#111216] p-1.5 text-xs font-medium text-[#9ba1ad] hover:text-[#f2f3f5] hover:bg-[#16181e] transition-colors cursor-pointer" title="About Layam & Privacy Settings">
+          <button onClick={onOpenAbout} className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="About Layam & Privacy Settings">
             <Info className="h-4 w-4" />
           </button>
         </div>
@@ -159,6 +170,7 @@ function OfflinePlayerLayout() {
   const { isAboutOpen, setIsAboutOpen } = useLocalVault();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { isConsoleOpen, openConsole, closeConsole, toggleConsole, isExpanded, collapsePlayer } = usePlayer();
+  const { theme } = useTheme();
 
   useGlobalHotkeys({ onToggleConsole: toggleConsole });
 
@@ -166,18 +178,94 @@ function OfflinePlayerLayout() {
     try { localStorage.removeItem("layam_offline_anonymous_device_id"); } catch {}
   }, []);
 
+  const stateRef = useRef({
+    isExpanded,
+    isConsoleOpen,
+    isSettingsOpen,
+    isAboutOpen,
+    collapsePlayer,
+    closeConsole,
+    setIsSettingsOpen,
+    setIsAboutOpen,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      isExpanded,
+      isConsoleOpen,
+      isSettingsOpen,
+      isAboutOpen,
+      collapsePlayer,
+      closeConsole,
+      setIsSettingsOpen,
+      setIsAboutOpen,
+    };
+  });
+
+  // Intercept Android hardware Back button / gesture:
+  // Sequential modal dismissal before minimizing/exiting app
+  useEffect(() => {
+    let removeListener: (() => void) | undefined;
+    import("@capacitor/app").then(({ App: CapApp }) => {
+      CapApp.addListener("backButton", () => {
+        const s = stateRef.current;
+        console.log("[LAYAM_JS] backButton intercepted. isConsoleOpen:", s.isConsoleOpen, "isSettingsOpen:", s.isSettingsOpen, "isExpanded:", s.isExpanded);
+        if (s.isConsoleOpen) {
+          s.closeConsole();
+          return;
+        }
+        if (s.isSettingsOpen) {
+          s.setIsSettingsOpen(false);
+          return;
+        }
+        if (s.isAboutOpen) {
+          s.setIsAboutOpen(false);
+          return;
+        }
+        if (s.isExpanded) {
+          s.collapsePlayer();
+          return;
+        }
+
+        // If no modal or player is expanded, minimize app so background audio continues seamlessly
+        void CapApp.minimizeApp();
+      }).then((handle) => {
+        removeListener = () => void handle.remove();
+      });
+    }).catch((err) => {
+      console.warn("[App] Back button setup note:", err);
+    });
+
+    return () => {
+      if (removeListener) removeListener();
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#090a0c] text-[#f2f3f5] pb-[env(safe-area-inset-bottom)] antialiased">
+    <div className="min-h-screen bg-[var(--bg-obsidian,#090a0c)] text-[var(--text-primary,#f2f3f5)] pb-28 flex flex-col transition-colors duration-200">
       <StandaloneBrandHeader
-        onOpenAbout={() => setIsAboutOpen(true)}
         onOpenConsole={openConsole}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenAbout={() => setIsAboutOpen(true)}
       />
-      <main className="pb-36"><OfflineLibrary /></main>
-      {!isExpanded && <PlayerBar />}
-      <AudioConsoleModal open={isConsoleOpen} onClose={closeConsole} />
+
+      <main className="mx-auto flex-1 w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <OfflineLibrary />
+      </main>
+
+      <PlayerBar />
       <FullscreenAudiophilePlayer open={isExpanded} onClose={collapsePlayer} />
-      <OfflineSettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+      <AudioConsoleModal
+        open={isConsoleOpen}
+        onClose={closeConsole}
+      />
+
+      <OfflineSettingsModal
+        open={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+
       <OfflineAboutModal />
     </div>
   );

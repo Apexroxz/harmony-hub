@@ -57,7 +57,7 @@ export function TrackCard({ track, showBuyButton = true }: TrackCardProps) {
           {/* Streamlined Single High-Res Audio Badge */}
           <div className="absolute left-2.5 top-2.5 z-20">
             <Badge className="bg-black/70 backdrop-blur-md text-[9px] font-mono font-bold text-primary/90 border border-white/10 px-2 py-0.5 shadow-sm">
-              {track.quality || "FLAC 24/96"}
+              {track.format || track.quality || "LOSSLESS"}
             </Badge>
           </div>
 
