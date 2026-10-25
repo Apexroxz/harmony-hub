@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 .output
+.vercel
 .vinxi
 .tanstack/**
 .nitro
@@ -30,4 +31,11 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.zip
+# Test outputs
+test-results/
+playwright-report/
+*.wav
+*.apk
+*.tar.gz
+scratch/

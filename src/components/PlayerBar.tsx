@@ -11,20 +11,30 @@ import {
   Gauge,
   X,
   Trash2,
+  Loader2,
+  AlertCircle,
+  Sliders,
+  Maximize2,
+  Disc3,
+  Heart,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { usePlayer, PLAYBACK_RATES } from "@/lib/player";
 import { formatDuration } from "@/domain/music/types";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 import { Waveform } from "@/components/Waveform";
-import { ArtistName } from "@/components/ArtistAvatar";
+import { useAppMode } from "@/lib/mode";
 import { cn } from "@/lib/utils";
 
 export function PlayerBar() {
   const {
     currentTrack,
+    status,
+    errorMessage,
     isPlaying,
+    isLoading,
     progress,
     volume,
     currentTime,
@@ -32,6 +42,7 @@ export function PlayerBar() {
     queue,
     queueIndex,
     playbackRate,
+    eqEnabled,
     togglePlay,
     playNext,
     playPrevious,
@@ -41,101 +52,189 @@ export function PlayerBar() {
     removeFromQueue,
     clearQueue,
     setPlaybackRate,
+    isExpanded,
+    expandPlayer,
+    openConsole,
+    toggleConsole,
+    isCurrentTrackFavorite,
+    toggleCurrentTrackFavorite,
   } = usePlayer();
 
+  const { isOffline } = useAppMode();
   const [queueOpen, setQueueOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverPercent, setHoverPercent] = useState<number>(0);
+  const [prevVolume, setPrevVolume] = useState<number>(0.8);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
-  if (!currentTrack) return null;
+  const toggleMute = () => {
+    if (volume > 0) {
+      setPrevVolume(volume);
+      setVolume(0);
+    } else {
+      setVolume(prevVolume > 0 ? prevVolume : 0.8);
+    }
+  };
+
+  const handleVolumeWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    const next = Math.min(1, Math.max(0, Math.round((volume + delta) * 100) / 100));
+    setVolume(next);
+  };
+
+  const handleSeekMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!duration || duration <= 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+    setHoverPercent(pct * 100);
+    setHoverTime(pct * duration);
+  };
+
+  const handleSeekMouseLeave = () => {
+    setHoverTime(null);
+  };
+
+  // If no track is loaded, display sleek hardware standby chassis
+  if (!currentTrack) {
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07] bg-[#090a0c]/95 backdrop-blur-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] pb-4 sm:pb-0">
+        <div className="mx-auto flex h-[64px] sm:h-[72px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-[#111216] text-[#6b7280]">
+              <Disc3 className="h-5 w-5 stroke-[1.75]" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-semibold text-[#f2f3f5]">
+                Layam Audiophile Player
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="font-mono text-[10px] text-[#e59e38] font-medium uppercase tabular-nums">
+                  64-BIT FLOAT PCM
+                </span>
+                <span className="text-[10px] text-[#6b7280]">· Select track to begin</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleConsole}
+              aria-label="Audio Console"
+              className="h-8 rounded-[8px] bg-[#111216] hover:bg-[#16181e] px-3 text-xs font-mono font-medium text-[#9ba1ad] hover:text-[#f2f3f5]"
+            >
+              <Sliders className="h-3.5 w-3.5 mr-1.5 stroke-[1.75] text-[#e59e38]" />
+              Audio Console
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const formatLabel = currentTrack.format || currentTrack.quality || "AUDIO";
+
+  const handleMiniPlayerTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleMiniPlayerTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX;
+    if (deltaX < -45) {
+      playNext();
+    } else if (deltaX > 45) {
+      playPrevious();
+    }
+    setTouchStartX(null);
+  };
 
   return (
     <>
+      {/* ── Queue Popover Drawer ── */}
       <AnimatePresence>
         {queueOpen && (
           <motion.aside
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
-            transition={{ type: "spring", stiffness: 320, damping: 30 }}
-            className="fixed bottom-[104px] right-2 z-50 max-h-[55vh] w-[min(92vw,22rem)] overflow-hidden rounded-2xl border border-border/60 bg-glass-strong shadow-2xl sm:right-6 sm:bottom-[108px]"
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed bottom-[max(4.75rem,calc(env(safe-area-inset-bottom)+4.5rem))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 w-[94vw] sm:w-96 rounded-[14px] border border-[var(--border-subtle,rgba(255,255,255,0.07))] bg-[var(--surface-raised,#16181e)]/98 backdrop-blur-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] overflow-hidden"
           >
-            <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] p-3.5 bg-[var(--surface-charcoal,#111216)]">
               <div className="flex items-center gap-2">
-                <ListMusic className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold">Queue</span>
-                <span className="text-xs text-muted-foreground">{queue.length}</span>
+                <ListMusic className="h-4 w-4 stroke-[1.75] text-[#e59e38]" />
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary,#f2f3f5)]">
+                  Queue ({queue.length})
+                </h3>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="ghost"
-                  size="icon"
-                  aria-label="Clear queue"
+                  size="sm"
                   onClick={clearQueue}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  className="h-7 px-2 text-[10px] text-[var(--text-secondary,#9ba1ad)] hover:text-[#C6604F] font-mono"
+                  title="Clear Queue"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5 mr-1 stroke-[1.75]" /> Clear
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="Close queue"
                   onClick={() => setQueueOpen(false)}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  className="h-7 w-7 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[6px]"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4 stroke-[1.75]" />
                 </Button>
               </div>
             </div>
-            <ul className="max-h-[45vh] overflow-y-auto p-2">
+
+            <ul className="max-h-[46vh] overflow-y-auto p-2 space-y-1">
               {queue.length === 0 && (
-                <li className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  Nothing queued yet.
+                <li className="px-4 py-8 text-center text-xs font-mono text-[var(--text-secondary,#9ba1ad)]">
+                  Queue is empty
                 </li>
               )}
               {queue.map((track, i) => (
-                <li key={`${track.id}-${i}`}>
+                <li
+                  key={`${track.id}-${i}`}
+                  className={cn(
+                    "group flex items-center justify-between rounded-[8px] p-2 text-xs transition-colors",
+                    i === queueIndex
+                      ? "bg-[var(--surface-active,#1e2027)] text-[#e59e38] font-bold"
+                      : "text-[var(--text-secondary,#9ba1ad)] hover:bg-[var(--surface-charcoal,#111216)] hover:text-[var(--text-primary,#f2f3f5)]"
+                  )}
+                >
                   <div
-                    className={cn(
-                      "group flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-surface-raised",
-                      i === queueIndex && "bg-primary/10"
-                    )}
+                    onClick={() => playFromQueue(i)}
+                    className="flex flex-1 items-center gap-2 min-w-0 cursor-pointer"
                   >
-                    <button
-                      onClick={() => playFromQueue(i)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                    >
-                      <img
-                        src={track.coverImage}
-                        alt=""
-                        className="h-10 w-10 rounded-md object-cover"
-                      />
-                      <span className="min-w-0">
-                        <span
-                          className={cn(
-                            "block truncate text-sm font-medium",
-                            i === queueIndex ? "text-primary" : "text-foreground"
-                          )}
-                        >
-                          {track.title}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {track.artistName}
-                        </span>
-                      </span>
-                    </button>
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      {formatDuration(track.duration)}
+                    <span className="w-5 text-right font-mono text-[10px] text-[var(--text-secondary,#9ba1ad)]">
+                      {i === queueIndex ? "▶" : `${i + 1}`}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Remove ${track.title} from queue`}
-                      onClick={() => removeFromQueue(i)}
-                      className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{track.title}</p>
+                      <p className="truncate text-[10px] text-[var(--text-secondary,#9ba1ad)]">
+                        {track.artistName || track.artist}
+                      </p>
+                    </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromQueue(i);
+                    }}
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 rounded-[6px] shrink-0 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
+                  >
+                    <X className="h-3.5 w-3.5 stroke-[1.75]" />
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -143,150 +242,238 @@ export function PlayerBar() {
         )}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ y: 96, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 260, damping: 28 }}
-        className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-glass-strong"
-      >
-        {/* Progress bar */}
+      <div className="fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-[max(0.5rem,env(safe-area-inset-left))] right-[max(0.5rem,env(safe-area-inset-right))] sm:bottom-0 sm:left-0 sm:right-0 sm:pb-[env(safe-area-inset-bottom)] sm:pl-[env(safe-area-inset-left)] sm:pr-[env(safe-area-inset-right)] z-40 rounded-[14px] sm:rounded-none border border-[var(--border-subtle,rgba(255,255,255,0.07))] sm:border-t sm:border-x-0 sm:border-b-0 bg-[var(--surface-raised,#16181e)]/98 backdrop-blur-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] overflow-hidden">
+        {/* Mobile Top Scrub Progress Bar — Sunken Well with Restrained Amber Fill */}
         <div
-          className="group relative h-1 w-full cursor-pointer bg-muted/30"
           onClick={(e) => {
+            if (!duration || duration <= 0) return;
             const rect = e.currentTarget.getBoundingClientRect();
-            seek(((e.clientX - rect.left) / rect.width) * 100);
+            const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            seek(pct);
           }}
+          className="absolute top-0 left-0 right-0 h-[2px] bg-[var(--surface-sunken,#060708)] block md:hidden cursor-pointer"
         >
           <div
-            className="h-full bg-gradient-to-r from-primary to-accent"
-            style={{ width: `${progress}%` }}
-          />
-          <div
-            className="absolute top-1/2 h-3 w-3 rounded-full bg-primary opacity-0 shadow-[0_0_12px_var(--color-glow)] transition-opacity group-hover:opacity-100"
-            style={{ left: `${progress}%`, transform: "translate(-50%, -50%)" }}
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            className="h-full bg-[#e59e38] transition-[width] duration-100 ease-linear"
           />
         </div>
 
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3 lg:px-8">
-          {/* Track info */}
-          <div className="flex min-w-0 flex-1 items-center gap-3 md:w-[26%] md:flex-none">
-            <motion.div
-              key={currentTrack.id}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="relative"
-            >
-              <img
-                src={currentTrack.coverImage}
-                alt={`${currentTrack.title} album art`}
-                width={48}
-                height={48}
-                className="h-11 w-11 rounded-lg object-cover shadow-lg sm:h-12 sm:w-12"
-              />
-              {isPlaying && (
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_8px_var(--color-glow)]" />
-              )}
-            </motion.div>
-            <div className="min-w-0">
-              <Link
-                to="/track/$id"
-                params={{ id: currentTrack.id }}
-                className="block truncate text-sm font-semibold text-foreground hover:text-primary"
-              >
-                {currentTrack.title}
-              </Link>
-              <div className="truncate text-xs text-muted-foreground">
-                <ArtistName
-                  artistId={currentTrack.artistId}
-                  name={currentTrack.artistName}
-                  className="text-xs font-normal text-muted-foreground"
+        <div className="mx-auto flex h-[60px] sm:h-[66px] max-w-7xl items-center justify-between gap-2 sm:gap-3 px-3 sm:px-6 lg:px-8">
+          {/* ── Left Section: Album Art & Track Identity (Bounded, max 26%) ── */}
+          <div
+            onTouchStart={handleMiniPlayerTouchStart}
+            onTouchEnd={handleMiniPlayerTouchEnd}
+            onClick={expandPlayer}
+            className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 sm:flex-initial sm:w-[26%] max-w-[240px] shrink-0 cursor-pointer select-none group"
+            role="region"
+            aria-label="Current Track"
+          >
+            <div className="relative h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-[10px] overflow-hidden bg-[var(--surface-charcoal,#111216)] border border-[var(--border-subtle,rgba(255,255,255,0.07))] shadow-sm">
+              {currentTrack.coverImage ? (
+                <img
+                  src={currentTrack.coverImage}
+                  alt={currentTrack.title}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
                 />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-[var(--surface-charcoal,#111216)] text-[var(--text-tertiary,#6b7280)]">
+                  <Disc3 className="h-5 w-5 stroke-[1.75] text-[#e59e38]" />
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1 pr-1 overflow-hidden" aria-live="polite">
+              <p className="truncate text-xs sm:text-sm font-semibold text-[var(--text-primary,#f2f3f5)] tracking-tight group-hover:text-[#e59e38] transition-colors">
+                {currentTrack.title}
+              </p>
+              <div className="flex items-center gap-1.5 text-[10.5px] sm:text-xs text-[var(--text-secondary,#9ba1ad)] mt-0.5 overflow-hidden">
+                <span className="truncate">
+                  {currentTrack.artistName || currentTrack.artist || "Unknown Artist"}
+                </span>
+
+                <Badge
+                  variant="outline"
+                  className="shrink-0 font-mono text-[8px] font-medium px-1 py-0 rounded-[4px] border-[var(--border-subtle,rgba(255,255,255,0.08))] text-[var(--text-secondary,#9ba1ad)] bg-[var(--surface-charcoal,#111216)]"
+                >
+                  {formatLabel}
+                </Badge>
+
+                {status === "buffering" && (
+                  <span className="shrink-0 text-[9px] text-[#e59e38] font-mono">
+                    · Buffering
+                  </span>
+                )}
+                {status === "error" && (
+                  <span className="shrink-0 text-[9px] text-[#C6604F] font-mono flex items-center gap-0.5">
+                    <AlertCircle className="h-2.5 w-2.5 stroke-[1.75]" /> Error
+                  </span>
+                )}
               </div>
             </div>
+
+            {/* Favorite Button (Tablet/Desktop) */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={async (e) => {
+                e.stopPropagation();
+                const fav = await toggleCurrentTrackFavorite();
+                toast(fav ? "Added to Favorites" : "Removed from Favorites", {
+                  icon: fav ? "❤️" : "🤍",
+                });
+              }}
+              className={cn(
+                "hidden sm:flex h-8 w-8 shrink-0 rounded-[8px] items-center justify-center transition-colors cursor-pointer",
+                isCurrentTrackFavorite
+                  ? "text-[#C6604F] bg-[#C6604F]/10"
+                  : "text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)]"
+              )}
+              title={isCurrentTrackFavorite ? "Remove from Favorites" : "Add to Favorites"}
+            >
+              <Heart
+                className={cn(
+                  "h-4 w-4 stroke-[1.75]",
+                  isCurrentTrackFavorite && "fill-current"
+                )}
+              />
+            </motion.button>
           </div>
 
-          {/* Controls */}
-          <div className="flex flex-none items-center gap-1 sm:gap-2 md:flex-1 md:flex-col md:gap-1.5">
-            <div className="flex items-center gap-1 sm:gap-3">
+          {/* ── Mobile Portrait Only Controls (Play/Pause + Expand) ── */}
+          <div className="flex sm:hidden items-center gap-2 shrink-0">
+            <motion.div whileTap={{ scale: 0.92 }}>
               <Button
-                variant="ghost"
                 size="icon"
-                aria-label="Previous track"
-                onClick={playPrevious}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                aria-label={isPlaying ? "Pause" : "Play"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePlay();
+                }}
+                className="h-10 w-10 rounded-full bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] active:scale-95 transition-transform cursor-pointer shadow-md flex items-center justify-center"
               >
-                <SkipBack className="h-4 w-4 fill-current sm:h-5 sm:w-5" />
+                {status === "loading" || status === "buffering" ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#090a0c]" />
+                ) : isPlaying ? (
+                  <Pause className="h-4 w-4 fill-current stroke-[2.25] text-[#090a0c]" />
+                ) : (
+                  <Play className="h-4 w-4 fill-current stroke-[2.25] ml-0.5 text-[#090a0c]" />
+                )}
               </Button>
-              <motion.div whileTap={{ scale: 0.9 }}>
-                <Button
-                  size="icon"
-                  aria-label={isPlaying ? "Pause" : "Play"}
-                  onClick={togglePlay}
-                  className="h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_var(--color-glow-soft)] hover:bg-primary/90"
-                >
-                  {isPlaying ? (
-                    <Pause className="h-5 w-5 fill-current" />
-                  ) : (
-                    <Play className="h-5 w-5 fill-current" />
-                  )}
-                </Button>
-              </motion.div>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Next track"
-                onClick={playNext}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              >
-                <SkipForward className="h-4 w-4 fill-current sm:h-5 sm:w-5" />
-              </Button>
-            </div>
+            </motion.div>
+          </div>
 
-            <div className="hidden w-full max-w-md items-center gap-3 md:flex">
-              <span className="w-10 text-right font-mono text-[11px] text-muted-foreground">
+          {/* ── Center Section: Transport & Compact Waveform Seeker (Isolated flex-1) ── */}
+          <div className="hidden sm:flex flex-1 items-center justify-center gap-2 px-3 min-w-0 max-w-xs sm:max-w-sm md:max-w-md mx-auto">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Previous track"
+              onClick={playPrevious}
+              className="h-8 w-8 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-full transition-transform active:scale-92 shrink-0"
+            >
+              <SkipBack className="h-4 w-4 stroke-[2.25]" />
+            </Button>
+
+            <motion.div whileTap={{ scale: 0.92 }} className="shrink-0">
+              <Button
+                size="icon"
+                aria-label={isPlaying ? "Pause" : "Play"}
+                onClick={togglePlay}
+                className="h-9 w-9 rounded-full bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] active:scale-95 transition-transform cursor-pointer shadow-md flex items-center justify-center"
+              >
+                {status === "loading" || status === "buffering" ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#090a0c]" />
+                ) : isPlaying ? (
+                  <Pause className="h-4 w-4 fill-current stroke-[2.25] text-[#090a0c]" />
+                ) : (
+                  <Play className="h-4 w-4 fill-current stroke-[2.25] ml-0.5 text-[#090a0c]" />
+                )}
+              </Button>
+            </motion.div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Next track"
+              onClick={playNext}
+              className="h-8 w-8 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-full transition-transform active:scale-92 shrink-0"
+            >
+              <SkipForward className="h-4 w-4 stroke-[2.25]" />
+            </Button>
+
+            {/* Inline Waveform Timeline with Fixed-Width Timestamps */}
+            <div className="flex-1 flex items-center gap-1.5 min-w-0">
+              <span className="font-mono text-[9px] sm:text-[10px] text-[var(--text-secondary,#9ba1ad)] tabular-nums shrink-0 w-7 text-right">
                 {formatDuration(currentTime)}
               </span>
-              <div className="h-6 flex-1">
+
+              <div
+                onMouseMove={handleSeekMouseMove}
+                onMouseLeave={handleSeekMouseLeave}
+                className="relative flex-1 group cursor-pointer py-1 min-w-[50px]"
+              >
+                {hoverTime !== null && (
+                  <div
+                    style={{ left: `${hoverPercent}%` }}
+                    className="absolute -top-6 -translate-x-1/2 rounded-[4px] bg-[var(--surface-raised,#16181e)] border border-[var(--border-subtle,rgba(255,255,255,0.08))] px-1.5 py-0.5 font-mono text-[9px] font-medium text-[#e59e38] pointer-events-none z-30 tabular-nums shadow-sm"
+                  >
+                    {formatDuration(hoverTime)}
+                  </div>
+                )}
                 <Waveform
                   seed={currentTrack.id}
                   peaks={currentTrack.waveform}
                   progress={progress}
-                  bars={72}
                   onSeek={seek}
+                  className="h-3.5 w-full"
                 />
               </div>
-              <span className="w-10 font-mono text-[11px] text-muted-foreground">
-                {formatDuration(duration || currentTrack.duration)}
+
+              <span className="font-mono text-[9px] sm:text-[10px] text-[var(--text-secondary,#9ba1ad)] tabular-nums shrink-0 w-7 text-left">
+                {formatDuration(duration)}
               </span>
             </div>
           </div>
 
-          {/* Right controls */}
-          <div className="flex flex-none items-center justify-end gap-1 md:w-[26%] md:gap-2">
-            <div className="relative">
+          {/* ── Right Section: Audio Console, Queue, Volume & Fullscreen ── */}
+          <div className="hidden sm:flex items-center justify-end gap-1.5 shrink-0">
+            {/* Audio Console / EQ Trigger */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleConsole}
+              className={cn(
+                "h-8 w-8 rounded-[8px] transition-colors cursor-pointer shrink-0 flex items-center justify-center",
+                eqEnabled
+                  ? "bg-[#e59e38]/15 text-[#e59e38]"
+                  : "bg-[var(--surface-charcoal,#111216)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)]"
+              )}
+              title="Studio DSP Console (E)"
+            >
+              <Sliders className="h-4 w-4 stroke-[1.75] text-[#e59e38]" />
+            </Button>
+
+            {/* Playback Rate Selector */}
+            <div className="relative hidden xl:block shrink-0">
               <Button
                 variant="ghost"
-                size="icon"
-                aria-label="Playback speed"
-                onClick={() => {
-                  setSpeedOpen((v) => !v);
-                  setQueueOpen(false);
-                }}
-                className={cn(
-                  "h-8 w-8 text-muted-foreground hover:text-foreground",
-                  playbackRate !== 1 && "text-primary"
-                )}
+                size="sm"
+                onClick={() => setSpeedOpen((o) => !o)}
+                className="h-8 px-1.5 font-mono text-[11px] font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)]"
+                title="Playback Rate"
               >
-                <Gauge className="h-4 w-4" />
+                <Gauge className="h-3 w-3 mr-0.5 stroke-[1.75] text-[var(--text-tertiary,#6b7280)]" />
+                {playbackRate}x
               </Button>
+
               <AnimatePresence>
                 {speedOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    className="absolute bottom-11 right-0 w-28 overflow-hidden rounded-xl border border-border/60 bg-glass-strong p-1 shadow-xl"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    className="absolute bottom-full right-0 mb-2 rounded-[10px] border border-[var(--border-subtle,rgba(255,255,255,0.07))] bg-[var(--surface-raised,#16181e)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-50 min-w-[70px]"
                   >
                     {PLAYBACK_RATES.map((rate) => (
                       <button
@@ -296,12 +483,13 @@ export function PlayerBar() {
                           setSpeedOpen(false);
                         }}
                         className={cn(
-                          "flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs transition-colors hover:bg-surface-raised",
-                          rate === playbackRate ? "text-primary" : "text-muted-foreground"
+                          "w-full rounded-[6px] px-2.5 py-1 text-left font-mono text-xs transition-colors cursor-pointer",
+                          playbackRate === rate
+                            ? "bg-[#e59e38]/15 text-[#e59e38] font-medium"
+                            : "text-[var(--text-secondary,#9ba1ad)] hover:bg-[var(--surface-active,#1e2027)] hover:text-[var(--text-primary,#f2f3f5)]"
                         )}
                       >
-                        <span className="font-mono">{rate}×</span>
-                        {rate === 1 && <span className="text-[10px]">normal</span>}
+                        {rate}x
                       </button>
                     ))}
                   </motion.div>
@@ -309,56 +497,71 @@ export function PlayerBar() {
               </AnimatePresence>
             </div>
 
+            {/* Queue Toggle */}
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Toggle queue"
-              onClick={() => {
-                setQueueOpen((v) => !v);
-                setSpeedOpen(false);
-              }}
+              aria-label="Toggle playback queue"
+              onClick={() => setQueueOpen((o) => !o)}
               className={cn(
-                "relative h-8 w-8 text-muted-foreground hover:text-foreground",
-                queueOpen && "text-primary"
+                "h-8 w-8 rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] relative transition-colors cursor-pointer shrink-0 flex items-center justify-center",
+                queueOpen && "text-[#e59e38] bg-[var(--surface-active,#1e2027)]"
               )}
+              title="Queue"
             >
-              <ListMusic className="h-4 w-4" />
-              {queue.length > 1 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
-                  {queue.length}
-                </span>
+              <ListMusic className="h-4 w-4 stroke-[1.75]" />
+              {queue.length > 0 && (
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#e59e38]" />
               )}
             </Button>
 
-            <div className="hidden items-center gap-2 sm:flex">
+            {/* Precision Volume Slider */}
+            <div
+              onWheel={handleVolumeWheel}
+              className="flex items-center gap-1 shrink-0"
+              title="Volume"
+            >
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label={volume === 0 ? "Unmute" : "Mute"}
-                onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={toggleMute}
+                className="h-8 w-8 text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[8px] cursor-pointer flex items-center justify-center"
+                title={volume === 0 ? "Unmute (M)" : "Mute (M)"}
               >
                 {volume === 0 ? (
-                  <VolumeX className="h-4 w-4" />
+                  <VolumeX className="h-4 w-4 stroke-[1.75] text-[#C6604F]" />
                 ) : (
-                  <Volume2 className="h-4 w-4" />
+                  <Volume2 className="h-4 w-4 stroke-[1.75]" />
                 )}
               </Button>
               <Slider
                 value={[volume * 100]}
+                min={0}
                 max={100}
                 step={1}
-                aria-label="Volume"
-                onValueChange={(v) => {
-                  const value = v[0];
-                  if (typeof value === "number") setVolume(value / 100);
-                }}
-                className="w-20 lg:w-24"
+                onValueChange={(vals) => setVolume(vals[0] / 100)}
+                className="w-16 hidden lg:flex"
+                aria-label="Playback Volume"
               />
             </div>
+
+            {/* Expand Fullscreen Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Expand Audiophile Player"
+              onClick={expandPlayer}
+              className="h-8 w-8 rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] transition-colors cursor-pointer shrink-0 flex items-center justify-center"
+              title="Expand Full Audiophile Cockpit (F)"
+            >
+              <Maximize2 className="h-4 w-4 stroke-[1.75]" />
+            </Button>
           </div>
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }
+
+export default PlayerBar;

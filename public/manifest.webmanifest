@@ -1,0 +1,38 @@
+{
+  "name": "Layam — High-Fidelity Audiophile Streaming",
+  "short_name": "Layam",
+  "description": "Bit-perfect 24-bit/96kHz lossless streaming, decentralized artist royalties, and studio DSP acoustics.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0d0e",
+  "theme_color": "#ff6b00",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["music", "entertainment", "audio"],
+  "shortcuts": [
+    {
+      "name": "Stream Catalog",
+      "short_name": "Stream",
+      "description": "Explore 24-bit Studio Master tracks",
+      "url": "/stream"
+    },
+    {
+      "name": "Radio Rooms",
+      "short_name": "Radio",
+      "description": "Join live synchronized listening rooms",
+      "url": "/radio"
+    },
+    {
+      "name": "My Library",
+      "short_name": "Library",
+      "description": "Saved masters and playlists",
+      "url": "/library"
+    }
+  ]
+}

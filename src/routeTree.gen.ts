@@ -10,7 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ArtistsRouteImport } from './routes/artists'
 import { Route as BrowseRouteImport } from './routes/browse'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FeedRouteImport } from './routes/feed'
+import { Route as LibraryRouteImport } from './routes/library'
+import { Route as RadioRouteImport } from './routes/radio'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as StoreRouteImport } from './routes/store'
 import { Route as StreamRouteImport } from './routes/stream'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as ArtistIdRouteImport } from './routes/artist.$id'
@@ -21,9 +29,49 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArtistsRoute = ArtistsRouteImport.update({
+  id: '/artists',
+  path: '/artists',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BrowseRoute = BrowseRouteImport.update({
   id: '/browse',
   path: '/browse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedRoute = FeedRouteImport.update({
+  id: '/feed',
+  path: '/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RadioRoute = RadioRouteImport.update({
+  id: '/radio',
+  path: '/radio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreRoute = StoreRouteImport.update({
+  id: '/store',
+  path: '/store',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StreamRoute = StreamRouteImport.update({
@@ -49,7 +97,15 @@ const TrackIdRoute = TrackIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/artists': typeof ArtistsRoute
   '/browse': typeof BrowseRoute
+  '/dashboard': typeof DashboardRoute
+  '/feed': typeof FeedRoute
+  '/library': typeof LibraryRoute
+  '/radio': typeof RadioRoute
+  '/search': typeof SearchRoute
+  '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -57,7 +113,15 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/artists': typeof ArtistsRoute
   '/browse': typeof BrowseRoute
+  '/dashboard': typeof DashboardRoute
+  '/feed': typeof FeedRoute
+  '/library': typeof LibraryRoute
+  '/radio': typeof RadioRoute
+  '/search': typeof SearchRoute
+  '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -66,7 +130,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/artists': typeof ArtistsRoute
   '/browse': typeof BrowseRoute
+  '/dashboard': typeof DashboardRoute
+  '/feed': typeof FeedRoute
+  '/library': typeof LibraryRoute
+  '/radio': typeof RadioRoute
+  '/search': typeof SearchRoute
+  '/store': typeof StoreRoute
   '/stream': typeof StreamRoute
   '/upload': typeof UploadRoute
   '/artist/$id': typeof ArtistIdRoute
@@ -75,13 +147,48 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/browse' | '/stream' | '/upload' | '/artist/$id' | '/track/$id'
+    | '/'
+    | '/admin'
+    | '/artists'
+    | '/browse'
+    | '/dashboard'
+    | '/feed'
+    | '/library'
+    | '/radio'
+    | '/search'
+    | '/store'
+    | '/stream'
+    | '/upload'
+    | '/artist/$id'
+    | '/track/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/browse' | '/stream' | '/upload' | '/artist/$id' | '/track/$id'
+  to:
+    | '/'
+    | '/admin'
+    | '/artists'
+    | '/browse'
+    | '/dashboard'
+    | '/feed'
+    | '/library'
+    | '/radio'
+    | '/search'
+    | '/store'
+    | '/stream'
+    | '/upload'
+    | '/artist/$id'
+    | '/track/$id'
   id:
     | '__root__'
     | '/'
+    | '/admin'
+    | '/artists'
     | '/browse'
+    | '/dashboard'
+    | '/feed'
+    | '/library'
+    | '/radio'
+    | '/search'
+    | '/store'
     | '/stream'
     | '/upload'
     | '/artist/$id'
@@ -90,7 +197,15 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  ArtistsRoute: typeof ArtistsRoute
   BrowseRoute: typeof BrowseRoute
+  DashboardRoute: typeof DashboardRoute
+  FeedRoute: typeof FeedRoute
+  LibraryRoute: typeof LibraryRoute
+  RadioRoute: typeof RadioRoute
+  SearchRoute: typeof SearchRoute
+  StoreRoute: typeof StoreRoute
   StreamRoute: typeof StreamRoute
   UploadRoute: typeof UploadRoute
   ArtistIdRoute: typeof ArtistIdRoute
@@ -106,11 +221,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/artists': {
+      id: '/artists'
+      path: '/artists'
+      fullPath: '/artists'
+      preLoaderRoute: typeof ArtistsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/browse': {
       id: '/browse'
       path: '/browse'
       fullPath: '/browse'
       preLoaderRoute: typeof BrowseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed': {
+      id: '/feed'
+      path: '/feed'
+      fullPath: '/feed'
+      preLoaderRoute: typeof FeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/radio': {
+      id: '/radio'
+      path: '/radio'
+      fullPath: '/radio'
+      preLoaderRoute: typeof RadioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store': {
+      id: '/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof StoreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stream': {
@@ -146,7 +317,15 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  ArtistsRoute: ArtistsRoute,
   BrowseRoute: BrowseRoute,
+  DashboardRoute: DashboardRoute,
+  FeedRoute: FeedRoute,
+  LibraryRoute: LibraryRoute,
+  RadioRoute: RadioRoute,
+  SearchRoute: SearchRoute,
+  StoreRoute: StoreRoute,
   StreamRoute: StreamRoute,
   UploadRoute: UploadRoute,
   ArtistIdRoute: ArtistIdRoute,

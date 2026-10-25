@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Layam Hi-Fi</string>
+    <string name="title_activity_main">Layam Hi-Fi</string>
+    <string name="package_name">com.layam.hifi</string>
+    <string name="custom_url_scheme">com.layam.hifi</string>
+</resources>

@@ -1,0 +1,124 @@
+/**
+ * @layam/design-system — Canonical Obsidian CSS Variables
+ * Single source of truth for Layam's audiophile instrument design language.
+ */
+
+:root {
+  /* Surfaces */
+  --bg-obsidian: #090a0c;
+  --surface-sunken: #060708;
+  --surface-charcoal: #111216;
+  --surface-raised: #16181e;
+  --surface-active: #1e2027;
+
+  /* Accents */
+  --accent-amber: #e59e38;
+  --accent-amber-hover: #f0ab4d;
+  --accent-amber-dim: rgba(229, 158, 56, 0.15);
+  --accent-gold: #D99A2B;
+
+  /* Typography Colors */
+  --text-primary: #f2f3f5;
+  --text-secondary: #9ba1ad;
+  --text-tertiary: #6b7280;
+  --text-amber: #e59e38;
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-amber: rgba(229, 158, 56, 0.35);
+
+  /* Semantic State Colors */
+  --state-success: #5FAE7D;
+  --state-warning: #D9A441;
+  --state-error: #C6604F;
+  --state-info: #6B8CAE;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  --radius: 10px;
+
+  /* Elevation */
+  --shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  /* Fonts */
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  --font-tech: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* System UI aliases */
+  --background: var(--bg-obsidian);
+  --foreground: var(--text-primary);
+  --card: var(--surface-charcoal);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent-amber);
+  --primary-foreground: #090a0c;
+  --secondary: var(--surface-raised);
+  --secondary-foreground: var(--text-secondary);
+  --muted: var(--surface-charcoal);
+  --muted-foreground: var(--text-tertiary);
+  --accent: var(--accent-amber-dim);
+  --accent-foreground: var(--accent-amber);
+  --destructive: var(--state-error);
+  --destructive-foreground: #ffffff;
+  --border: var(--border-subtle);
+  --input: var(--surface-sunken);
+  --ring: var(--border-amber);
+}
+
+/* Layam Light Theme — Calibrated Precision Aluminum & Paper */
+:root[data-theme="light"],
+.theme-light {
+  /* Surfaces */
+  --bg-obsidian: #f4f5f8;
+  --surface-sunken: #e9ebf0;
+  --surface-charcoal: #ffffff;
+  --surface-raised: #f9fafb;
+  --surface-active: #e2e5eb;
+
+  /* Accents */
+  --accent-amber: #c27813;
+  --accent-amber-hover: #ad690c;
+  --accent-amber-dim: rgba(194, 120, 19, 0.12);
+  --accent-gold: #aa7118;
+
+  /* Typography Colors */
+  --text-primary: #111318;
+  --text-secondary: #4a5160;
+  --text-tertiary: #606877;
+  --text-amber: #c27813;
+
+  /* Borders */
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-medium: rgba(0, 0, 0, 0.14);
+  --border-amber: rgba(194, 120, 19, 0.35);
+
+  /* Elevation */
+  --shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* System UI aliases */
+  --background: var(--bg-obsidian);
+  --foreground: var(--text-primary);
+  --card: var(--surface-charcoal);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent-amber);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-raised);
+  --secondary-foreground: var(--text-secondary);
+  --muted: var(--surface-charcoal);
+  --muted-foreground: var(--text-tertiary);
+  --accent: var(--accent-amber-dim);
+  --accent-foreground: var(--accent-amber);
+  --destructive: var(--state-error);
+  --destructive-foreground: #ffffff;
+  --border: var(--border-subtle);
+  --input: var(--surface-sunken);
+  --ring: var(--border-amber);
+}

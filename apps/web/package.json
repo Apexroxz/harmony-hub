@@ -1,0 +1,12 @@
+{
+  "name": "@layam/app-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@layam/audio-core": "*",
+    "@layam/storage-core": "*",
+    "@layam/domain-types": "*",
+    "@layam/design-system": "*"
+  }
+}

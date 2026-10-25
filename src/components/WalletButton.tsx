@@ -9,7 +9,9 @@ export function WalletButton() {
     const short = `${address.slice(0, 6)}...${address.slice(-4)}`;
     return (
       <div className="flex items-center gap-3">
-        <span className="hidden text-sm text-muted-foreground sm:inline">{balance.toFixed(2)} SOL</span>
+        <span className="hidden text-sm text-muted-foreground sm:inline">
+          {balance.toFixed(2)} SOL
+        </span>
         <Button
           variant="outline"
           size="sm"
@@ -26,7 +28,7 @@ export function WalletButton() {
   return (
     <Button
       size="sm"
-      onClick={connect}
+      onClick={() => connect()}
       className="bg-gradient-to-r from-violet to-cyan text-primary-foreground hover:opacity-90"
     >
       <Wallet className="mr-2 h-4 w-4" />

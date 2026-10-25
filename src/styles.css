@@ -1,3 +1,4 @@
+@import "../packages/design-system/src/tokens.css";
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -5,21 +6,22 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system: Web3 music streaming — dark surfaces with a warm orange accent.
+ * LAYAM "OBSIDIAN" AUDIOPHILE DESIGN SYSTEM
  *
- * Deep near-black backgrounds, orange primary, amber/magenta support hues,
- * glassmorphic surfaces. All colors use oklch.
+ * Principles:
+ * - Minimal, calm, precise, premium
+ * - Progressive disclosure (Layers 1, 2, 3)
+ * - Whitespace as a structural tool
+ * - Amber accent used intentionally for active/key elements (< 15% screen)
+ * - No fake glow, gradients, or decorative drop shadows
  */
 
-
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -42,74 +44,50 @@
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
 
-  /* Extended tokens */
-  --color-glow: var(--glow);
-  --color-glow-soft: var(--glow-soft);
-  --color-surface: var(--surface);
+  /* Obsidian Token Aliases */
+  --color-bg-obsidian: var(--bg-obsidian);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-charcoal: var(--surface-charcoal);
   --color-surface-raised: var(--surface-raised);
-  --color-violet: var(--violet);
-  --color-cyan: var(--cyan);
-  --color-magenta: var(--magenta);
-  --color-orange: var(--orange);
-  --color-amber: var(--amber);
+  --color-surface-active: var(--surface-active);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-amber-hover: var(--accent-amber-hover);
+  --color-accent-amber-dim: var(--accent-amber-dim);
+  --color-accent-gold: var(--accent-gold);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-medium: var(--border-medium);
+  --color-border-amber: var(--border-amber);
 }
-
-:root {
-  --radius: 0.75rem;
-
-  /* Dark theme as default — this app lives in night mode */
-  --background: oklch(0.13 0.012 60);
-  --foreground: oklch(0.96 0.005 60);
-  --card: oklch(0.17 0.014 55);
-  --card-foreground: oklch(0.96 0.005 60);
-  --popover: oklch(0.17 0.014 55);
-  --popover-foreground: oklch(0.96 0.005 60);
-  --primary: oklch(0.68 0.2 45);
-  --primary-foreground: oklch(0.14 0.02 50);
-  --secondary: oklch(0.23 0.018 55);
-  --secondary-foreground: oklch(0.96 0.005 60);
-  --muted: oklch(0.23 0.012 55);
-  --muted-foreground: oklch(0.68 0.015 60);
-  --accent: oklch(0.75 0.16 75);
-  --accent-foreground: oklch(0.14 0.02 50);
-  --destructive: oklch(0.58 0.2 22);
-  --destructive-foreground: oklch(0.96 0.005 60);
-  --border: oklch(0.28 0.014 55 / 60%);
-  --input: oklch(0.23 0.014 55 / 80%);
-  --ring: oklch(0.68 0.2 45);
-
-  --glow: oklch(0.68 0.2 45 / 40%);
-  --glow-soft: oklch(0.68 0.2 45 / 15%);
-  --surface: oklch(0.15 0.012 55);
-  --surface-raised: oklch(0.21 0.016 55);
-  --orange: oklch(0.68 0.2 45);
-  --amber: oklch(0.78 0.16 78);
-  /* Legacy hue aliases kept so existing components stay on-palette. */
-  --violet: oklch(0.68 0.2 45);
-  --cyan: oklch(0.78 0.16 78);
-  --magenta: oklch(0.62 0.19 25);
-}
-
 
 @layer base {
   * {
-    border-color: var(--color-border);
+    border-color: var(--border-subtle);
   }
 
   html {
     scroll-behavior: smooth;
+    color-scheme: dark;
+    background-color: var(--bg-obsidian);
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-feature-settings: "rlig" 1, "calt" 1;
+    background-color: var(--bg-obsidian);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  /* Custom scrollbar */
+  /* Minimal audiophile scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -117,47 +95,34 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.3 0.02 55);
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.42 0.05 50);
+  /* Accessible focus indicators */
+  :focus-visible {
+    outline: 2px solid var(--accent-amber);
+    outline-offset: 2px;
+    border-radius: var(--radius-md);
   }
 
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  .font-tech {
+    font-family: var(--font-tech);
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
 }
 
 @layer utilities {
-  .text-gradient {
-    background: linear-gradient(135deg, var(--color-orange), var(--color-amber));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .shadow-floating {
+    box-shadow: var(--shadow-floating);
   }
 
-  .bg-glass {
-    background: oklch(0.17 0.014 55 / 70%);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-  }
-
-  .bg-glass-strong {
-    background: oklch(0.13 0.012 55 / 88%);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-  }
-
-
-  .glow-border {
-    box-shadow: 0 0 0 1px var(--color-border), 0 0 24px var(--color-glow-soft);
-  }
-
-  .glow-text {
-    text-shadow: 0 0 20px var(--color-glow);
-  }
-
-  .surface-raised {
-    background: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
+  .tap-active:active {
+    transform: scale(0.97);
+    transition: transform 0.12s ease-out;
   }
 }

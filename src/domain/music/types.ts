@@ -8,6 +8,14 @@ export type AudioFormat = "FLAC" | "WAV" | "ALAC" | "MP3" | "AAC" | "OPUS";
 /** Formats that carry a bit-perfect master. */
 export const LOSSLESS_FORMATS: AudioFormat[] = ["FLAC", "WAV", "ALAC"];
 
+export interface CreatorTier {
+  id: string;
+  name: string;
+  priceMonthly: number;
+  perks: string[];
+  color?: string;
+}
+
 export interface Artist {
   id: string;
   name: string;
@@ -16,6 +24,7 @@ export interface Artist {
   bio: string;
   followers: number;
   verified: boolean;
+  tiers?: CreatorTier[];
 }
 
 export interface Track {
@@ -35,7 +44,7 @@ export interface Track {
   /** Sample rate in Hz, e.g. 44100 or 96000. */
   sampleRate: number;
   /** Bit depth for lossless masters. */
-  bitDepth?: number;
+  bitDepth?: number | null | undefined;
   playCount: number;
   likes: number;
   comments: number;
@@ -45,6 +54,32 @@ export interface Track {
   waveform?: number[];
   /** Account that published the track, when it came through the upload flow. */
   uploaderId?: string | null;
+  /** USD price. 0 or undefined = free. */
+  price?: number;
+  /** true = download gated behind purchase. */
+  monetized?: boolean;
+  /** ReplayGain/R128 track gain in dB (e.g. -6.5). */
+  replayGainTrack?: number | null | undefined;
+  /** ReplayGain/R128 album gain in dB (e.g. -5.2). */
+  replayGainAlbum?: number | null | undefined;
+  /** Peak sample/true-peak value (0.0 to 1.0+). */
+  replayGainPeak?: number | null | undefined;
+  /** User IDs who bought this track. */
+  purchasedBy?: string[];
+  /** Audio fingerprint hash for copyright/duplicate verification. */
+  fingerprint?: string;
+  /** Source of track: "online" streaming or "offline" local master */
+  source?: "online" | "offline";
+  /** Format label e.g. "MP3", "FLAC", "WAV" */
+  format?: string;
+  /** Album name */
+  album?: string;
+  /** Artist name alias */
+  artist?: string;
+  /** Exclusive subscriber-only release */
+  isExclusive?: boolean;
+  /** Minimum tier required to access if exclusive */
+  requiredTier?: string;
 }
 
 /** The audio-spec slice of a track, for components that only render specs. */
