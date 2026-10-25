@@ -123,9 +123,9 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex flex-wrap gap-1.5 p-1 bg-[var(--surface-sunken,#060708)] rounded-[12px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] mb-6">
+          <div className="flex overflow-x-auto no-scrollbar gap-1.5 p-1 bg-[var(--surface-sunken,#060708)] rounded-[12px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] mb-6 shrink-0">
             {[
-              { id: "audio" as const, label: "Audio & Timer", icon: SlidersHorizontal },
+              { id: "audio" as const, label: "Audio & DSP", icon: SlidersHorizontal },
               { id: "appearance" as const, label: "Appearance", icon: Palette },
               { id: "metadata" as const, label: "Metadata", icon: Sparkles },
               { id: "storage" as const, label: "Vault", icon: HardDrive },
@@ -235,29 +235,6 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
                 </p>
               </div>
 
-              {/* Buffer Size */}
-              <div className="rounded-[14px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-charcoal,#111216)] p-4">
-                <span className="text-xs font-bold text-[var(--text-primary,#f2f3f5)] block mb-2">
-                  Audio Engine Buffer
-                </span>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["Direct", "Fast (64kb)", "Audiophile (512kb)"] as const).map((buf) => (
-                    <button
-                      key={buf}
-                      onClick={() => updateOfflineSettings({ bufferSize: buf })}
-                      className={cn(
-                        "rounded-[10px] border p-2.5 text-center text-xs font-mono font-semibold transition-all cursor-pointer",
-                        offlineSettings.bufferSize === buf
-                          ? "border-[#e59e38]/60 bg-[#e59e38]/15 text-[#e59e38]"
-                          : "border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-sunken,#060708)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
-                      )}
-                    >
-                      {buf}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Sleep Timer */}
               <div className="rounded-[14px] border border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-charcoal,#111216)] p-4">
                 <div className="flex items-center justify-between mb-2">
@@ -307,10 +284,10 @@ export function OfflineSettingsModal({ open, onClose }: OfflineSettingsModalProp
                           }
                         }}
                         className={cn(
-                          "rounded-xl border p-2 text-center text-xs font-mono font-medium transition-all cursor-pointer",
+                          "rounded-[10px] border p-2 text-center text-xs font-mono font-medium transition-all cursor-pointer",
                           isSelected
-                            ? "border-[#D99A2B]/60 bg-[#D99A2B]/15 text-[#D99A2B] font-bold"
-                            : "border-white/[0.06] bg-[#0c0d10] text-[#9ba1ad] hover:text-[#f2f3f5]"
+                            ? "border-[#e59e38]/60 bg-[#e59e38]/15 text-[#e59e38] font-bold shadow-sm"
+                            : "border-[var(--border-subtle,rgba(255,255,255,0.06))] bg-[var(--surface-sunken,#060708)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
                         )}
                       >
                         {btn.label}

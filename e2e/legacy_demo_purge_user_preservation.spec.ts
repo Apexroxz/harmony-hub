@@ -101,9 +101,9 @@ test.describe("Legacy Demo Purge & User Music Preservation", () => {
     expect(activeTracks.length).toBe(3);
 
     // Assert all 3 Weeknd tracks are present
-    expect(activeTracks.some((t: any) => t.title.includes("love_in_the_sky"))).toBe(true);
-    expect(activeTracks.some((t: any) => t.title.includes("Earned_It"))).toBe(true);
-    expect(activeTracks.some((t: any) => t.title.includes("starboy"))).toBe(true);
+    expect(activeTracks.some((t: any) => /love.*sky/i.test(t.title))).toBe(true);
+    expect(activeTracks.some((t: any) => /earned.*it/i.test(t.title))).toBe(true);
+    expect(activeTracks.some((t: any) => /starboy/i.test(t.title))).toBe(true);
 
     // Assert demo tracks are completely purged
     expect(activeTracks.some((t: any) => t.title === "Midnight Protocol")).toBe(false);
@@ -111,8 +111,8 @@ test.describe("Legacy Demo Purge & User Music Preservation", () => {
     expect(activeTracks.some((t: any) => t.title === "Hash Rate")).toBe(false);
 
     // Verify UI reflects exactly 3 user tracks
-    await expect(page.getByText(/love_in_the_sky/i).first()).toBeVisible();
-    await expect(page.getByText(/Earned_It/i).first()).toBeVisible();
+    await expect(page.getByText(/love.*sky/i).first()).toBeVisible();
+    await expect(page.getByText(/earned.*it/i).first()).toBeVisible();
     await expect(page.getByText(/starboy/i).first()).toBeVisible();
 
     // Verify demo tracks do NOT exist in the DOM

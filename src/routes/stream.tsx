@@ -23,6 +23,7 @@ import { usePlayer } from "@/lib/player";
 import { formatDuration, formatNumber, type Track } from "@/domain/music/types";
 import { FeedSkeleton, LoadError, EmptyState } from "@/components/CatalogState";
 import { useOwnership } from "@/hooks/useOwnership";
+import { Share } from "@/components/ShareButton";
 import { QualityBadge } from "@/components/QualityBadge";
 import { Waveform } from "@/components/Waveform";
 import { ArtistAvatar, ArtistName } from "@/components/ArtistAvatar";
@@ -217,13 +218,6 @@ function FeedItem({
   const { locked } = useOwnership(track.id);
   const isCurrent = currentTrack?.id === track.id;
 
-  const handleShare = () => {
-    if (navigator.clipboard) {
-      void navigator.clipboard.writeText(`${window.location.origin}/track/${track.id}`);
-      toast.success("Link copied to clipboard!");
-    }
-  };
-
   return (
     <motion.li
       initial={{ opacity: 0, y: 16 }}
@@ -351,13 +345,16 @@ function FeedItem({
           </button>
         </div>
 
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer tap-active"
-        >
-          <Share2 className="h-3.5 w-3.5" />
-          <span>Share Master</span>
-        </button>
+        <Share
+          variant="ghost"
+          size="sm"
+          url={typeof window !== "undefined" ? `${window.location.origin}/track/${track.id}` : undefined}
+          title={`${track.title} by ${track.artist} on Layam`}
+          text={`Listen to ${track.title} by ${track.artist} in pure lossless audiophile quality on Layam.`}
+          toastMessage={`"${track.title}" link copied!`}
+          label="Share Master"
+          className="text-xs text-muted-foreground hover:text-foreground hover:bg-transparent px-1.5 py-1"
+        />
       </div>
     </motion.li>
   );

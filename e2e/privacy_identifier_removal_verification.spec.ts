@@ -115,13 +115,16 @@ test.describe("Privacy Identifier Removal & Offline Privacy Verification", () =>
       const blob = new Blob([buffer], { type: "audio/wav" });
       const trackId = `local-imported-${Date.now()}`;
       
-      const req = indexedDB.open("layam_audiophile_db", 2);
+      const req = indexedDB.open("layam_audiophile_db");
       await new Promise((resolve) => {
+        req.onerror = () => resolve(null);
+        req.onblocked = () => resolve(null);
         req.onsuccess = (e: any) => {
           const db = e.target.result;
           const tx = db.transaction("local_audio_blobs", "readwrite");
           tx.objectStore("local_audio_blobs").put({ id: trackId, blob });
           tx.oncomplete = resolve;
+          tx.onerror = () => resolve(null);
         };
       });
 

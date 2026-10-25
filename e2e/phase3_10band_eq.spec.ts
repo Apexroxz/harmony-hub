@@ -37,10 +37,10 @@ test.describe("Phase 3 — 10-Band EQ Series Chain & Headroom Live Verification"
     const fileInput = page.locator('header input[type="file"]').first();
     await fileInput.setInputFiles(testFilePath);
 
-    await expect(page.getByText(/layam_master_test/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/layam[ _]master[ _]test/i).first()).toBeVisible({ timeout: 10000 });
 
     // 3. Play track
-    await page.getByText(/layam_master_test/i).first().click();
+    await page.getByText(/layam[ _]master[ _]test/i).first().click();
     await page.waitForTimeout(1500);
 
     // 4. Open Audio Console Modal

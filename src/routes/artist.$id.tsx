@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Share } from "@/components/ShareButton";
 
 export const Route = createFileRoute("/artist/$id")({
   loader: async ({ params }) => {
@@ -278,6 +279,16 @@ function ArtistPage() {
                     </Button>
                   </>
                 )}
+
+                <Share
+                  variant="outline"
+                  size="default"
+                  title={`${artist.name} on Layam`}
+                  text={`Listen to ${artist.name} and explore their master catalog on Layam.`}
+                  toastMessage={`"${artist.name}" profile link copied!`}
+                  label="Share"
+                  className="rounded-xl border-border/60 bg-surface-raised font-bold text-foreground hover:text-primary gap-1.5"
+                />
               </div>
             </div>
 

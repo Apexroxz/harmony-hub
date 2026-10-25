@@ -54,9 +54,9 @@ test.describe("Empirical Audio Engineer Measurements & Verification Suite", () =
 
     const fileInput = page.locator('header input[type="file"]').first();
     await fileInput.setInputFiles(testWavPath);
-    await expect(page.getByText(/layam_engineer_measurements/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/layam[ _]engineer[ _]measurements/i).first()).toBeVisible({ timeout: 10000 });
 
-    await page.getByText(/layam_engineer_measurements/i).first().click();
+    await page.getByText(/layam[ _]engineer[ _]measurements/i).first().click();
     await page.waitForTimeout(1200);
 
     // 3. Open Audio Console

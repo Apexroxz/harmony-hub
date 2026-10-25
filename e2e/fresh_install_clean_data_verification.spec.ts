@@ -26,8 +26,10 @@ test.describe("Layam Hi-Fi Player Fresh Install & Seed-Free Verification", () =>
       // Inspect IndexedDB
       let blobCount = 0;
       try {
-        const req = indexedDB.open("layam_audiophile_db", 2);
+        const req = indexedDB.open("layam_audiophile_db");
         await new Promise((resolve) => {
+          req.onerror = () => resolve(null);
+          req.onblocked = () => resolve(null);
           req.onsuccess = () => {
             const db = req.result;
             if (db.objectStoreNames.contains("local_audio_blobs")) {
@@ -43,7 +45,6 @@ test.describe("Layam Hi-Fi Player Fresh Install & Seed-Free Verification", () =>
               resolve(null);
             }
           };
-          req.onerror = () => resolve(null);
         });
       } catch {}
 
@@ -139,8 +140,10 @@ test.describe("Layam Hi-Fi Player Fresh Install & Seed-Free Verification", () =>
 
       let blobCount = 0;
       try {
-        const req = indexedDB.open("layam_audiophile_db", 2);
+        const req = indexedDB.open("layam_audiophile_db");
         await new Promise((resolve) => {
+          req.onerror = () => resolve(null);
+          req.onblocked = () => resolve(null);
           req.onsuccess = () => {
             const db = req.result;
             const tx = db.transaction("local_audio_blobs", "readonly");
@@ -150,6 +153,7 @@ test.describe("Layam Hi-Fi Player Fresh Install & Seed-Free Verification", () =>
               blobCount = countReq.result;
               resolve(null);
             };
+            countReq.onerror = () => resolve(null);
           };
         });
       } catch {}

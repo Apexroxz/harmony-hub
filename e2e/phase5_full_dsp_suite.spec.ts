@@ -56,10 +56,10 @@ test.describe("Phase 5 — Full DSP Audio Graph Verification Suite", () => {
     // 3. Import test file
     const fileInput = page.locator('header input[type="file"]').first();
     await fileInput.setInputFiles(testWavPath);
-    await expect(page.getByText(/layam_dsp_test/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/layam[ _]dsp[ _]test/i).first()).toBeVisible({ timeout: 10000 });
 
     // 4. Play imported track
-    await page.getByText(/layam_dsp_test/i).first().click();
+    await page.getByText(/layam[ _]dsp[ _]test/i).first().click();
     await page.waitForTimeout(1500);
 
     // 5. Open Audio Console Modal

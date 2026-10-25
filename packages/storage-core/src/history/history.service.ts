@@ -84,4 +84,22 @@ export class LocalHistoryService {
       console.error("[LocalHistoryService:ClearHistoryError]", err);
     }
   }
+
+  /**
+   * Returns up to `limit` unique track IDs in most-recently-played order.
+   * De-duplicates so replaying a track doesn't push it to the front multiple times.
+   */
+  public static async getRecentlyPlayedIds(limit = 12): Promise<string[]> {
+    const history = await LocalHistoryService.getRecentHistory(limit * 5);
+    const seen = new Set<string>();
+    const ids: string[] = [];
+    for (const entry of history) {
+      if (!seen.has(entry.trackId)) {
+        seen.add(entry.trackId);
+        ids.push(entry.trackId);
+      }
+      if (ids.length >= limit) break;
+    }
+    return ids;
+  }
 }

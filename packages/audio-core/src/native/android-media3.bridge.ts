@@ -1,5 +1,13 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
+export interface NativeQueueItem {
+  uri: string;
+  title?: string;
+  artist?: string;
+  album?: string;
+  artworkUri?: string;
+}
+
 export interface NativeTrackPayload {
   uri: string;
   title?: string;
@@ -9,6 +17,8 @@ export interface NativeTrackPayload {
   positionMs?: number;
   replayGainDb?: number;
   replayGainPeak?: number;
+  queue?: NativeQueueItem[];
+  queueIndex?: number;
 }
 
 export interface NativeFileInfo {
@@ -19,6 +29,7 @@ export interface NativeFileInfo {
   title: string;
   artist: string;
   album: string;
+  coverImage?: string;
   durationMs: number;
   bitrate: number;
   format: string;
@@ -49,6 +60,9 @@ export interface ILayamNativeAudioPlugin {
   playTrack(options: NativeTrackPayload): Promise<{ success: boolean }>;
   pause(): Promise<{ success: boolean }>;
   resume(): Promise<{ success: boolean }>;
+  skipToNext?(): Promise<{ success: boolean }>;
+  skipToPrevious?(): Promise<{ success: boolean }>;
+  setRepeatMode?(options: { mode: string }): Promise<{ success: boolean }>;
   seekTo(options: { positionMs: number }): Promise<{ success: boolean }>;
   setVolume(options: { volume: number }): Promise<{ success: boolean }>;
   setNormalizerEnabled?(options: { enabled: boolean }): Promise<{ success: boolean }>;
@@ -145,6 +159,36 @@ export class AndroidMedia3Bridge {
   public async resume(): Promise<boolean> {
     if (!this.isNativeAndroid()) return false;
     try { return (await LayamNativeAudio.resume()).success; } catch { return false; }
+  }
+
+  public async skipToNext(): Promise<boolean> {
+    if (!this.isNativeAndroid()) return false;
+    try {
+      if (LayamNativeAudio.skipToNext) {
+        return (await LayamNativeAudio.skipToNext()).success;
+      }
+      return false;
+    } catch { return false; }
+  }
+
+  public async skipToPrevious(): Promise<boolean> {
+    if (!this.isNativeAndroid()) return false;
+    try {
+      if (LayamNativeAudio.skipToPrevious) {
+        return (await LayamNativeAudio.skipToPrevious()).success;
+      }
+      return false;
+    } catch { return false; }
+  }
+
+  public async setRepeatMode(mode: string): Promise<boolean> {
+    if (!this.isNativeAndroid()) return false;
+    try {
+      if (LayamNativeAudio.setRepeatMode) {
+        return (await LayamNativeAudio.setRepeatMode({ mode })).success;
+      }
+      return false;
+    } catch { return false; }
   }
 
   public async seekToSeconds(seconds: number): Promise<boolean> {

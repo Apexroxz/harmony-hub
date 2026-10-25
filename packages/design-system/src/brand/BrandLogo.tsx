@@ -108,7 +108,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       >
         <CycleBrandMark className={currentSize.mark} />
         <div className="flex items-baseline gap-1.5">
-          <span className={`${currentSize.text} font-black text-[#f2f3f5]`}>
+          <span className={`${currentSize.text} font-black text-[var(--text-primary,#f2f3f5)]`}>
             LAYAM <span className="text-[#e59e38] font-bold">Hi-Fi</span>
           </span>
           {showBadge && (
@@ -132,7 +132,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       <CycleBrandMark className={currentSize.mark} />
       <div className="flex flex-col justify-center min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`${currentSize.text} font-black tracking-wide text-[#f2f3f5]`}>
+          <span className={`${currentSize.text} font-black tracking-wide text-[var(--text-primary,#f2f3f5)]`}>
             LAYAM <span className="text-[#e59e38] font-bold">Hi-Fi Player</span>
           </span>
           {showBadge && (
@@ -142,9 +142,9 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           )}
         </div>
         {subtitle && (
-          <p className={`${currentSize.subtitle} font-tech uppercase tracking-wider text-[#6b7280]`}>
+          <span className={`${currentSize.subtitle} font-mono font-medium tracking-widest uppercase text-[var(--text-tertiary,#6b7280)] hidden sm:block mt-0.5`}>
             {subtitle}
-          </p>
+          </span>
         )}
       </div>
     </div>

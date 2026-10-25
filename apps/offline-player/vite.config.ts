@@ -20,6 +20,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    host: true,
     port: 8081,
     fs: {
       allow: [path.resolve(import.meta.dirname, "../..")],

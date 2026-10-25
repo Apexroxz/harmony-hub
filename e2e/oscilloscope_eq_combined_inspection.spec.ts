@@ -27,10 +27,10 @@ test.describe("Oscilloscope & EQ Combined Live Inspection", () => {
     const fileInput = page.locator('header input[type="file"]').first();
     await fileInput.setInputFiles(testFilePath);
 
-    await expect(page.getByText(/layam_master_test/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/layam[ _]master[ _]test/i).first()).toBeVisible({ timeout: 10000 });
 
     // Start playing
-    await page.getByText(/layam_master_test/i).first().click();
+    await page.getByText(/layam[ _]master[ _]test/i).first().click();
     await page.waitForTimeout(1000);
 
     // Open Audio Console Modal (mounts canvas and starts requestAnimationFrame)

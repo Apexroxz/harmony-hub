@@ -16,7 +16,7 @@
     "android:sync": "npm run build:offline && cap sync android",
     "android:build": "npm run build:offline && cap sync android",
     "android:open": "cap open android",
-    "preview": "vite preview",
+    "preview": "nitro preview",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

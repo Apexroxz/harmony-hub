@@ -136,39 +136,39 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
 
   const [showRemainingTime, setShowRemainingTime] = useState(false);
 
-  if (!open || !currentTrack) return null;
-
-  const localMeta = currentTrack as LocalTrack;
+  const localMeta = currentTrack as LocalTrack | undefined;
 
   // Format high-res specs — Truth in audio telemetry
-  const sampleRateKhz = currentTrack.sampleRate && currentTrack.sampleRate > 0
+  const sampleRateKhz = currentTrack?.sampleRate && currentTrack.sampleRate > 0
     ? currentTrack.sampleRate >= 1000
       ? `${(currentTrack.sampleRate / 1000).toFixed(1)} kHz`
       : `${currentTrack.sampleRate} Hz`
     : null;
 
-  const bitDepthLabel = currentTrack.bitDepth && currentTrack.bitDepth > 0 ? `${currentTrack.bitDepth}-BIT` : null;
-  const formatLabel = (currentTrack.format || currentTrack.quality || "AUDIO").toUpperCase();
+  const bitDepthLabel = currentTrack?.bitDepth && currentTrack.bitDepth > 0 ? `${currentTrack.bitDepth}-BIT` : null;
+  const formatLabel = (currentTrack?.format || currentTrack?.quality || "AUDIO").toUpperCase();
   const specsPill = [formatLabel, bitDepthLabel, sampleRateKhz].filter(Boolean).join(" · ");
   const isTimerActive = sleepTimerSecondsRemaining !== null || sleepTimerEndOnTrack;
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: "100%" }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: "100%" }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.25}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100 || info.velocity.y > 500) {
-            onClose();
-          }
-        }}
-        className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-obsidian,#090a0c)] text-[var(--text-primary,#f2f3f5)] overflow-hidden select-none touch-pan-y"
-      >
+      {open && currentTrack && (
+        <motion.div
+          key="fullscreen-player"
+          initial={{ opacity: 0, y: "100%" }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: "100%" }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          drag="y"
+          dragConstraints={{ top: 0 }}
+          dragElastic={0.25}
+          onDragEnd={(_, info) => {
+            if (info.offset.y > 100 || info.velocity.y > 500) {
+              onClose();
+            }
+          }}
+          className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-obsidian,#090a0c)] text-[var(--text-primary,#f2f3f5)] overflow-hidden select-none touch-pan-y"
+        >
         {/* Subtle Ambient Background Artwork Hue (Restrained) */}
         {currentTrack.coverImage && (
           <div
@@ -180,27 +180,27 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
             }}
           />
         )}
-
-        {/* ── Top Bar (Layer 2 & 3 Controls) ── */}
-        <header className="relative z-10 mx-auto flex w-full max-w-5xl items-center justify-between px-4 pt-[max(env(safe-area-inset-top),1.25rem)] pb-2 sm:py-3 sm:px-6">
+        {/* ── Top Header Controls & Live Tech Pill ── */}
+        <header className="relative z-10 flex h-auto items-center justify-between px-4 sm:px-6 pt-[max(env(safe-area-inset-top),2.5rem)] pb-3 border-b border-[var(--border-subtle,rgba(255,255,255,0.06))]">
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
             aria-label="Minimize Player"
-            className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-11 sm:w-11 rounded-[10px] bg-[var(--surface-charcoal,#111216)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] cursor-pointer transition-colors active:scale-95 flex items-center justify-center"
-            title="Minimize (Esc)"
+            className="min-h-[40px] min-w-[40px] h-10 w-10 rounded-[10px] bg-[var(--surface-charcoal,#111216)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] cursor-pointer transition-colors active:scale-95 flex items-center justify-center border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
+            title="Minimize Player (Esc)"
           >
-            <ChevronDown className="h-5 w-5 stroke-[1.75]" />
+            <ChevronDown className="h-5 w-5 stroke-[2]" />
           </Button>
 
           {/* Technical Specs Pill (Layer 3 — Quiet & Monospace) */}
           <div className="flex flex-col items-center text-center">
-            <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-[var(--text-tertiary,#6b7280)]">
-              LAYAM COCKPIT
+            <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-[var(--text-tertiary,#6b7280)] flex items-center gap-1.5">
+              <span>NOW PLAYING</span>
+              <span className="sr-only">LAYAM HI-FI AUDIOPHILE COCKPIT</span>
             </span>
             <div className="mt-0.5 flex items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 font-mono text-[9px] sm:text-[10px] text-[var(--text-secondary,#9ba1ad)] bg-[var(--surface-charcoal,#111216)] px-2 py-0.5 rounded-[6px] tabular-nums border border-[var(--border-subtle,rgba(255,255,255,0.06))]">
+              <span className="inline-flex items-center gap-1 font-mono text-[9.5px] sm:text-[10px] text-[#e59e38] font-bold bg-[#e59e38]/10 px-2.5 py-0.5 rounded-[6px] tabular-nums border border-[#e59e38]/25">
                 {specsPill}
               </span>
               {isTimerActive && (
@@ -224,7 +224,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               onClick={() => setSleepTimerModalOpen(true)}
               aria-label="Sleep Timer"
               className={cn(
-                "min-h-[44px] min-w-[44px] h-10 w-10 sm:h-11 sm:w-11 rounded-[10px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] transition-colors active:scale-95 cursor-pointer flex items-center justify-center",
+                "min-h-[40px] min-w-[40px] h-10 w-10 rounded-[10px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] transition-colors active:scale-95 cursor-pointer flex items-center justify-center border border-[var(--border-subtle,rgba(255,255,255,0.06))]",
                 isTimerActive
                   ? "text-[#e59e38] bg-[#e59e38]/15"
                   : "text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
@@ -239,7 +239,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               size="icon"
               onClick={() => setQueueDrawerOpen(true)}
               aria-label="Open Queue"
-              className="relative min-h-[44px] min-w-[44px] h-10 w-10 sm:h-11 sm:w-11 rounded-[10px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] cursor-pointer transition-colors active:scale-95 flex items-center justify-center"
+              className="relative min-h-[40px] min-w-[40px] h-10 w-10 rounded-[10px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] cursor-pointer transition-colors active:scale-95 flex items-center justify-center border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
               title="Queue"
             >
               <ListMusic className="h-4 w-4 stroke-[1.75]" />
@@ -253,18 +253,18 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
         </header>
 
         {/* ── Main Player: Responsive Portrait (1-Col) & Landscape (2-Col) ── */}
-        <main className="relative z-10 mx-auto flex flex-1 w-full max-w-md landscape:max-w-5xl flex-col landscape:flex-row items-center justify-center px-4 sm:px-6 pt-1 pb-[max(env(safe-area-inset-bottom),1rem)] overflow-y-auto landscape:overflow-visible landscape:gap-8">
+        <main className="relative z-10 mx-auto flex flex-1 w-full max-w-md landscape:max-w-6xl flex-col landscape:flex-row items-center justify-center px-4 sm:px-8 landscape:px-10 pt-2 pb-[max(env(safe-area-inset-bottom),1rem)] overflow-y-auto landscape:gap-10">
           
           {/* Left Column (Artwork / Lyrics / Switcher) */}
-          <div className="flex flex-col items-center justify-center w-full landscape:w-[42%] landscape:max-w-[340px] shrink-0">
+          <div className="flex flex-col items-center justify-center w-full landscape:w-[40%] landscape:max-w-[280px] shrink-0">
             {/* View Mode Switcher */}
-            <div className="flex items-center gap-1 bg-[var(--surface-charcoal,#111216)] p-1 rounded-[10px] mb-3 border border-[var(--border-subtle,rgba(255,255,255,0.06))]">
+            <div className="flex items-center gap-1 bg-[var(--surface-charcoal,#111216)] p-1 rounded-[10px] mb-3 border border-[var(--border-subtle,rgba(255,255,255,0.06))] shadow-sm">
               <button
                 onClick={() => setViewMode("artwork")}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1 rounded-[6px] text-xs font-medium transition-colors cursor-pointer",
                   viewMode === "artwork"
-                    ? "bg-[var(--surface-active,#1e2027)] text-[var(--text-primary,#f2f3f5)] font-semibold shadow-sm"
+                    ? "bg-[var(--surface-active,#1e2027)] text-[var(--text-primary,#f2f3f5)] font-bold shadow-sm"
                     : "text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
                 )}
               >
@@ -276,7 +276,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1 rounded-[6px] text-xs font-medium transition-colors cursor-pointer",
                   viewMode === "lyrics"
-                    ? "bg-[var(--surface-active,#1e2027)] text-[var(--text-primary,#f2f3f5)] font-semibold shadow-sm"
+                    ? "bg-[var(--surface-active,#1e2027)] text-[var(--text-primary,#f2f3f5)] font-bold shadow-sm"
                     : "text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
                 )}
               >
@@ -296,13 +296,13 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
 
             {viewMode === "artwork" ? (
               /* Centered Artwork Frame */
-              <div className="relative aspect-square w-full max-w-[min(65vw,260px)] landscape:max-w-[220px] sm:max-w-[300px] shrink-0 overflow-hidden rounded-[20px] bg-[var(--surface-charcoal,#111216)] mb-3 sm:mb-4 flex items-center justify-center border border-[var(--border-subtle,rgba(255,255,255,0.06))] shadow-lg">
+              <div className="relative aspect-square w-full max-w-[min(65vw,260px)] sm:max-w-[280px] landscape:max-w-[230px] shrink-0 overflow-hidden rounded-[20px] bg-[var(--surface-charcoal,#111216)] flex items-center justify-center border border-[var(--border-medium,rgba(255,255,255,0.12))] shadow-2xl">
                 {(!currentTrack.coverImage || imageError) ? (
-                  <div className="flex h-full w-full flex-col items-center justify-center bg-[var(--surface-charcoal,#111216)] p-6 text-center select-none">
-                    <div className="relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[var(--surface-sunken,#060708)]">
+                  <div className="flex h-full w-full flex-col items-center justify-center bg-[var(--surface-charcoal,#111216)] p-4 sm:p-6 text-center select-none">
+                    <div className="relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[var(--surface-sunken,#060708)] border border-[var(--border-subtle,rgba(255,255,255,0.08))] shadow-inner">
                       <Disc3 className={cn("h-10 w-10 sm:h-12 sm:w-12 text-[#e59e38] stroke-[1.75]", isPlaying && "animate-spin")} style={{ animationDuration: '6s' }} />
                     </div>
-                    <span className="mt-3 font-mono text-[9px] font-medium tracking-wider text-[var(--text-tertiary,#6b7280)] uppercase">
+                    <span className="mt-3 font-mono text-[9px] font-bold tracking-widest text-[var(--text-secondary,#9ba1ad)] uppercase">
                       LAYAM HI-RES MASTER
                     </span>
                   </div>
@@ -317,7 +317,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               </div>
             ) : (
               /* Synchronized Lyrics Container */
-              <div className="relative w-full max-w-[340px] h-[220px] sm:h-[280px] shrink-0 overflow-hidden rounded-[20px] bg-[var(--surface-charcoal,#111216)] p-4 mb-3 sm:mb-4 flex flex-col border border-[var(--border-subtle,rgba(255,255,255,0.06))]">
+              <div className="relative w-full max-w-[340px] h-[220px] sm:h-[280px] shrink-0 overflow-hidden rounded-[20px] bg-[var(--surface-charcoal,#111216)] p-4 flex flex-col border border-[var(--border-subtle,rgba(255,255,255,0.06))] shadow-lg">
                 {lyricsData && lyricsData.lines && lyricsData.lines.length > 0 ? (
                   <div
                     ref={lyricsContainerRef}
@@ -348,7 +348,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
                     <FileText className="h-7 w-7 text-[var(--text-tertiary,#6b7280)] mb-2 stroke-[1.75]" />
-                    <p className="text-xs font-medium text-[var(--text-primary,#f2f3f5)]">No Synced Lyrics</p>
+                    <p className="text-xs font-medium text-[var(--text-primary,#f2f3f5)]">No Synced Lyrics in Local Vault</p>
                     <p className="text-[11px] text-[var(--text-tertiary,#6b7280)] mt-1 max-w-xs">
                       Import an .LRC file or add lyrics in metadata.
                     </p>
@@ -366,18 +366,18 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
           </div>
 
           {/* Right Column in Landscape / Stacked in Portrait (Metadata + Waveform + Transport + Dock + Volume) */}
-          <div className="flex flex-col w-full landscape:w-[58%] landscape:flex-1">
+          <div className="flex flex-col w-full landscape:w-[60%] landscape:flex-1 mt-3 landscape:mt-0">
             {/* Track Identity & Favorite Button */}
             <div className="w-full flex items-center justify-between gap-3 mb-3 px-1">
               <div className="min-w-0 flex-1 text-left">
-                <h1 className="text-base sm:text-lg landscape:text-base font-bold tracking-tight text-[var(--text-primary,#f2f3f5)] truncate">
+                <h1 className="text-base sm:text-xl font-bold tracking-tight text-[var(--text-primary,#f2f3f5)] line-clamp-2">
                   {currentTrack.title}
                 </h1>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary,#9ba1ad)] mt-0.5 truncate">
+                <p className="text-xs sm:text-sm font-semibold text-[#e59e38] mt-0.5 truncate">
                   {currentTrack.artistName || "Unknown Artist"}
                 </p>
                 {localMeta.album && (
-                  <p className="text-[11px] font-mono text-[var(--text-tertiary,#6b7280)] mt-0.5 truncate">
+                  <p className="text-[10.5px] sm:text-xs font-mono text-[var(--text-secondary,#9ba1ad)] mt-0.5 truncate">
                     {localMeta.album}
                   </p>
                 )}
@@ -393,7 +393,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                   });
                 }}
                 className={cn(
-                  "min-h-[44px] min-w-[44px] h-10 w-10 shrink-0 rounded-[10px] flex items-center justify-center transition-colors cursor-pointer border border-[var(--border-subtle,rgba(255,255,255,0.06))]",
+                  "min-h-[40px] min-w-[40px] h-10 w-10 shrink-0 rounded-[10px] flex items-center justify-center transition-colors cursor-pointer border border-[var(--border-subtle,rgba(255,255,255,0.06))]",
                   isCurrentTrackFavorite
                     ? "text-[#C6604F] bg-[#C6604F]/10"
                     : "bg-[var(--surface-charcoal,#111216)] text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)]"
@@ -410,17 +410,17 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
             </div>
 
             {/* Waveform Scrubber & Exact Monospace Timestamps */}
-            <div className="w-full space-y-1 mb-3 sm:mb-4">
-              <div className="h-6 sm:h-7 w-full px-1">
+            <div className="w-full space-y-1 mb-3">
+              <div className="h-6 sm:h-8 w-full px-1">
                 <Waveform
                   seed={currentTrack.id}
                   peaks={currentTrack.waveform}
                   progress={progress}
                   onSeek={seek}
-                  className="h-6 sm:h-7 w-full"
+                  className="h-6 sm:h-8 w-full"
                 />
               </div>
-              <div className="flex justify-between text-xs font-mono text-[var(--text-tertiary,#6b7280)] tabular-nums px-1">
+              <div className="flex justify-between text-xs font-mono text-[var(--text-secondary,#9ba1ad)] font-semibold tabular-nums px-1">
                 <span>{formatDuration(currentTime)}</span>
                 <button
                   onClick={() => setShowRemainingTime((prev) => !prev)}
@@ -435,13 +435,13 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
             </div>
 
             {/* Primary Transport Controls */}
-            <div className="flex items-center justify-center gap-4 sm:gap-6 mb-3 sm:mb-4">
+            <div className="flex items-center justify-center gap-4 sm:gap-6 mb-3">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsShuffle((s) => !s)}
                 className={cn(
-                  "min-h-[44px] min-w-[44px] h-9 w-9 rounded-full transition-colors cursor-pointer flex items-center justify-center",
+                  "min-h-[40px] min-w-[40px] h-9 w-9 rounded-full transition-colors cursor-pointer flex items-center justify-center",
                   isShuffle
                     ? "text-[#e59e38] bg-[#e59e38]/15"
                     : "text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)]"
@@ -456,7 +456,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 variant="ghost"
                 size="icon"
                 onClick={playPrevious}
-                className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-[var(--surface-charcoal,#111216)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] cursor-pointer transition-transform active:scale-90 flex items-center justify-center border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
+                className="min-h-[40px] min-w-[40px] h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-[var(--surface-charcoal,#111216)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] cursor-pointer transition-transform active:scale-90 flex items-center justify-center border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
                 aria-label="Previous track"
               >
                 <SkipBack className="h-5 w-5 stroke-[2.25]" />
@@ -466,15 +466,15 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 <Button
                   size="icon"
                   onClick={togglePlay}
-                  className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] active:scale-95 transition-transform cursor-pointer shadow-md flex items-center justify-center"
+                  className="h-13 w-13 sm:h-15 sm:w-15 rounded-full bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] active:scale-95 transition-transform cursor-pointer shadow-lg flex items-center justify-center"
                   aria-label={isPlaying ? "Pause" : "Play"}
                 >
                   {status === "loading" || status === "buffering" ? (
                     <Loader2 className="h-6 w-6 animate-spin text-[#090a0c]" />
                   ) : isPlaying ? (
-                    <Pause className="h-6 w-6 sm:h-7 sm:w-7 fill-current stroke-[2.25] text-[#090a0c]" />
+                    <Pause className="h-6 w-6 fill-current stroke-[2.25] text-[#090a0c]" />
                   ) : (
-                    <Play className="h-6 w-6 sm:h-7 sm:w-7 fill-current stroke-[2.25] ml-1 text-[#090a0c]" />
+                    <Play className="h-6 w-6 fill-current stroke-[2.25] ml-0.5 text-[#090a0c]" />
                   )}
                 </Button>
               </motion.div>
@@ -483,7 +483,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 variant="ghost"
                 size="icon"
                 onClick={playNext}
-                className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-[var(--surface-charcoal,#111216)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] cursor-pointer transition-transform active:scale-90 flex items-center justify-center border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
+                className="min-h-[40px] min-w-[40px] h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-[var(--surface-charcoal,#111216)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] cursor-pointer transition-transform active:scale-90 flex items-center justify-center border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
                 aria-label="Next track"
               >
                 <SkipForward className="h-5 w-5 stroke-[2.25]" />
@@ -494,7 +494,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 size="icon"
                 onClick={() => setIsRepeat((r) => !r)}
                 className={cn(
-                  "min-h-[44px] min-w-[44px] h-9 w-9 rounded-full transition-colors cursor-pointer flex items-center justify-center",
+                  "min-h-[40px] min-w-[40px] h-9 w-9 rounded-full transition-colors cursor-pointer flex items-center justify-center",
                   isRepeat
                     ? "text-[#e59e38] bg-[#e59e38]/15"
                     : "text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)]"
@@ -507,12 +507,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
             </div>
 
             {/* Symmetrical Audiophile Dock */}
-            <div className="grid grid-cols-3 gap-2 w-full rounded-[14px] bg-[var(--surface-charcoal,#111216)] p-2 mb-3 text-xs font-mono border border-[var(--border-subtle,rgba(255,255,255,0.06))]">
+            <div className="grid grid-cols-3 gap-2 w-full rounded-[14px] bg-[var(--surface-charcoal,#111216)] p-2 mb-3 text-xs font-mono border border-[var(--border-subtle,rgba(255,255,255,0.06))] shadow-sm">
               {/* EQ Button */}
               <button
                 onClick={openConsole}
                 className={cn(
-                  "flex flex-col items-center justify-center py-1.5 px-2 rounded-[8px] transition-colors cursor-pointer min-h-[40px]",
+                  "flex flex-col items-center justify-center py-1.5 px-2 rounded-[8px] transition-colors cursor-pointer min-h-[38px]",
                   eqEnabled
                     ? "bg-[#e59e38]/15 text-[#e59e38]"
                     : "text-[var(--text-secondary,#9ba1ad)] hover:bg-[var(--surface-raised,#16181e)] hover:text-[var(--text-primary,#f2f3f5)]"
@@ -521,7 +521,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 <span className="text-[8.5px] uppercase tracking-wider text-[var(--text-tertiary,#6b7280)]">
                   EQUALIZER
                 </span>
-                <div className="flex items-center gap-1 mt-0.5 font-medium text-[11px]">
+                <div className="flex items-center gap-1 mt-0.5 font-bold text-[11px]">
                   <Sliders className="h-3 w-3 stroke-[1.75]" />
                   <span>{eqEnabled ? eqPreset : "BYPASS"}</span>
                 </div>
@@ -531,16 +531,16 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               <button
                 onClick={openConsole}
                 className={cn(
-                  "flex flex-col items-center justify-center py-1.5 px-2 rounded-[8px] transition-colors cursor-pointer min-h-[40px]",
+                  "flex flex-col items-center justify-center py-1.5 px-2 rounded-[8px] transition-colors cursor-pointer min-h-[38px]",
                   bassBoostLevel > 0 || normalizerEnabled
                     ? "bg-[#e59e38]/15 text-[#e59e38]"
                     : "text-[var(--text-secondary,#9ba1ad)] hover:bg-[var(--surface-raised,#16181e)] hover:text-[var(--text-primary,#f2f3f5)]"
                 )}
               >
                 <span className="text-[8.5px] uppercase tracking-wider text-[var(--text-tertiary,#6b7280)]">
-                  DSP ENGINE
+                  DSP HARDWARE
                 </span>
-                <div className="flex items-center gap-1 mt-0.5 font-medium text-[11px]">
+                <div className="flex items-center gap-1 mt-0.5 font-bold text-[11px]">
                   <Layers className="h-3 w-3 stroke-[1.75]" />
                   <span>{bassBoostLevel > 0 ? `+${bassBoostLevel}dB` : "STUDIO"}</span>
                 </div>
@@ -549,12 +549,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               {/* Queue Button */}
               <button
                 onClick={() => setQueueDrawerOpen(true)}
-                className="flex flex-col items-center justify-center py-1.5 px-2 rounded-[8px] text-[var(--text-secondary,#9ba1ad)] hover:bg-[var(--surface-raised,#16181e)] hover:text-[var(--text-primary,#f2f3f5)] transition-colors cursor-pointer min-h-[40px]"
+                className="flex flex-col items-center justify-center py-1.5 px-2 rounded-[8px] text-[var(--text-secondary,#9ba1ad)] hover:bg-[var(--surface-raised,#16181e)] hover:text-[var(--text-primary,#f2f3f5)] transition-colors cursor-pointer min-h-[38px]"
               >
                 <span className="text-[8.5px] uppercase tracking-wider text-[var(--text-tertiary,#6b7280)]">
                   UP NEXT
                 </span>
-                <div className="flex items-center gap-1 mt-0.5 font-medium text-[11px]">
+                <div className="flex items-center gap-1 mt-0.5 font-bold text-[11px]">
                   <ListMusic className="h-3 w-3 stroke-[1.75]" />
                   <span>{queue.length} TRACKS</span>
                 </div>
@@ -567,7 +567,8 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 variant="ghost"
                 size="icon"
                 onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
-                className="min-h-[40px] min-w-[40px] h-8 w-8 text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[8px]"
+                aria-label={volume === 0 ? "Unmute master volume" : "Mute master volume"}
+                className="min-h-[38px] min-w-[38px] h-9 w-9 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-xl flex items-center justify-center cursor-pointer"
               >
                 {volume === 0 ? (
                   <VolumeX className="h-4 w-4 stroke-[1.75] text-[#C6604F]" />
@@ -577,12 +578,14 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               </Button>
               <Slider
                 value={[volume * 100]}
+                min={0}
                 max={100}
                 step={1}
-                onValueChange={([val]) => setVolume((val ?? 0) / 100)}
+                onValueChange={(vals) => setVolume(vals[0] / 100)}
                 className="flex-1"
+                aria-label="Master Output Volume"
               />
-              <span className="w-8 text-right font-mono text-[10px] text-[var(--text-tertiary,#6b7280)] tabular-nums">
+              <span className="w-10 text-right font-mono text-[11px] font-bold text-[var(--text-secondary,#9ba1ad)] tabular-nums">
                 {Math.round(volume * 100)}%
               </span>
             </div>
@@ -597,12 +600,12 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[#16181e] shadow-[0_8px_24px_rgba(0,0,0,0.4)] flex flex-col p-6"
+              className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[var(--surface-charcoal,#111216)] shadow-2xl flex flex-col p-6 border-l border-[var(--border-subtle,rgba(255,255,255,0.08))]"
             >
-              <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] pb-3">
                 <div className="flex items-center gap-2">
                   <ListMusic className="h-4 w-4 stroke-[1.75] text-[#e59e38]" />
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-[#f2f3f5]">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-primary,#f2f3f5)]">
                     Queue ({queue.length})
                   </h3>
                 </div>
@@ -612,7 +615,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                       variant="ghost"
                       size="sm"
                       onClick={clearQueue}
-                      className="h-7 text-xs font-mono text-[#9ba1ad] hover:text-[#C6604F]"
+                      className="h-7 text-xs font-mono text-[var(--text-secondary,#9ba1ad)] hover:text-[#C6604F]"
                     >
                       Clear
                     </Button>
@@ -621,22 +624,22 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                     variant="ghost"
                     size="icon"
                     onClick={() => setQueueDrawerOpen(false)}
-                    className="h-8 w-8 rounded-[8px] text-[#9ba1ad] hover:text-[#f2f3f5]"
+                    className="h-8 w-8 rounded-[8px] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
                   >
                     <X className="h-4 w-4 stroke-[1.75]" />
                   </Button>
                 </div>
               </div>
 
-              <ul className="flex-1 overflow-y-auto divide-y divide-white/[0.04] py-2">
+              <ul className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle,rgba(255,255,255,0.04))] py-2">
                 {queue.map((track, i) => (
                   <li
                     key={`${track.id}-${i}`}
                     className={cn(
                       "flex items-center justify-between gap-3 p-2.5 rounded-[10px] transition-colors cursor-pointer group",
                       i === queueIndex
-                        ? "bg-[#1e2027]"
-                        : "hover:bg-[#111216]"
+                        ? "bg-[var(--surface-active,#1e2027)] border border-[#e59e38]/20"
+                        : "hover:bg-[var(--surface-raised,#16181e)]"
                     )}
                     onClick={() => playFromQueue(i)}
                   >
@@ -644,24 +647,24 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                       <img
                         src={track.coverImage || "/placeholder.svg"}
                         alt={track.title}
-                        className="h-9 w-9 rounded-[6px] object-cover bg-[#060708]"
+                        className="h-9 w-9 rounded-[6px] object-cover bg-[var(--surface-sunken,#060708)] border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
                       />
                       <div className="min-w-0 flex-1">
                         <p
                           className={cn(
                             "text-xs font-medium truncate",
-                            i === queueIndex ? "text-[#e59e38]" : "text-[#f2f3f5]"
+                            i === queueIndex ? "text-[#e59e38]" : "text-[var(--text-primary,#f2f3f5)]"
                           )}
                         >
                           {track.title}
                         </p>
-                        <p className="text-[11px] text-[#9ba1ad] truncate">
+                        <p className="text-[11px] text-[var(--text-secondary,#9ba1ad)] truncate">
                           {track.artistName}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-[#6b7280]">
+                      <span className="font-mono text-[10px] text-[var(--text-tertiary,#6b7280)]">
                         {formatDuration(track.duration)}
                       </span>
                       {queue.length > 1 && (
@@ -672,7 +675,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                             e.stopPropagation();
                             removeFromQueue(i);
                           }}
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 rounded-[6px] text-[#6b7280] hover:text-[#f2f3f5]"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 rounded-[6px] text-[var(--text-tertiary,#6b7280)] hover:text-[#C6604F]"
                         >
                           <X className="h-3.5 w-3.5 stroke-[1.75]" />
                         </Button>
@@ -698,13 +701,13 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                 initial={{ opacity: 0, y: 30, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 30, scale: 0.98 }}
-                className="w-full max-w-sm rounded-[14px] bg-[#16181e] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.4)] space-y-4"
+                className="w-full max-w-sm rounded-[14px] bg-[var(--surface-charcoal,#111216)] p-5 shadow-2xl space-y-4 border border-[var(--border-medium,rgba(255,255,255,0.12))]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+                <div className="flex items-center justify-between border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] pb-3">
                   <div className="flex items-center gap-2 text-[#e59e38]">
                     <Moon className="h-4 w-4 stroke-[1.75]" />
-                    <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-[#f2f3f5]">
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--text-primary,#f2f3f5)]">
                       Sleep Timer
                     </h3>
                   </div>
@@ -712,13 +715,13 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                     variant="ghost"
                     size="icon"
                     onClick={() => setSleepTimerModalOpen(false)}
-                    className="h-7 w-7 rounded-[6px] text-[#9ba1ad] hover:text-[#f2f3f5]"
+                    className="h-7 w-7 rounded-[6px] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
                   >
                     <X className="h-4 w-4 stroke-[1.75]" />
                   </Button>
                 </div>
 
-                <p className="text-xs text-[#9ba1ad]">
+                <p className="text-xs text-[var(--text-secondary,#9ba1ad)]">
                   Playback gradually fades out over 5 seconds before pausing.
                 </p>
 
@@ -738,7 +741,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                           "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-[8px] font-mono text-xs font-medium transition-colors active:scale-95 cursor-pointer",
                           isSelected
                             ? "bg-[#e59e38] text-[#090a0c]"
-                            : "bg-[#111216] text-[#f2f3f5] hover:bg-[#1e2027]"
+                            : "bg-[var(--surface-sunken,#060708)] text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
                         )}
                       >
                         <Clock className="h-3.5 w-3.5 stroke-[1.75]" />
@@ -757,7 +760,7 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
                     "w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-[8px] font-mono text-xs font-medium transition-colors active:scale-95 cursor-pointer",
                     sleepTimerEndOnTrack
                       ? "bg-[#e59e38] text-[#090a0c]"
-                      : "bg-[#111216] text-[#f2f3f5] hover:bg-[#1e2027]"
+                      : "bg-[var(--surface-sunken,#060708)] text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] border border-[var(--border-subtle,rgba(255,255,255,0.06))]"
                   )}
                 >
                   <Timer className="h-3.5 w-3.5 stroke-[1.75]" />
@@ -780,8 +783,9 @@ export function FullscreenAudiophilePlayer({ open, onClose }: FullscreenAudiophi
           )}
         </AnimatePresence>
       </motion.div>
-    </AnimatePresence>
-  );
+    )}
+  </AnimatePresence>
+);
 }
 
 export default FullscreenAudiophilePlayer;

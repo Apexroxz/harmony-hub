@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Share } from "@/components/ShareButton";
 
 export const Route = createFileRoute("/track/$id")({
   loader: async ({ params }) => {
@@ -77,13 +78,6 @@ function TrackPage() {
   const isCurrent = currentTrack?.id === track.id;
   const purchased = isTrackPurchased(track.id);
   const price = track.price ?? 1.49;
-
-  const handleShare = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success("Track link copied to clipboard!");
-    }
-  };
 
   return (
     <>
@@ -243,15 +237,15 @@ function TrackPage() {
                   LUFS & Dynamics
                 </Button>
 
-                <Button
-                  variant="outline"
+                <Share
+                  variant="icon"
                   size="icon"
-                  onClick={handleShare}
-                  className="h-11 w-11 rounded-full border-border/60 text-muted-foreground hover:text-foreground"
-                  title="Share Track"
-                >
-                  <Share2 className="h-4 w-4" />
-                </Button>
+                  title={`${track.title} by ${track.artist} on Layam`}
+                  text={`Listen to ${track.title} by ${track.artist} in pure lossless audiophile quality on Layam.`}
+                  toastMessage={`"${track.title}" link copied to clipboard!`}
+                  className="h-11 w-11 rounded-full border-border/60"
+                  aria-label={`Share ${track.title}`}
+                />
               </div>
 
               {/* Specs Breakdown */}

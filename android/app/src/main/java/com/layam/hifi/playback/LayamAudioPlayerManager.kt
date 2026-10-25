@@ -187,6 +187,7 @@ class LayamAudioPlayerManager private constructor(private val context: Context) 
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .setLoadControl(dynamicLoadControl)
             .build().apply {
+                repeatMode = Player.REPEAT_MODE_ALL // Enable seamless playlist loop by default
                 addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         android.util.Log.i("LAYAM_NATIVE", "[LAYAM_NATIVE] onIsPlayingChanged: isPlaying=$isPlaying")
@@ -203,6 +204,25 @@ class LayamAudioPlayerManager private constructor(private val context: Context) 
                         }
                         android.util.Log.i("LAYAM_NATIVE", "[LAYAM_NATIVE] onPlaybackStateChanged: $stateStr")
                         notifyState()
+                    }
+
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        val meta = mediaItem?.mediaMetadata
+                        val dur = player?.duration ?: 0L
+                        android.util.Log.i("LAYAM_NATIVE", "[LAYAM_NATIVE] onMediaItemTransition: title=${meta?.title} reason=$reason")
+                        currentTitle = meta?.title?.toString()
+                        currentArtist = meta?.artist?.toString()
+                        currentAlbum = meta?.albumTitle?.toString()
+                        currentArtworkUri = meta?.artworkUri?.toString()
+                        listeners.forEach {
+                            it.onTrackChanged(
+                                currentTitle,
+                                currentArtist,
+                                currentAlbum,
+                                currentArtworkUri,
+                                if (dur < 0) 0L else dur
+                            )
+                        }
                     }
 
                     override fun onPositionDiscontinuity(
@@ -301,6 +321,93 @@ class LayamAudioPlayerManager private constructor(private val context: Context) 
         player?.volume = finalVol
     }
 
+    private fun createMediaItem(
+        uriString: String,
+        title: String?,
+        artist: String?,
+        album: String?,
+        artworkUri: String?
+    ): MediaItem {
+        val mediaUri = Uri.parse(uriString)
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title ?: "Unknown Track")
+            .setArtist(artist ?: "Unknown Artist")
+            .setAlbumTitle(album ?: "Layam Vault")
+            .apply {
+                var artExtracted = false
+                if (!artworkUri.isNullOrBlank()) {
+                    if (artworkUri.startsWith("data:")) {
+                        try {
+                            val base64Data = artworkUri.substringAfter(",")
+                            val imageBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                            setArtworkData(imageBytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+
+                            val cacheDir = java.io.File(context.cacheDir, "artwork")
+                            if (!cacheDir.exists()) cacheDir.mkdirs()
+                            val cacheFile = java.io.File(cacheDir, "art_${Math.abs(uriString.hashCode())}.jpg")
+                            cacheFile.writeBytes(imageBytes)
+                            setArtworkUri(Uri.fromFile(cacheFile))
+                            artExtracted = true
+                        } catch (_: Exception) {}
+                    } else if (artworkUri.contains("localhost/") || artworkUri.startsWith("/assets/") || artworkUri.startsWith("assets/")) {
+                        try {
+                            val cleanPath = artworkUri.substringAfter("localhost/").removePrefix("/")
+                            val candidatePaths = listOf("public/$cleanPath", cleanPath)
+                            for (p in candidatePaths) {
+                                try {
+                                    context.assets.open(p).use { stream ->
+                                        val bytes = stream.readBytes()
+                                        setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                                        val cacheDir = java.io.File(context.cacheDir, "artwork")
+                                        if (!cacheDir.exists()) cacheDir.mkdirs()
+                                        val cacheFile = java.io.File(cacheDir, "art_${Math.abs(uriString.hashCode())}.jpg")
+                                        cacheFile.writeBytes(bytes)
+                                        setArtworkUri(Uri.fromFile(cacheFile))
+                                        artExtracted = true
+                                    }
+                                    break
+                                } catch (_: Exception) {}
+                            }
+                        } catch (_: Exception) {}
+                    } else if (!artworkUri.startsWith("blob:")) {
+                        try {
+                            setArtworkUri(Uri.parse(artworkUri))
+                            artExtracted = true
+                        } catch (_: Exception) {}
+                    }
+                }
+
+                // If artwork was not extracted or was a webview blob, extract embedded cover directly from audio media file!
+                if (!artExtracted) {
+                    try {
+                        val retriever = android.media.MediaMetadataRetriever()
+                        if (mediaUri.scheme == "content") {
+                            retriever.setDataSource(context, mediaUri)
+                        } else if (mediaUri.scheme == "file" || mediaUri.path != null) {
+                            val path = mediaUri.path
+                            if (path != null) retriever.setDataSource(path)
+                        }
+                        val picture = retriever.embeddedPicture
+                        retriever.release()
+                        if (picture != null && picture.isNotEmpty()) {
+                            setArtworkData(picture, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                            val cacheDir = java.io.File(context.cacheDir, "artwork")
+                            if (!cacheDir.exists()) cacheDir.mkdirs()
+                            val cacheFile = java.io.File(cacheDir, "art_${Math.abs(uriString.hashCode())}.jpg")
+                            cacheFile.writeBytes(picture)
+                            setArtworkUri(Uri.fromFile(cacheFile))
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+            .build()
+
+        return MediaItem.Builder()
+            .setUri(mediaUri)
+            .setMediaMetadata(metadata)
+            .build()
+    }
+
     fun playTrack(
         uriString: String,
         title: String?,
@@ -309,9 +416,11 @@ class LayamAudioPlayerManager private constructor(private val context: Context) 
         artworkUri: String?,
         initialPositionMs: Long = 0L,
         replayGainDb: Double? = 0.0,
-        replayGainPeak: Double? = 1.0
+        replayGainPeak: Double? = 1.0,
+        queue: List<Map<String, Any?>>? = null,
+        queueIndex: Int = 0
     ) {
-        android.util.Log.i("LAYAM_NATIVE", "[LAYAM_NATIVE] playTrack: uri=$uriString posMs=$initialPositionMs replayGainDb=$replayGainDb peak=$replayGainPeak")
+        android.util.Log.i("LAYAM_NATIVE", "[LAYAM_NATIVE] playTrack: uri=$uriString posMs=$initialPositionMs queueSize=${queue?.size ?: 0} qIdx=$queueIndex")
         currentUri = uriString
         currentTitle = title
         currentArtist = artist
@@ -321,39 +430,27 @@ class LayamAudioPlayerManager private constructor(private val context: Context) 
         currentReplayGainPeak = replayGainPeak?.toFloat() ?: 1.0f
 
         val exo = getPlayer()
-        val mediaUri = Uri.parse(uriString)
 
-        try {
-            if (mediaUri.scheme == "content" || mediaUri.scheme == "file") {
-                context.contentResolver.openFileDescriptor(mediaUri, "r")?.use { fd ->
-                    android.util.Log.i("LAYAM_NATIVE", "[LAYAM_NATIVE] URI readable (fd=${fd.fd}, size=${fd.statSize})")
-                }
+        if (queue != null && queue.isNotEmpty()) {
+            val mediaItems = queue.map { item ->
+                val itemUri = (item["uri"] as? String) ?: uriString
+                val itemTitle = (item["title"] as? String) ?: title
+                val itemArtist = (item["artist"] as? String) ?: artist
+                val itemAlbum = (item["album"] as? String) ?: album
+                val itemArt = (item["artworkUri"] as? String) ?: artworkUri
+                createMediaItem(itemUri, itemTitle, itemArtist, itemAlbum, itemArt)
             }
-        } catch (e: Exception) {
-            android.util.Log.w("LAYAM_NATIVE", "[LAYAM_NATIVE] URI inspect: ${e.message}")
+            val validIndex = queueIndex.coerceIn(0, mediaItems.size - 1)
+            exo.setMediaItems(mediaItems, validIndex, initialPositionMs)
+        } else {
+            val singleItem = createMediaItem(uriString, title, artist, album, artworkUri)
+            exo.setMediaItem(singleItem)
+            if (initialPositionMs > 0) {
+                exo.seekTo(initialPositionMs)
+            }
         }
 
-        val metadata = MediaMetadata.Builder()
-            .setTitle(title ?: "Unknown Track")
-            .setArtist(artist ?: "Unknown Artist")
-            .setAlbumTitle(album ?: "Layam Vault")
-            .apply {
-                if (!artworkUri.isNullOrBlank()) {
-                    setArtworkUri(Uri.parse(artworkUri))
-                }
-            }
-            .build()
-
-        val mediaItem = MediaItem.Builder()
-            .setUri(mediaUri)
-            .setMediaMetadata(metadata)
-            .build()
-
-        exo.setMediaItem(mediaItem)
-
-        if (initialPositionMs > 0) {
-            exo.seekTo(initialPositionMs)
-        }
+        exo.repeatMode = Player.REPEAT_MODE_ALL
         exo.prepare()
 
         updatePlayerVolume()
@@ -366,6 +463,35 @@ class LayamAudioPlayerManager private constructor(private val context: Context) 
 
         if (equalizer == null) {
             attachAudioEffects()
+        }
+    }
+
+    fun skipToNext() {
+        val exo = getPlayer()
+        if (exo.hasNextMediaItem()) {
+            exo.seekToNextMediaItem()
+        } else if (exo.mediaItemCount > 0) {
+            exo.seekTo(0, 0L)
+        }
+    }
+
+    fun skipToPrevious() {
+        val exo = getPlayer()
+        if (exo.currentPosition > 3000L) {
+            exo.seekTo(0L)
+        } else if (exo.hasPreviousMediaItem()) {
+            exo.seekToPreviousMediaItem()
+        } else if (exo.mediaItemCount > 0) {
+            exo.seekTo(exo.mediaItemCount - 1, 0L)
+        }
+    }
+
+    fun setRepeatMode(mode: String) {
+        val exo = getPlayer()
+        exo.repeatMode = when (mode.lowercase()) {
+            "one", "track" -> Player.REPEAT_MODE_ONE
+            "off", "none" -> Player.REPEAT_MODE_OFF
+            else -> Player.REPEAT_MODE_ALL
         }
     }
 

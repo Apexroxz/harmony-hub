@@ -38,8 +38,8 @@ export function cleanAudioText(text: string): string {
   if (!text) return "";
   let clean = decodeHtmlEntities(text);
 
-  // Replace underscores and consecutive spaces with single space
-  clean = clean.replace(/_/g, " ").replace(/\s+/g, " ");
+  // Normalize consecutive spaces
+  clean = clean.replace(/\s+/g, " ");
 
   // Remove common downloader / ripper tags and timestamps
   clean = clean
@@ -212,11 +212,216 @@ export async function extractAudioMetadata(file: File): Promise<ExtractedMetadat
     if (probeView.byteLength >= 4 && probeView.getUint8(0) === 0x66 && probeView.getUint8(1) === 0x4c && probeView.getUint8(2) === 0x61 && probeView.getUint8(3) === 0x43) {
       await parseFlacMetadata(file, result);
     }
-  } catch (err) {
-    console.warn("Audio metadata extraction warning for file:", file.name, err);
+
+    // ── MP4 / M4A / ALAC / AAC Atoms (ftyp / moov) ──
+    if (probeView.byteLength >= 8) {
+      const typeStr = String.fromCharCode(
+        probeView.getUint8(4),
+        probeView.getUint8(5),
+        probeView.getUint8(6),
+        probeView.getUint8(7)
+      );
+      if (typeStr === "ftyp" || typeStr === "moov") {
+        await parseMp4Metadata(file, result);
+      }
+    }
+
+    // ── WAV / RIFF Audio Container (RIFF....WAVE) ──
+    if (
+      probeView.byteLength >= 12 &&
+      probeView.getUint8(0) === 0x52 && probeView.getUint8(1) === 0x49 && probeView.getUint8(2) === 0x46 && probeView.getUint8(3) === 0x46 &&
+      probeView.getUint8(8) === 0x57 && probeView.getUint8(9) === 0x41 && probeView.getUint8(10) === 0x56 && probeView.getUint8(11) === 0x45
+    ) {
+      await parseWavMetadata(file, result);
+    }
+
+    // ── OGG Vorbis / Opus (OggS) ──
+    if (
+      probeView.byteLength >= 4 &&
+      probeView.getUint8(0) === 0x4f && probeView.getUint8(1) === 0x67 && probeView.getUint8(2) === 0x67 && probeView.getUint8(3) === 0x53
+    ) {
+      await parseOggMetadata(file, result);
+    }
+  } catch {
+    // Silent failure on malformed metadata headers
   }
 
   return sanitizeExtractedMetadata(result, file.name);
+}
+
+async function parseMp4Metadata(file: File, result: ExtractedMetadata) {
+  try {
+    // Read up to 8MB for MP4 header atoms
+    const headerBuffer = await file.slice(0, Math.min(file.size, 8 * 1024 * 1024)).arrayBuffer();
+    const view = new DataView(headerBuffer);
+    const decoder = new TextDecoder("utf-8");
+
+    let offset = 0;
+    while (offset + 8 <= headerBuffer.byteLength) {
+      const atomSize = view.getUint32(offset);
+      const atomType = decoder.decode(new Uint8Array(headerBuffer, offset + 4, 4));
+      if (atomSize <= 0 || offset + atomSize > headerBuffer.byteLength) break;
+
+      if (atomType === "moov") {
+        findIlstInMoov(headerBuffer, offset + 8, atomSize - 8, result);
+        break;
+      }
+      offset += atomSize;
+    }
+  } catch {}
+}
+
+function findIlstInMoov(buffer: ArrayBuffer, start: number, length: number, result: ExtractedMetadata) {
+  const view = new DataView(buffer);
+  const decoder = new TextDecoder("utf-8");
+  let offset = start;
+  const end = start + length;
+
+  while (offset + 8 <= end) {
+    const size = view.getUint32(offset);
+    if (size <= 0 || offset + size > end) break;
+    const type = decoder.decode(new Uint8Array(buffer, offset + 4, 4));
+
+    if (type === "udta" || type === "meta") {
+      const innerStart = type === "meta" ? offset + 12 : offset + 8; // meta has 4 bytes flags/version
+      findIlstInMoov(buffer, innerStart, size - (innerStart - offset), result);
+    } else if (type === "ilst") {
+      parseIlstTags(buffer, offset + 8, size - 8, result);
+      return;
+    }
+    offset += size;
+  }
+}
+
+function parseIlstTags(buffer: ArrayBuffer, start: number, length: number, result: ExtractedMetadata) {
+  const view = new DataView(buffer);
+  const decoder = new TextDecoder("utf-8");
+  let offset = start;
+  const end = start + length;
+
+  while (offset + 8 <= end) {
+    const tagSize = view.getUint32(offset);
+    if (tagSize <= 0 || offset + tagSize > end) break;
+    const tagType = decoder.decode(new Uint8Array(buffer, offset + 4, 4));
+
+    // Inspect 'data' sub-atom inside tag
+    let subOffset = offset + 8;
+    const tagEnd = offset + tagSize;
+    while (subOffset + 8 <= tagEnd) {
+      const subSize = view.getUint32(subOffset);
+      const subType = decoder.decode(new Uint8Array(buffer, subOffset + 4, 4));
+      if (subSize <= 0 || subOffset + subSize > tagEnd) break;
+
+      if (subType === "data" && subSize >= 16) {
+        const typeFlags = view.getUint32(subOffset + 8);
+        const payloadLength = subSize - 16;
+        const payloadStart = subOffset + 16;
+
+        if (tagType === "©nam") {
+          result.title = decoder.decode(new Uint8Array(buffer, payloadStart, payloadLength)).trim();
+        } else if (tagType === "©ART" || tagType === "aART") {
+          result.artist = decoder.decode(new Uint8Array(buffer, payloadStart, payloadLength)).trim();
+        } else if (tagType === "©alb") {
+          result.album = decoder.decode(new Uint8Array(buffer, payloadStart, payloadLength)).trim();
+        } else if (tagType === "©day") {
+          result.year = decoder.decode(new Uint8Array(buffer, payloadStart, payloadLength)).trim();
+        } else if (tagType === "covr" && payloadLength > 0) {
+          // typeFlags 13 = JPEG, 14 = PNG
+          const mime = typeFlags === 14 ? "image/png" : "image/jpeg";
+          const imgBytes = new Uint8Array(buffer, payloadStart, payloadLength);
+          result.coverImage = uint8ArrayToDataUrl(imgBytes, mime);
+        }
+        break;
+      }
+      subOffset += subSize;
+    }
+
+    offset += tagSize;
+  }
+}
+
+async function parseWavMetadata(file: File, result: ExtractedMetadata) {
+  try {
+    const buffer = await file.slice(0, Math.min(file.size, 4 * 1024 * 1024)).arrayBuffer();
+    const view = new DataView(buffer);
+    const decoder = new TextDecoder("utf-8");
+    let offset = 12; // Skip 'RIFF' + size + 'WAVE'
+
+    while (offset + 8 <= buffer.byteLength) {
+      const chunkId = decoder.decode(new Uint8Array(buffer, offset, 4));
+      const chunkSize = view.getUint32(offset + 4, true);
+      offset += 8;
+      if (offset + chunkSize > buffer.byteLength) break;
+
+      if (chunkId === "fmt " && chunkSize >= 16) {
+        const sampleRate = view.getUint32(offset + 4, true);
+        const bitsPerSample = view.getUint16(offset + 14, true);
+        if (sampleRate > 0) result.sampleRate = sampleRate;
+        if (bitsPerSample > 0) result.bitDepth = bitsPerSample;
+      } else if (chunkId === "LIST" && chunkSize >= 4) {
+        const listType = decoder.decode(new Uint8Array(buffer, offset, 4));
+        if (listType === "INFO") {
+          let listOffset = offset + 4;
+          const listEnd = offset + chunkSize;
+          while (listOffset + 8 <= listEnd) {
+            const subId = decoder.decode(new Uint8Array(buffer, listOffset, 4));
+            const subSize = view.getUint32(listOffset + 4, true);
+            listOffset += 8;
+            if (listOffset + subSize > listEnd) break;
+            const textBytes = new Uint8Array(buffer, listOffset, subSize);
+            const val = decoder.decode(textBytes).replace(/\0/g, "").trim();
+            if (subId === "INAM") result.title = val;
+            else if (subId === "IART") result.artist = val;
+            else if (subId === "IPRD") result.album = val;
+            listOffset += subSize + (subSize % 2); // 2-byte word align
+          }
+        }
+      } else if (chunkId === "id3 " || chunkId === "ID3 ") {
+        // Embedded ID3 chunk in WAV
+        // Will have standard ID3 header
+      }
+
+      offset += chunkSize + (chunkSize % 2); // 2-byte word align
+    }
+  } catch {}
+}
+
+async function parseOggMetadata(file: File, result: ExtractedMetadata) {
+  try {
+    const buffer = await file.slice(0, Math.min(file.size, 1 * 1024 * 1024)).arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    const decoder = new TextDecoder("utf-8");
+    const headerStr = decoder.decode(bytes);
+
+    // Look for vorbis comment header pattern or METADATA_BLOCK_PICTURE
+    const picMatch = headerStr.match(/METADATA_BLOCK_PICTURE=([A-Za-z0-9+/=]+)/);
+    if (picMatch && picMatch[1]) {
+      try {
+        const binStr = atob(picMatch[1]);
+        const picBytes = new Uint8Array(binStr.length);
+        for (let i = 0; i < binStr.length; i++) picBytes[i] = binStr.charCodeAt(i);
+        const picView = new DataView(picBytes.buffer);
+        if (picBytes.length >= 32) {
+          const mimeLen = picView.getUint32(4);
+          let mime = "image/jpeg";
+          if (mimeLen > 0 && 8 + mimeLen < picBytes.length) {
+            mime = new TextDecoder("ascii").decode(picBytes.subarray(8, 8 + mimeLen)) || "image/jpeg";
+          }
+          const descLenOffset = 8 + mimeLen;
+          const descLen = picView.getUint32(descLenOffset);
+          const dataLenOffset = descLenOffset + 4 + descLen + 16;
+          if (dataLenOffset + 4 <= picBytes.length) {
+            const picDataLen = picView.getUint32(dataLenOffset);
+            const picDataStart = dataLenOffset + 4;
+            if (picDataStart + picDataLen <= picBytes.length) {
+              const rawImg = picBytes.subarray(picDataStart, picDataStart + picDataLen);
+              result.coverImage = uint8ArrayToDataUrl(rawImg, mime);
+            }
+          }
+        }
+      } catch {}
+    }
+  } catch {}
 }
 
 async function parseFlacMetadata(file: File, result: ExtractedMetadata) {

@@ -54,10 +54,10 @@ test.describe("Master EQ Hardware Bypass Live Verification Suite", () => {
 
     const fileInput = page.locator('header input[type="file"]').first();
     await fileInput.setInputFiles(testWavPath);
-    await expect(page.getByText(/layam_bypass_test/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/layam[ _]bypass[ _]test/i).first()).toBeVisible({ timeout: 10000 });
 
     // 3. Start playback
-    await page.getByText(/layam_bypass_test/i).first().click();
+    await page.getByText(/layam[ _]bypass[ _]test/i).first().click();
     await page.waitForTimeout(1000);
 
     // 4. Open Audio Console

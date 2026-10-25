@@ -66,6 +66,7 @@ export function PlayerBar() {
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverPercent, setHoverPercent] = useState<number>(0);
   const [prevVolume, setPrevVolume] = useState<number>(0.8);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   const toggleMute = () => {
     if (volume > 0) {
@@ -123,10 +124,11 @@ export function PlayerBar() {
               variant="ghost"
               size="sm"
               onClick={toggleConsole}
+              aria-label="Audio Console"
               className="h-8 rounded-[8px] bg-[#111216] hover:bg-[#16181e] px-3 text-xs font-mono font-medium text-[#9ba1ad] hover:text-[#f2f3f5]"
             >
               <Sliders className="h-3.5 w-3.5 mr-1.5 stroke-[1.75] text-[#e59e38]" />
-              Console
+              Audio Console
             </Button>
           </div>
         </div>
@@ -135,7 +137,6 @@ export function PlayerBar() {
   }
 
   const formatLabel = currentTrack.format || currentTrack.quality || "AUDIO";
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   const handleMiniPlayerTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.touches[0].clientX);
@@ -163,12 +164,12 @@ export function PlayerBar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed bottom-[74px] sm:bottom-[84px] right-3 sm:right-6 z-40 w-[94vw] sm:w-96 rounded-[14px] border border-white/[0.07] bg-[#16181e]/98 backdrop-blur-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] overflow-hidden"
+            className="fixed bottom-[max(4.75rem,calc(env(safe-area-inset-bottom)+4.5rem))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 w-[94vw] sm:w-96 rounded-[14px] border border-[var(--border-subtle,rgba(255,255,255,0.07))] bg-[var(--surface-raised,#16181e)]/98 backdrop-blur-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] overflow-hidden"
           >
-            <div className="flex items-center justify-between border-b border-white/[0.07] p-3.5 bg-[#111216]">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] p-3.5 bg-[var(--surface-charcoal,#111216)]">
               <div className="flex items-center gap-2">
                 <ListMusic className="h-4 w-4 stroke-[1.75] text-[#e59e38]" />
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[#f2f3f5]">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary,#f2f3f5)]">
                   Queue ({queue.length})
                 </h3>
               </div>
@@ -177,7 +178,7 @@ export function PlayerBar() {
                   variant="ghost"
                   size="sm"
                   onClick={clearQueue}
-                  className="h-7 px-2 text-[10px] text-[#9ba1ad] hover:text-[#C6604F] font-mono"
+                  className="h-7 px-2 text-[10px] text-[var(--text-secondary,#9ba1ad)] hover:text-[#C6604F] font-mono"
                   title="Clear Queue"
                 >
                   <Trash2 className="h-3.5 w-3.5 mr-1 stroke-[1.75]" /> Clear
@@ -186,7 +187,7 @@ export function PlayerBar() {
                   variant="ghost"
                   size="icon"
                   onClick={() => setQueueOpen(false)}
-                  className="h-7 w-7 text-[#9ba1ad] hover:text-[#f2f3f5] rounded-[6px]"
+                  className="h-7 w-7 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[6px]"
                 >
                   <X className="h-4 w-4 stroke-[1.75]" />
                 </Button>
@@ -195,65 +196,45 @@ export function PlayerBar() {
 
             <ul className="max-h-[46vh] overflow-y-auto p-2 space-y-1">
               {queue.length === 0 && (
-                <li className="px-4 py-8 text-center text-xs font-mono text-[#6b7280]">
+                <li className="px-4 py-8 text-center text-xs font-mono text-[var(--text-secondary,#9ba1ad)]">
                   Queue is empty
                 </li>
               )}
               {queue.map((track, i) => (
-                <li key={`${track.id}-${i}`}>
+                <li
+                  key={`${track.id}-${i}`}
+                  className={cn(
+                    "group flex items-center justify-between rounded-[8px] p-2 text-xs transition-colors",
+                    i === queueIndex
+                      ? "bg-[var(--surface-active,#1e2027)] text-[#e59e38] font-bold"
+                      : "text-[var(--text-secondary,#9ba1ad)] hover:bg-[var(--surface-charcoal,#111216)] hover:text-[var(--text-primary,#f2f3f5)]"
+                  )}
+                >
                   <div
-                    className={cn(
-                      "group flex items-center justify-between gap-3 rounded-[10px] p-2 transition-colors cursor-pointer",
-                      i === queueIndex
-                        ? "bg-[#1e2027]"
-                        : "hover:bg-[#111216]"
-                    )}
+                    onClick={() => playFromQueue(i)}
+                    className="flex flex-1 items-center gap-2 min-w-0 cursor-pointer"
                   >
-                    <button
-                      onClick={() => playFromQueue(i)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer"
-                    >
-                      <img
-                        src={track.coverImage || "/placeholder.svg"}
-                        alt=""
-                        className="h-9 w-9 rounded-[6px] object-cover shrink-0 bg-[#060708]"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <span
-                          className={cn(
-                            "block truncate text-xs font-medium",
-                            i === queueIndex ? "text-[#e59e38]" : "text-[#f2f3f5]"
-                          )}
-                        >
-                          {track.title}
-                        </span>
-                        <span className="block truncate text-[11px] text-[var(--text-secondary,#9ba1ad)] mt-0.5">
-                          {track.artistName} ·{" "}
-                          <span className="font-mono text-[9px] text-[var(--text-tertiary,#6b7280)] uppercase">
-                            {track.format || track.quality || "AUDIO"}
-                          </span>
-                        </span>
-                      </div>
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-[var(--text-tertiary,#6b7280)]">
-                        {formatDuration(track.duration)}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove from queue"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFromQueue(i);
-                        }}
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 rounded-[6px] shrink-0 text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)]"
-                      >
-                        <X className="h-3.5 w-3.5 stroke-[1.75]" />
-                      </Button>
+                    <span className="w-5 text-right font-mono text-[10px] text-[var(--text-secondary,#9ba1ad)]">
+                      {i === queueIndex ? "▶" : `${i + 1}`}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{track.title}</p>
+                      <p className="truncate text-[10px] text-[var(--text-secondary,#9ba1ad)]">
+                        {track.artistName || track.artist}
+                      </p>
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromQueue(i);
+                    }}
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 rounded-[6px] shrink-0 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)]"
+                  >
+                    <X className="h-3.5 w-3.5 stroke-[1.75]" />
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -261,7 +242,7 @@ export function PlayerBar() {
         )}
       </AnimatePresence>
 
-      <div className="fixed bottom-2 left-2 right-2 sm:bottom-0 sm:left-0 sm:right-0 z-40 rounded-[14px] sm:rounded-none border border-[var(--border-subtle,rgba(255,255,255,0.07))] sm:border-t sm:border-x-0 sm:border-b-0 bg-[var(--surface-raised,#16181e)]/98 backdrop-blur-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] overflow-hidden">
+      <div className="fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-[max(0.5rem,env(safe-area-inset-left))] right-[max(0.5rem,env(safe-area-inset-right))] sm:bottom-0 sm:left-0 sm:right-0 sm:pb-[env(safe-area-inset-bottom)] sm:pl-[env(safe-area-inset-left)] sm:pr-[env(safe-area-inset-right)] z-40 rounded-[14px] sm:rounded-none border border-[var(--border-subtle,rgba(255,255,255,0.07))] sm:border-t sm:border-x-0 sm:border-b-0 bg-[var(--surface-raised,#16181e)]/98 backdrop-blur-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] overflow-hidden">
         {/* Mobile Top Scrub Progress Bar — Sunken Well with Restrained Amber Fill */}
         <div
           onClick={(e) => {
@@ -278,15 +259,17 @@ export function PlayerBar() {
           />
         </div>
 
-        <div className="mx-auto flex h-[62px] sm:h-[72px] max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 lg:px-8">
-          {/* Track Information: Clean & Spacious */}
+        <div className="mx-auto flex h-[60px] sm:h-[66px] max-w-7xl items-center justify-between gap-2 sm:gap-3 px-3 sm:px-6 lg:px-8">
+          {/* ── Left Section: Album Art & Track Identity (Bounded, max 26%) ── */}
           <div
             onTouchStart={handleMiniPlayerTouchStart}
             onTouchEnd={handleMiniPlayerTouchEnd}
             onClick={expandPlayer}
-            className="flex items-center gap-3 min-w-0 flex-1 md:w-[28%] md:flex-initial cursor-pointer select-none group"
+            className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 sm:flex-initial sm:w-[26%] max-w-[240px] shrink-0 cursor-pointer select-none group"
+            role="region"
+            aria-label="Current Track"
           >
-            <div className="relative h-11 w-11 shrink-0 rounded-[10px] overflow-hidden bg-[var(--surface-charcoal,#111216)] border border-[var(--border-subtle,rgba(255,255,255,0.07))]">
+            <div className="relative h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-[10px] overflow-hidden bg-[var(--surface-charcoal,#111216)] border border-[var(--border-subtle,rgba(255,255,255,0.07))] shadow-sm">
               {currentTrack.coverImage ? (
                 <img
                   src={currentTrack.coverImage}
@@ -301,11 +284,11 @@ export function PlayerBar() {
               )}
             </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs sm:text-sm font-medium text-[var(--text-primary,#f2f3f5)] tracking-tight group-hover:text-[#e59e38] transition-colors">
+            <div className="min-w-0 flex-1 pr-1 overflow-hidden" aria-live="polite">
+              <p className="truncate text-xs sm:text-sm font-semibold text-[var(--text-primary,#f2f3f5)] tracking-tight group-hover:text-[#e59e38] transition-colors">
                 {currentTrack.title}
               </p>
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-[var(--text-secondary,#9ba1ad)] mt-0.5">
+              <div className="flex items-center gap-1.5 text-[10.5px] sm:text-xs text-[var(--text-secondary,#9ba1ad)] mt-0.5 overflow-hidden">
                 <span className="truncate">
                   {currentTrack.artistName || currentTrack.artist || "Unknown Artist"}
                 </span>
@@ -330,7 +313,7 @@ export function PlayerBar() {
               </div>
             </div>
 
-            {/* Desktop Favorite Button */}
+            {/* Favorite Button (Tablet/Desktop) */}
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={async (e) => {
@@ -341,7 +324,7 @@ export function PlayerBar() {
                 });
               }}
               className={cn(
-                "hidden md:flex h-8 w-8 shrink-0 rounded-[8px] items-center justify-center transition-colors cursor-pointer",
+                "hidden sm:flex h-8 w-8 shrink-0 rounded-[8px] items-center justify-center transition-colors cursor-pointer",
                 isCurrentTrackFavorite
                   ? "text-[#C6604F] bg-[#C6604F]/10"
                   : "text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)]"
@@ -357,8 +340,8 @@ export function PlayerBar() {
             </motion.button>
           </div>
 
-          {/* Mobile Right Controls: Single Amber Play/Pause */}
-          <div className="flex md:hidden items-center gap-2 shrink-0">
+          {/* ── Mobile Portrait Only Controls (Play/Pause + Expand) ── */}
+          <div className="flex sm:hidden items-center gap-2 shrink-0">
             <motion.div whileTap={{ scale: 0.92 }}>
               <Button
                 size="icon"
@@ -367,7 +350,7 @@ export function PlayerBar() {
                   e.stopPropagation();
                   togglePlay();
                 }}
-                className="h-10 w-10 rounded-full bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] active:scale-95 transition-transform cursor-pointer"
+                className="h-10 w-10 rounded-full bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] active:scale-95 transition-transform cursor-pointer shadow-md flex items-center justify-center"
               >
                 {status === "loading" || status === "buffering" ? (
                   <Loader2 className="h-4 w-4 animate-spin text-[#090a0c]" />
@@ -380,57 +363,55 @@ export function PlayerBar() {
             </motion.div>
           </div>
 
-          {/* Desktop Center: Precision Transport & Waveform Seekbar */}
-          <div className="hidden md:flex flex-1 flex-col items-center gap-1 max-w-xl">
-            <div className="flex items-center gap-3">
+          {/* ── Center Section: Transport & Compact Waveform Seeker (Isolated flex-1) ── */}
+          <div className="hidden sm:flex flex-1 items-center justify-center gap-2 px-3 min-w-0 max-w-xs sm:max-w-sm md:max-w-md mx-auto">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Previous track"
+              onClick={playPrevious}
+              className="h-8 w-8 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-full transition-transform active:scale-92 shrink-0"
+            >
+              <SkipBack className="h-4 w-4 stroke-[2.25]" />
+            </Button>
+
+            <motion.div whileTap={{ scale: 0.92 }} className="shrink-0">
               <Button
-                variant="ghost"
                 size="icon"
-                aria-label="Previous track"
-                onClick={playPrevious}
-                className="h-8 w-8 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-full transition-transform active:scale-92"
+                aria-label={isPlaying ? "Pause" : "Play"}
+                onClick={togglePlay}
+                className="h-9 w-9 rounded-full bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] active:scale-95 transition-transform cursor-pointer shadow-md flex items-center justify-center"
               >
-                <SkipBack className="h-4 w-4 stroke-[2.25]" />
+                {status === "loading" || status === "buffering" ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#090a0c]" />
+                ) : isPlaying ? (
+                  <Pause className="h-4 w-4 fill-current stroke-[2.25] text-[#090a0c]" />
+                ) : (
+                  <Play className="h-4 w-4 fill-current stroke-[2.25] ml-0.5 text-[#090a0c]" />
+                )}
               </Button>
+            </motion.div>
 
-              <motion.div whileTap={{ scale: 0.92 }}>
-                <Button
-                  size="icon"
-                  aria-label={isPlaying ? "Pause" : "Play"}
-                  onClick={togglePlay}
-                  className="h-9 w-9 rounded-full bg-[#e59e38] text-[#090a0c] hover:bg-[#f0ab4d] active:scale-95 transition-transform cursor-pointer"
-                >
-                  {status === "loading" || status === "buffering" ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-[#090a0c]" />
-                  ) : isPlaying ? (
-                    <Pause className="h-4 w-4 fill-current stroke-[2.25] text-[#090a0c]" />
-                  ) : (
-                    <Play className="h-4 w-4 fill-current stroke-[2.25] ml-0.5 text-[#090a0c]" />
-                  )}
-                </Button>
-              </motion.div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Next track"
+              onClick={playNext}
+              className="h-8 w-8 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-full transition-transform active:scale-92 shrink-0"
+            >
+              <SkipForward className="h-4 w-4 stroke-[2.25]" />
+            </Button>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Next track"
-                onClick={playNext}
-                className="h-8 w-8 text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-full transition-transform active:scale-92"
-              >
-                <SkipForward className="h-4 w-4 stroke-[2.25]" />
-              </Button>
-            </div>
-
-            {/* Desktop Waveform & Seek Timeline */}
-            <div className="w-full items-center gap-2.5 flex">
-              <span className="w-10 text-right font-mono text-[10px] text-[var(--text-tertiary,#6b7280)] tabular-nums">
+            {/* Inline Waveform Timeline with Fixed-Width Timestamps */}
+            <div className="flex-1 flex items-center gap-1.5 min-w-0">
+              <span className="font-mono text-[9px] sm:text-[10px] text-[var(--text-secondary,#9ba1ad)] tabular-nums shrink-0 w-7 text-right">
                 {formatDuration(currentTime)}
               </span>
 
               <div
                 onMouseMove={handleSeekMouseMove}
                 onMouseLeave={handleSeekMouseLeave}
-                className="relative flex-1 group cursor-pointer py-1"
+                className="relative flex-1 group cursor-pointer py-1 min-w-[50px]"
               >
                 {hoverTime !== null && (
                   <div
@@ -445,45 +426,44 @@ export function PlayerBar() {
                   peaks={currentTrack.waveform}
                   progress={progress}
                   onSeek={seek}
-                  className="h-3 w-full"
+                  className="h-3.5 w-full"
                 />
               </div>
 
-              <span className="w-10 text-left font-mono text-[10px] text-[var(--text-tertiary,#6b7280)] tabular-nums">
+              <span className="font-mono text-[9px] sm:text-[10px] text-[var(--text-secondary,#9ba1ad)] tabular-nums shrink-0 w-7 text-left">
                 {formatDuration(duration)}
               </span>
             </div>
           </div>
 
-          {/* Desktop Right: Controls & Volume */}
-          <div className="hidden md:flex items-center justify-end gap-1.5 md:w-[28%]">
+          {/* ── Right Section: Audio Console, Queue, Volume & Fullscreen ── */}
+          <div className="hidden sm:flex items-center justify-end gap-1.5 shrink-0">
             {/* Audio Console / EQ Trigger */}
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={toggleConsole}
               className={cn(
-                "h-8 rounded-[8px] px-2.5 text-xs font-mono font-medium gap-1.5 transition-colors cursor-pointer",
+                "h-8 w-8 rounded-[8px] transition-colors cursor-pointer shrink-0 flex items-center justify-center",
                 eqEnabled
                   ? "bg-[#e59e38]/15 text-[#e59e38]"
                   : "bg-[var(--surface-charcoal,#111216)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)]"
               )}
               title="Studio DSP Console (E)"
             >
-              <Sliders className="h-3.5 w-3.5 stroke-[1.75] text-[#e59e38]" />
-              <span className="hidden xl:inline">Console</span>
+              <Sliders className="h-4 w-4 stroke-[1.75] text-[#e59e38]" />
             </Button>
 
             {/* Playback Rate Selector */}
-            <div className="relative">
+            <div className="relative hidden xl:block shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSpeedOpen((o) => !o)}
-                className="h-8 px-2 font-mono text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)]"
+                className="h-8 px-1.5 font-mono text-[11px] font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)]"
                 title="Playback Rate"
               >
-                <Gauge className="h-3.5 w-3.5 mr-1 stroke-[1.75] text-[var(--text-tertiary,#6b7280)]" />
+                <Gauge className="h-3 w-3 mr-0.5 stroke-[1.75] text-[var(--text-tertiary,#6b7280)]" />
                 {playbackRate}x
               </Button>
 
@@ -524,7 +504,7 @@ export function PlayerBar() {
               aria-label="Toggle playback queue"
               onClick={() => setQueueOpen((o) => !o)}
               className={cn(
-                "h-8 w-8 rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] relative transition-colors cursor-pointer",
+                "h-8 w-8 rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] relative transition-colors cursor-pointer shrink-0 flex items-center justify-center",
                 queueOpen && "text-[#e59e38] bg-[var(--surface-active,#1e2027)]"
               )}
               title="Queue"
@@ -535,22 +515,10 @@ export function PlayerBar() {
               )}
             </Button>
 
-            {/* Expand Fullscreen */}
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Expand Audiophile Player"
-              onClick={expandPlayer}
-              className="h-8 w-8 rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] transition-colors cursor-pointer"
-              title="Expand (F)"
-            >
-              <Maximize2 className="h-4 w-4 stroke-[1.75]" />
-            </Button>
-
-            {/* Precision Volume */}
+            {/* Precision Volume Slider */}
             <div
               onWheel={handleVolumeWheel}
-              className="flex items-center gap-1.5 pl-1"
+              className="flex items-center gap-1 shrink-0"
               title="Volume"
             >
               <Button
@@ -558,7 +526,8 @@ export function PlayerBar() {
                 size="icon"
                 aria-label={volume === 0 ? "Unmute" : "Mute"}
                 onClick={toggleMute}
-                className="h-8 w-8 text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[8px] cursor-pointer"
+                className="h-8 w-8 text-[var(--text-tertiary,#6b7280)] hover:text-[var(--text-primary,#f2f3f5)] rounded-[8px] cursor-pointer flex items-center justify-center"
+                title={volume === 0 ? "Unmute (M)" : "Mute (M)"}
               >
                 {volume === 0 ? (
                   <VolumeX className="h-4 w-4 stroke-[1.75] text-[#C6604F]" />
@@ -572,10 +541,22 @@ export function PlayerBar() {
                 max={100}
                 step={1}
                 onValueChange={(vals) => setVolume(vals[0] / 100)}
-                className="w-20"
+                className="w-16 hidden lg:flex"
                 aria-label="Playback Volume"
               />
             </div>
+
+            {/* Expand Fullscreen Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Expand Audiophile Player"
+              onClick={expandPlayer}
+              className="h-8 w-8 rounded-[8px] bg-[var(--surface-charcoal,#111216)] hover:bg-[var(--surface-raised,#16181e)] text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] transition-colors cursor-pointer shrink-0 flex items-center justify-center"
+              title="Expand Full Audiophile Cockpit (F)"
+            >
+              <Maximize2 className="h-4 w-4 stroke-[1.75]" />
+            </Button>
           </div>
         </div>
       </div>

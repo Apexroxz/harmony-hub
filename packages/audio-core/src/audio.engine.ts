@@ -1,5 +1,5 @@
 import type { Track } from "@/domain/music/types";
-import { getAudioBlobUrl, getNativeAudioUri } from "../../storage-core/src/indexedDbAudio";
+import { getAudioBlobUrl, getNativeAudioUri, getDB, STORES } from "../../storage-core/src/indexedDbAudio";
 import { getGuaranteedAudioUrl } from "./synthAudio";
 import { globalDspEngine, type SoundProfile, type SpatialRoomPreset } from "./dsp.engine";
 import { androidMedia3, LayamNativeAudio } from "./native/android-media3.bridge";
@@ -49,6 +49,9 @@ export class AudioEngine {
   private listeners = new Set<() => void>();
   private sleepTimerInterval: ReturnType<typeof setInterval> | null = null;
   private preFadeVolume = 0.8;
+  // Native position polling ticker (setInterval handle — NOT rAF for battery efficiency)
+  private nativeTickerIntervalId: ReturnType<typeof setInterval> | null = null;
+  private activeBlobUrl: string | null = null;
   public onPlayRecorded?: (track: Track, durationSec: number) => void;
 
   public state: AudioEngineState = {
@@ -105,7 +108,6 @@ export class AudioEngine {
     try {
       const nativeState = await androidMedia3.getPlaybackState();
       if (nativeState) {
-        console.log("[LAYAM_JS] syncNativeState result:", nativeState);
         const dur = nativeState.durationMs > 0 ? nativeState.durationMs / 1000 : (this.state.duration || 0);
         const pos = nativeState.positionMs > 0 ? nativeState.positionMs / 1000 : (this.state.currentTime || 0);
         const progress = dur > 0 ? Math.min(100, (pos / dur) * 100) : 0;
@@ -132,9 +134,7 @@ export class AudioEngine {
           ...(track ? { currentTrack: track } : {}),
         });
       }
-    } catch (e) {
-      console.warn("[AudioEngine] syncNativeState error:", e);
-    }
+    } catch {}
   }
 
   private initAudioElement(): HTMLAudioElement {
@@ -152,35 +152,42 @@ export class AudioEngine {
     return this.audio;
   }
 
-  private nativePositionTimer: ReturnType<typeof setInterval> | null = null;
-
   private startNativePositionTicker(): void {
     this.stopNativePositionTicker();
     if (typeof window === "undefined" || !androidMedia3.isNativeAndroid()) return;
 
-    this.nativePositionTimer = setInterval(async () => {
-      if (!this.state.isPlaying) return;
+    // High-precision 100ms ticker for liquid smooth real-time progress syncing with Android Media3
+    this.nativeTickerIntervalId = setInterval(async () => {
+      if (!this.state.isPlaying) {
+        this.stopNativePositionTicker();
+        return;
+      }
       try {
-        const res = (LayamNativeAudio.getPosition ? await LayamNativeAudio.getPosition() : await androidMedia3.getPlaybackState()) as { positionMs?: number; durationMs?: number } | null;
+        const res = await LayamNativeAudio.getPosition();
         if (res && typeof res.positionMs === "number") {
           const curSec = res.positionMs / 1000;
-          const durSec = (res.durationMs && res.durationMs > 0) ? res.durationMs / 1000 : (this.state.duration || this.state.currentTrack?.duration || 0);
+          const durSec =
+            res.durationMs && res.durationMs > 0
+              ? res.durationMs / 1000
+              : this.state.duration || this.state.currentTrack?.duration || 0;
           const pct = durSec > 0 ? Math.min(100, (curSec / durSec) * 100) : 0;
-
           this.setState({
             currentTime: curSec,
             duration: durSec,
             progress: pct,
+            ...(typeof res.isPlaying === "boolean" && res.isPlaying !== this.state.isPlaying
+              ? { isPlaying: res.isPlaying, status: res.isPlaying ? "playing" : "paused" }
+              : {}),
           });
         }
       } catch {}
-    }, 50);
+    }, 100);
   }
 
   private stopNativePositionTicker(): void {
-    if (this.nativePositionTimer) {
-      clearInterval(this.nativePositionTimer);
-      this.nativePositionTimer = null;
+    if (this.nativeTickerIntervalId != null) {
+      clearInterval(this.nativeTickerIntervalId);
+      this.nativeTickerIntervalId = null;
     }
   }
 
@@ -188,7 +195,6 @@ export class AudioEngine {
     if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
       try {
         LayamNativeAudio.addListener("onPlaybackStateChanged", (data) => {
-          console.log(`[LAYAM_JS] native playback state received: isPlaying=${data.isPlaying} state=${data.state} posMs=${data.positionMs} durMs=${data.durationMs}`);
           const isPlay = data.isPlaying;
           this.setState({
             isPlaying: isPlay,
@@ -205,7 +211,6 @@ export class AudioEngine {
         });
 
         LayamNativeAudio.addListener("onPositionDiscontinuity", (data) => {
-          console.log(`[LAYAM_JS] native position discontinuity: posMs=${data.positionMs}`);
           const dur = this.state.duration || 0;
           this.setState({
             currentTime: data.positionMs / 1000,
@@ -214,7 +219,6 @@ export class AudioEngine {
         });
 
         LayamNativeAudio.addListener("onTrackChanged", (data) => {
-          console.log(`[LAYAM_JS] native track changed:`, data);
           if (data.title) {
             const dur = data.durationMs > 0 ? data.durationMs / 1000 : (this.state.duration || 0);
             const current = this.state.currentTrack;
@@ -236,7 +240,6 @@ export class AudioEngine {
         });
 
         LayamNativeAudio.addListener("onError", (data) => {
-          console.error(`[LAYAM_JS] native error received: code=${data.errorCode} msg=${data.errorMessage}`);
           this.stopNativePositionTicker();
           this.setState({
             status: "error",
@@ -244,9 +247,7 @@ export class AudioEngine {
             isPlaying: false,
           });
         });
-      } catch (err) {
-        console.warn("[AudioEngine] Native listener attachment note:", err);
-      }
+      } catch {}
     }
 
     const a = this.audio;
@@ -348,36 +349,49 @@ export class AudioEngine {
       errorMessage: null,
     });
 
+    // Record Play History in IndexedDB for Recent Masters & Analytics
+    void this.recordPlayHistory(track.id);
+
     try {
-      localStorage.setItem("layam_current_track", JSON.stringify(track));
+      // Strip large data URLs before storing current track snapshot in localStorage
+      const cleanTrackForStorage = {
+        ...track,
+        coverImage: track.coverImage && track.coverImage.startsWith("data:") ? "" : (track.coverImage || ""),
+        audioUrl: "",
+      };
+      localStorage.setItem("layam_current_track", JSON.stringify(cleanTrackForStorage));
     } catch {}
 
-    // Resolve audio URL: for local/offline tracks, ALWAYS get a live fresh blob URL from active memory or IndexedDB
+    // Resolve audio URL: for any track stored in local IndexedDB vault, resolve live fresh blob URL
     let finalAudioUrl = "";
 
-    if (track.source === "offline" || track.id.startsWith("local-")) {
-      try {
-        const liveBlobUrl = await getAudioBlobUrl(track.id);
-        if (liveBlobUrl) {
-          finalAudioUrl = liveBlobUrl;
-          track.audioUrl = liveBlobUrl;
+    try {
+      const liveBlobUrl = await getAudioBlobUrl(track.id);
+      if (liveBlobUrl) {
+        // Revoke the previous blob URL to free its backing ArrayBuffer from memory.
+        // Without this, every track play accumulates an unreleased blob URL holding
+        // the full audio file in memory — catastrophic on long sessions with hi-res files.
+        if (this.activeBlobUrl && this.activeBlobUrl !== liveBlobUrl) {
+          try { URL.revokeObjectURL(this.activeBlobUrl); } catch {}
         }
-      } catch (err) {
-        console.warn("[AudioEngine] Blob resolution note:", err);
+        this.activeBlobUrl = liveBlobUrl;
+        finalAudioUrl = liveBlobUrl;
+        track.audioUrl = liveBlobUrl;
       }
-    } else if (track.audioUrl && !track.audioUrl.startsWith("blob:")) {
+    } catch {}
+
+    if (!finalAudioUrl && track.audioUrl && !track.audioUrl.startsWith("blob:")) {
       finalAudioUrl = track.audioUrl;
     }
 
     // Only fallback to synth/online demo if NOT an imported local file
-    if (!finalAudioUrl && track.source !== "offline" && !track.id.startsWith("local-imported-")) {
+    if (!finalAudioUrl && track.source !== "offline" && !track.id.startsWith("local-")) {
       finalAudioUrl = getGuaranteedAudioUrl(track);
     }
 
     if (seq !== this.loadSeq) return;
 
     if (!finalAudioUrl) {
-      console.warn("[AudioEngine] No audio URL found for track:", track.id);
       this.setState({
         status: "error",
         isLoading: false,
@@ -399,7 +413,6 @@ export class AudioEngine {
     if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
       const hasPerm = await androidMedia3.ensureAudioPermission();
       if (!hasPerm) {
-        console.warn("[LAYAM_JS] Audio playback blocked: permission not granted");
         this.setState({
           status: "error",
           isLoading: false,
@@ -415,10 +428,6 @@ export class AudioEngine {
       if (!nativeUri) {
         nativeUri = finalAudioUrl;
       }
-      console.log(`[LAYAM_JS] Play click: trackId=${track.id} title=${track.title} resolvedUri=${nativeUri}`);
-      if (nativeUri.startsWith("blob:")) {
-        console.warn(`[LAYAM_JS] WARNING: URI is blob URL on Android: ${nativeUri}`);
-      }
 
       // ReplayGain resolution: prefer album gain if queue is an album context, otherwise track gain
       const isAlbumContext = finalQueue.length > 1 && finalQueue.every((t) => (t as any).album && (t as any).album === (track as any).album);
@@ -426,6 +435,19 @@ export class AudioEngine {
         ? (track as any).replayGainAlbum
         : ((track as any).replayGainTrack ?? 0);
       const effectiveReplayGainPeak = (track as any).replayGainPeak ?? 1.0;
+
+      // Map queue to native payload so ExoPlayer timeline has all items
+      const qIndex = Math.max(0, finalQueue.findIndex((t) => t.id === track.id));
+      const nativeQueue = finalQueue.map((t) => {
+        const tUri = getNativeAudioUri(t.id) || (t as any).nativeUri || (t as any).contentUri || t.audioUrl || "";
+        return {
+          uri: tUri,
+          title: t.title,
+          artist: t.artist,
+          album: t.album || "Layam Vault",
+          artworkUri: t.coverImage,
+        };
+      }).filter((t) => !!t.uri);
 
       void androidMedia3.playTrack({
         uri: nativeUri,
@@ -436,6 +458,8 @@ export class AudioEngine {
         positionMs: 0,
         replayGainDb: effectiveReplayGainDb,
         replayGainPeak: effectiveReplayGainPeak,
+        queue: nativeQueue.length > 0 ? nativeQueue : undefined,
+        queueIndex: qIndex,
       });
       this.setState({
         isPlaying: true,
@@ -468,9 +492,6 @@ export class AudioEngine {
       }
     } catch (err: unknown) {
       const isAbort = (err as { name?: string })?.name === "AbortError";
-      if (!isAbort) {
-        console.warn("[AudioEngine] Playback failed:", err);
-      }
       if (seq === this.loadSeq && !isAbort) {
         this.setState({ isPlaying: false, isLoading: false, status: "paused" });
       }
@@ -479,6 +500,24 @@ export class AudioEngine {
         this.playPromise = null;
       }
     }
+  }
+
+  private async recordPlayHistory(trackId: string): Promise<void> {
+    if (typeof window === "undefined") return;
+    try {
+      const db = await getDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORES.PLAY_HISTORY, "readwrite");
+        const store = tx.objectStore(STORES.PLAY_HISTORY);
+        const req = store.put({
+          id: `play-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          trackId,
+          timestamp: Date.now(),
+        });
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    } catch {}
   }
 
   public togglePlay(): void {
@@ -522,6 +561,12 @@ export class AudioEngine {
     }
 
     if (!this.audio) return;
+    if (!this.audio.src || this.audio.src.endsWith("/") || this.audio.src === window?.location?.href) {
+      if (this.state.currentTrack) {
+        void this.playTrack(this.state.currentTrack);
+        return;
+      }
+    }
     if (this.playPromise) return;
 
     globalDspEngine.init(this.audio);
@@ -533,18 +578,13 @@ export class AudioEngine {
         .then(() => {
           this.setState({ isPlaying: true, status: "playing" });
         })
-        .catch((err: unknown) => {
-          const isAbort = (err as { name?: string })?.name === "AbortError";
-          if (!isAbort) {
-            console.warn("[AudioEngine] Resume failed:", err);
-          }
+        .catch(() => {
+          this.setState({ isPlaying: false, status: "paused" });
         })
         .finally(() => {
           this.playPromise = null;
         });
-    } catch (err) {
-      console.warn("[AudioEngine] Resume exception:", err);
-    }
+    } catch {}
   }
 
   private lastSeekTimestamp: number = 0;
@@ -593,7 +633,7 @@ export class AudioEngine {
   }
 
   public seekRelative(deltaSeconds: number): void {
-    const cur = this.state.currentTime;
+    const cur = this.audio && !isNaN(this.audio.currentTime) ? this.audio.currentTime : this.state.currentTime;
     this.seekToTime(cur + deltaSeconds, true);
   }
 
@@ -713,13 +753,18 @@ export class AudioEngine {
     this.setState({ queue: [], queueIndex: -1 });
   }
 
-  // DSP Delegations
+  // ── DSP Delegations (Bridged to Web Audio DSP & Android AudioFX) ──
+
   public setEqGain(bandIndex: number, gainDb: number): void {
     const nextGains = [...this.state.eqGains];
     nextGains[bandIndex] = gainDb;
     globalDspEngine.setEqGain(bandIndex, gainDb);
     if (!this.state.eqEnabled) {
       globalDspEngine.setBypass(false);
+    }
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setEqualizerGains(nextGains);
+      void androidMedia3.setEqualizerEnabled(true);
     }
     this.setState({ eqGains: nextGains, eqPreset: "Custom", eqEnabled: true });
   }
@@ -729,6 +774,10 @@ export class AudioEngine {
     if (!this.state.eqEnabled) {
       globalDspEngine.setBypass(false);
     }
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setEqualizerGains(gains);
+      void androidMedia3.setEqualizerEnabled(true);
+    }
     this.setState({ eqGains: [...gains], eqPreset: presetName, eqEnabled: true });
   }
 
@@ -737,11 +786,18 @@ export class AudioEngine {
     if (!this.state.eqEnabled) {
       globalDspEngine.setBypass(false);
     }
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setEqualizerGains(gains);
+      void androidMedia3.setEqualizerEnabled(true);
+    }
     this.setState({ eqPreset: preset, eqGains: gains, eqEnabled: true });
   }
 
   public setEqEnabled(enabled: boolean): void {
     globalDspEngine.setBypass(!enabled);
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setEqualizerEnabled(enabled);
+    }
     this.setState({ eqEnabled: enabled });
   }
 
@@ -752,6 +808,9 @@ export class AudioEngine {
 
   public setBassBoostLevel(level: number): void {
     globalDspEngine.setBassBoost(level);
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setBassBoostStrength(Math.round(level * 100));
+    }
     this.setState({ bassBoostLevel: level });
   }
 
@@ -762,12 +821,18 @@ export class AudioEngine {
 
   public setStereoWidth(width: number): void {
     globalDspEngine.setStereoWidth(width);
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setVirtualizerStrength(Math.round(width * 666));
+    }
     this.setState({ stereoWidth: width });
   }
 
   public toggleNormalizer(): void {
     const next = !this.state.normalizerEnabled;
     globalDspEngine.setNormalizer(next);
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setNormalizerEnabled(next);
+    }
     this.setState({ normalizerEnabled: next });
   }
 
@@ -793,6 +858,14 @@ export class AudioEngine {
     globalDspEngine.setNormalizer(profile.normalizerEnabled);
     globalDspEngine.setSpatialMode(profile.spatialMode, profile.spatialAmbience);
 
+    if (typeof window !== "undefined" && androidMedia3.isNativeAndroid()) {
+      void androidMedia3.setEqualizerGains(profile.eqGains);
+      void androidMedia3.setBassBoostStrength(Math.round(profile.bassBoostLevel * 100));
+      void androidMedia3.setVirtualizerStrength(Math.round(profile.stereoWidth * 666));
+      void androidMedia3.setNormalizerEnabled(profile.normalizerEnabled);
+      void androidMedia3.setEqualizerEnabled(true);
+    }
+
     this.setState({
       eqGains: profile.eqGains,
       eqPreset: profile.eqPreset,
@@ -802,6 +875,7 @@ export class AudioEngine {
       normalizerEnabled: profile.normalizerEnabled,
       spatialMode: profile.spatialMode,
       spatialAmbience: profile.spatialAmbience,
+      eqEnabled: true,
     });
   }
 
@@ -828,16 +902,17 @@ export class AudioEngine {
   private setupMediaSession(track: Track): void {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     try {
+      const artType = track.coverImage?.includes("image/png") ? "image/png" : "image/jpeg";
       navigator.mediaSession.metadata = new MediaMetadata({
         title: track.title || "Unknown Title",
-        artist: track.artistName || "Local Artist",
+        artist: track.artistName || track.artist || "Local Artist",
         album: track.album || "Layam Audio Vault",
         artwork: track.coverImage
           ? [
-              { src: track.coverImage, sizes: "96x96", type: "image/jpeg" },
-              { src: track.coverImage, sizes: "128x128", type: "image/jpeg" },
-              { src: track.coverImage, sizes: "256x256", type: "image/jpeg" },
-              { src: track.coverImage, sizes: "512x512", type: "image/jpeg" },
+              { src: track.coverImage, sizes: "96x96", type: artType },
+              { src: track.coverImage, sizes: "128x128", type: artType },
+              { src: track.coverImage, sizes: "256x256", type: artType },
+              { src: track.coverImage, sizes: "512x512", type: artType },
             ]
           : [],
       });

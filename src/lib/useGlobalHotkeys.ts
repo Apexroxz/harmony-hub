@@ -31,11 +31,14 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      // Ignore if user is currently typing in an input, textarea or editable element
+      // Ignore if user is currently typing in a text input, textarea or editable element
       if (
         target &&
         typeof target.getAttribute === "function" &&
-        (target.tagName === "INPUT" ||
+        ((target.tagName === "INPUT" &&
+          !["file", "range", "button", "checkbox", "radio", "submit", "reset"].includes(
+            (target as HTMLInputElement).type?.toLowerCase() || ""
+          )) ||
           target.tagName === "TEXTAREA" ||
           target.isContentEditable ||
           target.getAttribute("role") === "textbox")

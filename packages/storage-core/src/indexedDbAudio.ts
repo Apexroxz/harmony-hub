@@ -3,7 +3,7 @@
 // artwork cache, and acoustic analysis with zero data loss and schema version migration.
 
 const DB_NAME = "layam_audiophile_db";
-const DB_VERSION = 2;
+const DB_VERSION = 3; // v3: artwork blobs migrated from localStorage to IndexedDB ARTWORK_OBJECTS store
 
 export const STORES = {
   AUDIO_BLOBS: "local_audio_blobs",
@@ -11,6 +11,7 @@ export const STORES = {
   FAVORITES: "favorites",
   PLAY_HISTORY: "play_history",
   ARTWORK_CACHE: "artwork_cache",
+  ARTWORK_OBJECTS: "artwork_objects", // v3: blob-based artwork storage (replaces base64-in-localStorage)
   AUDIO_ANALYSIS: "audio_analysis",
 } as const;
 
@@ -37,8 +38,8 @@ export function getDB(): Promise<IDBDatabase> {
           historyStore.createIndex("by_trackId", "trackId", { unique: false });
         }
         if (!db.objectStoreNames.contains(STORES.ARTWORK_CACHE)) db.createObjectStore(STORES.ARTWORK_CACHE, { keyPath: "hash" });
+        if (!db.objectStoreNames.contains(STORES.ARTWORK_OBJECTS)) db.createObjectStore(STORES.ARTWORK_OBJECTS, { keyPath: "trackId" });
         if (!db.objectStoreNames.contains(STORES.AUDIO_ANALYSIS)) db.createObjectStore(STORES.AUDIO_ANALYSIS, { keyPath: "trackId" });
-        console.info(`[IndexedDB] Schema upgraded smoothly from v${oldVersion} to v${DB_VERSION}`);
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -119,8 +120,8 @@ export async function storeAudioBlob(id: string, fileOrBlob: Blob, name = "audio
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  } catch (err) {
-    console.error("[IndexedDB:StoreAudioError]", err);
+  } catch {
+    // Silent failure on write — blob will live in memory cache only
   }
   return url;
 }
@@ -172,8 +173,8 @@ export async function deleteAudioBlob(id: string): Promise<void> {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  } catch (err) {
-    console.error("[IndexedDB:DeleteAudioError]", err);
+  } catch {
+    // Silent failure — file may not exist yet
   }
 }
 
@@ -198,7 +199,57 @@ export async function clearAllAudioBlobs(): Promise<void> {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  } catch (err) {
-    console.error("[IndexedDB:ClearAudioError]", err);
+  } catch {
+    // Silent failure
+  }
+}
+
+// ─── Artwork Blob Storage (v3) ────────────────────────────────────────────────
+// Artwork is stored as Blob in IndexedDB, NOT as base64 in localStorage.
+// This prevents localStorage quota overflow for libraries with >50 tracks.
+
+export async function storeArtworkBlob(trackId: string, dataUrl: string): Promise<void> {
+  if (!dataUrl || !dataUrl.startsWith("data:")) return;
+  try {
+    // Convert data URL -> Blob for efficient IndexedDB storage (binary, no base64 inflation)
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const db = await getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORES.ARTWORK_OBJECTS, "readwrite");
+      const req = tx.objectStore(STORES.ARTWORK_OBJECTS).put({ trackId, blob, updatedAt: Date.now() });
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    // Silent failure — artwork is non-critical
+  }
+}
+
+export async function getArtworkBlobUrl(trackId: string): Promise<string | null> {
+  try {
+    const db = await getDB();
+    const record = await new Promise<{ blob: Blob } | undefined>((resolve) => {
+      const req = db.transaction(STORES.ARTWORK_OBJECTS, "readonly").objectStore(STORES.ARTWORK_OBJECTS).get(trackId);
+      req.onsuccess = () => resolve(req.result as { blob: Blob } | undefined);
+      req.onerror = () => resolve(undefined);
+    });
+    if (!record?.blob) return null;
+    return URL.createObjectURL(record.blob);
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteArtworkBlob(trackId: string): Promise<void> {
+  try {
+    const db = await getDB();
+    await new Promise<void>((resolve) => {
+      const req = db.transaction(STORES.ARTWORK_OBJECTS, "readwrite").objectStore(STORES.ARTWORK_OBJECTS).delete(trackId);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
+    });
+  } catch {
+    // Silent
   }
 }

@@ -181,15 +181,15 @@ export function Waveform({
             className={cn(
               "relative flex-1 min-w-[1px] rounded-full transition-all duration-150 ease-out origin-bottom",
               played
-                ? "bg-gradient-to-t from-primary via-amber-400 to-amber-300 shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+                ? "bg-gradient-to-t from-[#e59e38] via-[#f5b84c] to-[#e59e38] shadow-[0_0_8px_rgba(229,158,56,0.4)]"
                 : isHovered
-                ? "bg-white/40"
-                : "bg-white/[0.14] group-hover:bg-white/[0.22]",
+                ? "bg-[var(--text-secondary,#9ba1ad)]/50"
+                : "bg-[var(--text-tertiary,#6b7280)]/30 group-hover:bg-[var(--text-tertiary,#6b7280)]/45",
             )}
           >
             {/* Luminous Tip on Active Played Head */}
             {played && i === Math.floor((progress / 100) * bars) && (
-              <span className="absolute -top-1 left-1/2 -translate-x-1/2 h-2 w-2 rounded-full bg-white shadow-[0_0_10px_#f97316,0_0_20px_#f97316] animate-pulse" />
+              <span className="absolute -top-1 left-1/2 -translate-x-1/2 h-2 w-2 rounded-full bg-[#e59e38] shadow-[0_0_10px_#e59e38] animate-pulse" />
             )}
           </div>
         );

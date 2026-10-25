@@ -127,18 +127,73 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
         val replayGainDb = if (call.data.has("replayGainDb")) call.getDouble("replayGainDb") ?: call.data.optDouble("replayGainDb", 0.0) else 0.0
         val replayGainPeak = if (call.data.has("replayGainPeak")) call.getDouble("replayGainPeak") ?: call.data.optDouble("replayGainPeak", 1.0) else 1.0
 
+        val queueArray = call.getArray("queue")
+        val queueIndex = call.getInt("queueIndex", 0) ?: 0
+        val queueList = mutableListOf<Map<String, Any?>>()
+
+        if (queueArray != null) {
+            for (i in 0 until queueArray.length()) {
+                val itemObj = queueArray.optJSONObject(i)
+                if (itemObj != null) {
+                    val itemMap = mutableMapOf<String, Any?>()
+                    val it = itemObj.keys()
+                    while (it.hasNext()) {
+                        val key = it.next()
+                        itemMap[key] = itemObj.opt(key)
+                    }
+                    queueList.add(itemMap)
+                }
+            }
+        }
+
         val parsedUri = try { Uri.parse(uri) } catch (_: Exception) { null }
-        android.util.Log.i("LAYAM_PLAY", "[LAYAM_PLAY] playTrack CALLED: uri=$uri title=$title artist=$artist album=$album positionMs=$positionMs replayGainDb=$replayGainDb peak=$replayGainPeak scheme=${parsedUri?.scheme} authority=${parsedUri?.authority}")
+        android.util.Log.i("LAYAM_PLAY", "[LAYAM_PLAY] playTrack CALLED: uri=$uri title=$title artist=$artist album=$album positionMs=$positionMs queueSize=${queueList.size} qIdx=$queueIndex scheme=${parsedUri?.scheme}")
 
         activity?.runOnUiThread {
             try {
-                playerManager.playTrack(uri, title, artist, album, artworkUri, positionMs, replayGainDb, replayGainPeak)
+                playerManager.playTrack(
+                    uri,
+                    title,
+                    artist,
+                    album,
+                    artworkUri,
+                    positionMs,
+                    replayGainDb,
+                    replayGainPeak,
+                    if (queueList.isNotEmpty()) queueList else null,
+                    queueIndex
+                )
                 android.util.Log.i("LAYAM_PLAY", "[LAYAM_PLAY] playTrack SUCCESS dispatch to playerManager")
                 call.resolve(JSObject().apply { put("success", true) })
             } catch (e: Exception) {
                 android.util.Log.e("LAYAM_PLAY", "[LAYAM_PLAY] playTrack EXCEPTION: ${e.javaClass.name} - ${e.message}", e)
                 call.reject("Native playback failed: ${e.message}", e)
             }
+        }
+    }
+
+    @PluginMethod
+    fun skipToNext(call: PluginCall) {
+        activity?.runOnUiThread {
+            playerManager.skipToNext()
+            call.resolve(JSObject().apply { put("success", true) })
+        }
+    }
+
+    @PluginMethod
+    fun skipToPrevious(call: PluginCall) {
+        activity?.runOnUiThread {
+            playerManager.skipToPrevious()
+            call.resolve(JSObject().apply { put("success", true) })
+        }
+    }
+
+    @PluginMethod
+    fun setRepeatMode(call: PluginCall) {
+        val mode = call.getString("mode", "all") ?: "all"
+        activity?.runOnUiThread {
+            playerManager.setRepeatMode(mode)
+            call.resolve(JSObject().apply { put("success", true) })
         }
     }
 
@@ -240,6 +295,33 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
     }
 
     @PluginMethod
+    fun getPosition(call: PluginCall) {
+        val act = activity
+        val runnable = Runnable {
+            try {
+                val ret = JSObject().apply {
+                    put("positionMs", playerManager.getPosition())
+                    put("durationMs", playerManager.getDuration())
+                    put("isPlaying", playerManager.isPlaying())
+                }
+                call.resolve(ret)
+            } catch (e: Exception) {
+                call.resolve(JSObject().apply {
+                    put("positionMs", 0L)
+                    put("durationMs", 0L)
+                    put("isPlaying", false)
+                })
+            }
+        }
+
+        if (act != null) {
+            act.runOnUiThread(runnable)
+        } else {
+            android.os.Handler(android.os.Looper.getMainLooper()).post(runnable)
+        }
+    }
+
+    @PluginMethod
     fun getPlaybackState(call: PluginCall) {
         val act = activity
         val runnable = Runnable {
@@ -333,7 +415,7 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
             return
         }
 
-        activity?.runOnUiThread {
+        Thread {
             try {
                 val filesArray = JSArray()
                 val projection = arrayOf(
@@ -347,7 +429,7 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
                     MediaStore.Audio.Media.SIZE,
                     MediaStore.Audio.Media.MIME_TYPE
                 )
-                val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+                val selection = "${MediaStore.Audio.Media.SIZE} >= 200000 AND (${MediaStore.Audio.Media.IS_MUSIC} != 0 OR ${MediaStore.Audio.Media.MIME_TYPE} LIKE 'audio/%' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.mp3' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.flac' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.m4a' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.wav' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.aac' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.ogg')"
                 val cursor = context.contentResolver.query(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     projection,
@@ -362,7 +444,6 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
                     val titleCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
                     val artistCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
                     val albumCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                    val albumIdCol = c.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
                     val durCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                     val sizeCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
                     val mimeCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
@@ -374,10 +455,7 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
                         val title = c.getString(titleCol)?.takeIf { it.isNotBlank() } ?: name.substringBeforeLast('.')
                         val artist = c.getString(artistCol)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Local Artist"
                         val album = c.getString(albumCol)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Local Master Imports"
-                        val albumId = if (albumIdCol >= 0 && !c.isNull(albumIdCol)) c.getLong(albumIdCol) else -1L
-                        val coverImageUri = if (albumId >= 0) {
-                            ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"), albumId).toString()
-                        } else ""
+                        val coverImageUri = extractArtworkDataUrl(contentUri)
                         val durationMs = if (durCol >= 0 && !c.isNull(durCol)) c.getLong(durCol) else 0L
                         val sizeBytes = if (sizeCol >= 0 && !c.isNull(sizeCol)) c.getLong(sizeCol) else 0L
                         val mimeType = if (mimeCol >= 0 && !c.isNull(mimeCol)) c.getString(mimeCol) else "audio/*"
@@ -418,6 +496,49 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
                 android.util.Log.e("LAYAM_SCAN", "Error scanning MediaStore", e)
                 call.reject("Failed to scan media store: ${e.message}", e)
             }
+        }.start()
+    }
+
+    private fun extractArtworkDataUrl(uri: Uri): String {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, uri)
+            val picBytes = retriever.embeddedPicture
+            if (picBytes != null && picBytes.isNotEmpty()) {
+                val options = android.graphics.BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                android.graphics.BitmapFactory.decodeByteArray(picBytes, 0, picBytes.size, options)
+                var inSampleSize = 1
+                val reqSize = 256
+                if (options.outHeight > reqSize || options.outWidth > reqSize) {
+                    val halfHeight = options.outHeight / 2
+                    val halfWidth = options.outWidth / 2
+                    while ((halfHeight / inSampleSize) >= reqSize && (halfWidth / inSampleSize) >= reqSize) {
+                        inSampleSize *= 2
+                    }
+                }
+                val decodeOptions = android.graphics.BitmapFactory.Options().apply {
+                    this.inSampleSize = inSampleSize
+                }
+                val bitmap = android.graphics.BitmapFactory.decodeByteArray(picBytes, 0, picBytes.size, decodeOptions)
+                if (bitmap != null) {
+                    val outputStream = java.io.ByteArrayOutputStream()
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, outputStream)
+                    val scaledBytes = outputStream.toByteArray()
+                    bitmap.recycle()
+                    val base64 = android.util.Base64.encodeToString(scaledBytes, android.util.Base64.NO_WRAP)
+                    "data:image/jpeg;base64,$base64"
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            }
+        } catch (_: Exception) {
+            ""
+        } finally {
+            try { retriever.release() } catch (_: Exception) {}
         }
     }
 
@@ -450,6 +571,7 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
         var durationMs = 0L
         var bitrate = 0
         var mimeType: String? = resolver.getType(uri)
+        var coverImage = ""
 
         val retriever = MediaMetadataRetriever()
         try {
@@ -460,6 +582,11 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
             durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
             bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0
             mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) ?: mimeType
+            val picBytes = retriever.embeddedPicture
+            if (picBytes != null && picBytes.isNotEmpty()) {
+                val base64 = android.util.Base64.encodeToString(picBytes, android.util.Base64.NO_WRAP)
+                coverImage = "data:image/jpeg;base64,$base64"
+            }
         } catch (_: Exception) {
             // Metadata is best-effort; ExoPlayer remains the authoritative decoder.
         } finally {
@@ -486,6 +613,7 @@ class LayamNativeAudioPlugin : Plugin(), LayamAudioPlayerManager.PlaybackListene
             put("title", cleanTitle)
             put("artist", artist?.takeIf { it.isNotBlank() } ?: "Local Artist")
             put("album", album?.takeIf { it.isNotBlank() } ?: "Local Master Imports")
+            put("coverImage", coverImage)
             put("durationMs", durationMs)
             put("bitrate", bitrate)
             put("format", format)

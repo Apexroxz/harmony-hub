@@ -23,13 +23,17 @@ interface LocalVaultContextValue {
   localArtistGroups: LocalArtistGroup[];
   localFolders: LocalFolderGroup[];
   localPlaylists: LocalPlaylist[];
-  importLocalFiles: (files: FileList | File[]) => Promise<LocalTrack[]>;
+  importLocalFiles: (
+    files: FileList | File[],
+    onProgress?: (progress: { current: number; total: number; filename: string; stage: string }) => void
+  ) => Promise<LocalTrack[]>;
   removeLocalTrack: (trackId: string) => Promise<void>;
   createPlaylist: (name: string) => LocalPlaylist;
   deletePlaylist: (playlistId: string) => void;
   addTrackToPlaylist: (playlistId: string, trackId: string) => void;
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
   updateTrackTags: (trackId: string, updates: Partial<LocalTrack>) => void;
+  refreshLibrary: () => void;
   // About modal visibility
   isAboutOpen: boolean;
   setIsAboutOpen: (open: boolean) => void;
@@ -49,18 +53,29 @@ export function LocalVaultProvider({ children }: { children: ReactNode }) {
 
   // Subscribe to Offline Storage events
   const refreshLibrary = useCallback(() => {
-    setLocalTracks(OfflineService.getTracks());
+    const tracks = OfflineService.getTracks();
+    console.log("[LocalVaultProvider] refreshLibrary called, tracks count:", tracks.length);
+    setLocalTracks(tracks);
     setLocalPlaylists(OfflineService.getPlaylists());
   }, []);
 
   useEffect(() => {
     const unsub = OfflineService.subscribe(refreshLibrary);
-    return unsub;
+    window.addEventListener("layam:offline-updated", refreshLibrary);
+    window.addEventListener("storage", refreshLibrary);
+    return () => {
+      unsub();
+      window.removeEventListener("layam:offline-updated", refreshLibrary);
+      window.removeEventListener("storage", refreshLibrary);
+    };
   }, [refreshLibrary]);
 
   const importLocalFiles = useCallback(
-    async (files: FileList | File[]) => {
-      const imported = await OfflineService.importFiles(files);
+    async (
+      files: FileList | File[],
+      onProgress?: (progress: { current: number; total: number; filename: string; stage: string }) => void
+    ) => {
+      const imported = await OfflineService.importFiles(files, onProgress);
       refreshLibrary();
       void analytics.track("IMPORT_COMPLETED", { count: imported.length });
       return imported;
@@ -135,6 +150,7 @@ export function LocalVaultProvider({ children }: { children: ReactNode }) {
     addTrackToPlaylist,
     removeTrackFromPlaylist,
     updateTrackTags,
+    refreshLibrary,
     isAboutOpen,
     setIsAboutOpen,
   };

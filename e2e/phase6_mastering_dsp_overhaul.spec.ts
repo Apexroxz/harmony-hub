@@ -55,9 +55,9 @@ test.describe("Phase 6 — Mastering DSP Architecture Overhaul Live Verification
     // 3. Import test file and start playback
     const fileInput = page.locator('header input[type="file"]').first();
     await fileInput.setInputFiles(testWavPath);
-    await expect(page.getByText(/layam_mastering_test/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/layam[ _]mastering[ _]test/i).first()).toBeVisible({ timeout: 10000 });
 
-    await page.getByText(/layam_mastering_test/i).first().click();
+    await page.getByText(/layam[ _]mastering[ _]test/i).first().click();
     await page.waitForTimeout(1200);
 
     // 4. Open Audio Console

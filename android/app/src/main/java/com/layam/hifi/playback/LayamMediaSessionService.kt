@@ -118,24 +118,75 @@ class LayamMediaSessionService : MediaLibraryService() {
         setMediaNotificationProvider(notificationProvider)
     }
 
-    private fun extractArtworkBitmap(mediaUri: android.net.Uri?, artworkUri: android.net.Uri?): android.graphics.Bitmap? {
+    private fun extractArtworkBitmap(
+        mediaUri: android.net.Uri?,
+        artworkUri: android.net.Uri?,
+        metadata: MediaMetadata
+    ): android.graphics.Bitmap? {
+        // 1. Direct byte array in MediaMetadata (fastest & highest fidelity)
+        val artworkData = metadata.artworkData
+        if (artworkData != null && artworkData.isNotEmpty()) {
+            try {
+                val bmp = android.graphics.BitmapFactory.decodeByteArray(artworkData, 0, artworkData.size)
+                if (bmp != null) return bmp
+            } catch (_: Exception) {}
+        }
+
+        // 2. URI-based extraction
         if (artworkUri != null) {
+            val uriStr = artworkUri.toString()
+            // 2a. Base64 Data URI
+            if (uriStr.startsWith("data:")) {
+                try {
+                    val base64Data = uriStr.substringAfter(",")
+                    val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                    val bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (bmp != null) return bmp
+                } catch (_: Exception) {}
+            }
+
+            // 2b. Capacitor Local Assets (e.g. /assets/cover-1... or https://localhost/assets/...)
+            if (uriStr.contains("localhost/") || uriStr.startsWith("/assets/") || uriStr.startsWith("assets/")) {
+                try {
+                    val cleanPath = uriStr.substringAfter("localhost/").removePrefix("/")
+                    val candidatePaths = listOf("public/$cleanPath", cleanPath)
+                    for (p in candidatePaths) {
+                        try {
+                            assets.open(p).use { stream ->
+                                val bmp = android.graphics.BitmapFactory.decodeStream(stream)
+                                if (bmp != null) return bmp
+                            }
+                        } catch (_: Exception) {}
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // 2c. Content / File scheme
             try {
                 if (artworkUri.scheme == "content" || artworkUri.scheme == "file") {
                     contentResolver.openInputStream(artworkUri)?.use { input ->
-                        return android.graphics.BitmapFactory.decodeStream(input)
+                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                        if (bmp != null) return bmp
                     }
                 }
             } catch (_: Exception) {}
         }
-        if (mediaUri != null && (mediaUri.scheme == "content" || mediaUri.scheme == "file")) {
+
+        // 3. Embedded ID3 / Vorbis album cover in audio file
+        if (mediaUri != null) {
             try {
                 val retriever = android.media.MediaMetadataRetriever()
-                retriever.setDataSource(this, mediaUri)
+                if (mediaUri.scheme == "content") {
+                    retriever.setDataSource(this, mediaUri)
+                } else if (mediaUri.scheme == "file" || mediaUri.path != null) {
+                    val path = mediaUri.path
+                    if (path != null) retriever.setDataSource(path)
+                }
                 val picture = retriever.embeddedPicture
                 retriever.release()
                 if (picture != null) {
-                    return android.graphics.BitmapFactory.decodeByteArray(picture, 0, picture.size)
+                    val bmp = android.graphics.BitmapFactory.decodeByteArray(picture, 0, picture.size)
+                    if (bmp != null) return bmp
                 }
             } catch (_: Exception) {}
         }
@@ -159,7 +210,7 @@ class LayamMediaSessionService : MediaLibraryService() {
         val currentMediaItem = currentPlayer.currentMediaItem
         val mediaUri = currentMediaItem?.localConfiguration?.uri
         val artworkUri = metadata.artworkUri
-        val artworkBitmap = extractArtworkBitmap(mediaUri, artworkUri)
+        val artworkBitmap = extractArtworkBitmap(mediaUri, artworkUri, metadata)
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
@@ -176,6 +227,7 @@ class LayamMediaSessionService : MediaLibraryService() {
             .setOngoing(isPlaying)
             .setStyle(
                 MediaStyleNotificationHelper.MediaStyle(session)
+                    .setShowActionsInCompactView(0, 1, 2)
             )
 
         return MediaNotification(NOTIFICATION_ID, builder.build())

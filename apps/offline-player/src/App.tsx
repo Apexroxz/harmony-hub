@@ -109,7 +109,7 @@ function StandaloneBrandHeader({
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] bg-[var(--bg-obsidian,#090a0c)]/95 backdrop-blur-md px-3 sm:px-6 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2.5 sm:py-3">
+    <header className="sticky top-0 z-40 border-b border-[var(--border-subtle,rgba(255,255,255,0.07))] bg-[var(--bg-obsidian,#090a0c)]/95 backdrop-blur-md px-3 sm:px-6 pt-[max(env(safe-area-inset-top),2.5rem)] pb-3 pl-[max(env(safe-area-inset-left),1rem)] pr-[max(env(safe-area-inset-right),1rem)]">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
         <div className="hidden sm:block">
           <BrandLogo variant="full" size="sm" showBadge badgeText="BIT-PERFECT" subtitle="LOSSLESS LOCAL PLAYBACK" />
@@ -137,27 +137,27 @@ function StandaloneBrandHeader({
         />
 
         <div className="flex items-center gap-1.5 sm:gap-2.5">
-          <button onClick={handleAddFiles} className="min-h-[40px] flex items-center gap-1.5 rounded-lg bg-[#e59e38] px-3 py-2 text-xs font-semibold text-[#090a0c] hover:bg-[#f0ab4d] active:bg-[#d48d2a] transition-colors cursor-pointer shadow-sm">
+          <button onClick={handleAddFiles} aria-label="Add Files" className="min-h-[38px] sm:min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#e59e38] px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-[#090a0c] hover:bg-[#f0ab4d] active:bg-[#d48d2a] transition-colors cursor-pointer shadow-sm">
             <Plus className="h-4 w-4 stroke-[2.5]" />
             <span className="hidden sm:inline">Add Files</span>
             <span className="sm:hidden">Add</span>
           </button>
 
-          <button onClick={handleScanFolder} className="min-h-[40px] hidden sm:flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] px-3 py-2 text-xs font-medium text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] active:bg-[var(--surface-active,#1e2027)] transition-colors cursor-pointer">
+          <button onClick={handleScanFolder} aria-label="Scan Folder" className="min-h-[38px] sm:min-h-[44px] hidden sm:flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-semibold text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] active:bg-[var(--surface-active,#1e2027)] transition-colors cursor-pointer">
             <FolderOpen className="h-3.5 w-3.5 text-[var(--text-secondary,#9ba1ad)]" />
             Scan Folder
           </button>
 
-          <button onClick={onOpenConsole} className="min-h-[40px] min-w-[40px] flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 sm:px-3 sm:py-2 text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="10-Band Hardware Equalizer">
+          <button onClick={onOpenConsole} aria-label="Audio Console" className="min-h-[38px] min-w-[38px] sm:min-h-[44px] sm:min-w-[44px] flex items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 sm:px-3.5 sm:py-2 text-xs font-semibold text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="10-Band Hardware Equalizer">
             <Sliders className="h-4 w-4 text-[#e59e38]" />
             <span className="hidden sm:inline">Audio Console</span>
           </button>
 
-          <button onClick={onOpenSettings} className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="Hi-Fi Settings & Hotkeys">
+          <button onClick={onOpenSettings} aria-label="Settings" className="min-h-[38px] min-w-[38px] sm:min-h-[44px] sm:min-w-[44px] flex items-center justify-center rounded-xl border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="Hi-Fi Settings & Hotkeys">
             <Settings className="h-4 w-4 text-[#e59e38]" />
           </button>
 
-          <button onClick={onOpenAbout} className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="About Layam & Privacy Settings">
+          <button onClick={onOpenAbout} aria-label="About Layam" className="min-h-[38px] min-w-[38px] sm:min-h-[44px] sm:min-w-[44px] flex items-center justify-center rounded-xl border border-[var(--border-subtle,rgba(255,255,255,0.08))] bg-[var(--surface-charcoal,#111216)] p-2 text-xs font-medium text-[var(--text-secondary,#9ba1ad)] hover:text-[var(--text-primary,#f2f3f5)] hover:bg-[var(--surface-raised,#16181e)] transition-colors cursor-pointer" title="About Layam & Privacy Settings">
             <Info className="h-4 w-4" />
           </button>
         </div>
@@ -167,7 +167,7 @@ function StandaloneBrandHeader({
 }
 
 function OfflinePlayerLayout() {
-  const { isAboutOpen, setIsAboutOpen } = useLocalVault();
+  const { isAboutOpen, setIsAboutOpen, refreshLibrary } = useLocalVault();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { isConsoleOpen, openConsole, closeConsole, toggleConsole, isExpanded, collapsePlayer } = usePlayer();
   const { theme } = useTheme();
@@ -176,7 +176,27 @@ function OfflinePlayerLayout() {
 
   useEffect(() => {
     try { localStorage.removeItem("layam_offline_anonymous_device_id"); } catch {}
-  }, []);
+
+    // Auto-sync native device tracks and backfill embedded album artwork
+    if (androidMedia3.isNativeAndroid()) {
+      androidMedia3.checkAudioPermission().then(async (perm) => {
+        if (perm.granted) {
+          try {
+            console.log("[App] Auto-syncing native device audio...");
+            const files = await androidMedia3.scanDeviceAudioFiles();
+            console.log("[App] Auto-scan discovered files:", files?.length);
+            if (files && files.length > 0) {
+              const imported = OfflineService.importNativeAudioFiles(files);
+              console.log("[App] Auto-scan imported tracks:", imported?.length);
+              refreshLibrary();
+            }
+          } catch (e) {
+            console.warn("[App] Auto sync native audio failed:", e);
+          }
+        }
+      }).catch(() => {});
+    }
+  }, [refreshLibrary]);
 
   const stateRef = useRef({
     isExpanded,
@@ -206,30 +226,41 @@ function OfflinePlayerLayout() {
   // Sequential modal dismissal before minimizing/exiting app
   useEffect(() => {
     let removeListener: (() => void) | undefined;
-    import("@capacitor/app").then(({ App: CapApp }) => {
-      CapApp.addListener("backButton", () => {
-        const s = stateRef.current;
-        console.log("[LAYAM_JS] backButton intercepted. isConsoleOpen:", s.isConsoleOpen, "isSettingsOpen:", s.isSettingsOpen, "isExpanded:", s.isExpanded);
-        if (s.isConsoleOpen) {
-          s.closeConsole();
-          return;
-        }
-        if (s.isSettingsOpen) {
-          s.setIsSettingsOpen(false);
-          return;
-        }
-        if (s.isAboutOpen) {
-          s.setIsAboutOpen(false);
-          return;
-        }
-        if (s.isExpanded) {
-          s.collapsePlayer();
-          return;
-        }
+    let lastBackTimestamp = 0;
 
-        // If no modal or player is expanded, minimize app so background audio continues seamlessly
-        void CapApp.minimizeApp();
-      }).then((handle) => {
+    const handleGlobalBack = () => {
+      const now = Date.now();
+      if (now - lastBackTimestamp < 350) {
+        return;
+      }
+      lastBackTimestamp = now;
+
+      const s = stateRef.current;
+      if (s.isConsoleOpen) {
+        s.closeConsole();
+        return;
+      }
+      if (s.isSettingsOpen) {
+        s.setIsSettingsOpen(false);
+        return;
+      }
+      if (s.isAboutOpen) {
+        s.setIsAboutOpen(false);
+        return;
+      }
+      if (s.isExpanded) {
+        s.collapsePlayer();
+        return;
+      }
+
+      // Forward event to OfflineLibrary to handle sub-modals, context menus, and dashboard navigation
+      window.dispatchEvent(new CustomEvent("layam:backbutton:library"));
+    };
+
+    window.addEventListener("layam:backbutton", handleGlobalBack);
+
+    import("@capacitor/app").then(({ App: CapApp }) => {
+      CapApp.addListener("backButton", handleGlobalBack).then((handle) => {
         removeListener = () => void handle.remove();
       });
     }).catch((err) => {
@@ -237,6 +268,7 @@ function OfflinePlayerLayout() {
     });
 
     return () => {
+      window.removeEventListener("layam:backbutton", handleGlobalBack);
       if (removeListener) removeListener();
     };
   }, []);

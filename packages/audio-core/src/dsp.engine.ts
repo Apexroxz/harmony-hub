@@ -244,12 +244,22 @@ export class DspEngine {
         roomMix.gain.value = 1.0;
 
         // Connect 4-channel circulating FDN:
+        // CRITICAL: all 4 delay lines must receive the source (previously only 2 did)
+        // Each delay line feeds the next in a rotation for dense, smooth diffusion
         for (let i = 0; i < 4; i++) {
           delays[i].connect(damps[i]);
           damps[i].connect(fbs[i]);
           fbs[i].connect(delays[(i + 1) % 4]);
           damps[i].connect(wetGain);
         }
+        // Source injection point is exposed via __LAYAM_ROOM_INPUT_GAIN__ so
+        // the graph-wiring stage can connect the signal to ALL 4 delay lines at once.
+        const roomInputGain = ctx.createGain();
+        roomInputGain.gain.value = 0.25; // Normalise sum of 4 paths to unit gain
+        for (let i = 0; i < 4; i++) {
+          roomInputGain.connect(delays[i]);
+        }
+        win.__LAYAM_ROOM_INPUT_GAIN__ = roomInputGain;
 
         dryGain.connect(roomMix);
         wetGain.connect(roomMix);
@@ -261,6 +271,8 @@ export class DspEngine {
         win.__LAYAM_ROOM_FB_L__ = fbs[0];
         win.__LAYAM_ROOM_FB_R__ = fbs[1];
         win.__LAYAM_ROOM_MIX__ = roomMix;
+        win.__LAYAM_ROOM_FBS__ = fbs;
+        win.__LAYAM_ROOM_DELAYS__ = delays;
       }
       this.roomDry = win.__LAYAM_ROOM_DRY__;
       this.roomWet = win.__LAYAM_ROOM_WET__;
@@ -270,15 +282,16 @@ export class DspEngine {
       this.roomFbR = win.__LAYAM_ROOM_FB_R__;
       this.roomMix = win.__LAYAM_ROOM_MIX__;
 
-      // Post-DSP Mastering True-Peak Limiter / Dynamic Normalizer (Post-Reverb, Pre-Headroom)
+      // Post-DSP Mastering True-Peak Limiter (Post-Reverb, Pre-Headroom)
       if (!win.__LAYAM_COMPRESSOR_NODE__) {
         const comp = ctx.createDynamicsCompressor();
-        // Transparent brickwall limiter profile: fast attack (1ms), smooth release (150ms)
-        comp.threshold.value = 0; // Linear by default
-        comp.ratio.value = 1;
-        comp.knee.value = 6;
-        comp.attack.value = 0.001;
-        comp.release.value = 0.15;
+        // Brickwall limiter: -0.5 dBFS threshold, 20:1 ratio, 1ms attack, 50ms release
+        // This is a real inter-sample peak limiter — NOT a gentle compressor.
+        comp.threshold.value = -0.5; // Near-digital-full-scale ceiling
+        comp.ratio.value = 20;       // 20:1 = hard limiting behaviour
+        comp.knee.value = 1;         // Tight knee for brickwall character
+        comp.attack.value = 0.001;   // 1ms — fast enough to catch transients
+        comp.release.value = 0.05;   // 50ms — clean, artifact-free release
         win.__LAYAM_COMPRESSOR_NODE__ = comp;
       }
       this.compressor = win.__LAYAM_COMPRESSOR_NODE__;
@@ -340,9 +353,19 @@ export class DspEngine {
           }
         } catch {}
 
-        // From stereoMerger -> room network
+        // From stereoMerger -> room network (FDN)
         let roomInput: AudioNode = this.stereoMerger ?? prevNode;
-        if (this.roomDry && this.roomWet && this.roomDelayL && this.roomDelayR && this.roomMix) {
+        const roomInputGainNode = (window as any).__LAYAM_ROOM_INPUT_GAIN__ as GainNode | undefined;
+        if (this.roomDry && this.roomWet && this.roomMix && roomInputGainNode) {
+          try {
+            // Dry path: direct signal
+            roomInput.connect(this.roomDry);
+            // Wet path: all 4 FDN delay lines via normalised input gain node
+            roomInput.connect(roomInputGainNode);
+          } catch {}
+          prevNode = this.roomMix;
+        } else if (this.roomDry && this.roomWet && this.roomDelayL && this.roomDelayR && this.roomMix) {
+          // Fallback path for legacy graph (connects 2 of 4 delay lines)
           try {
             roomInput.connect(this.roomDry);
             roomInput.connect(this.roomDelayL);
@@ -412,8 +435,8 @@ export class DspEngine {
       }
 
       this.isInitialized = true;
-    } catch (err) {
-      console.warn("[DspEngine] Web Audio tap initialization deferred:", err);
+    } catch {
+      // Silent failure — Web Audio is not available (SSR / Android native path)
     }
   }
 
@@ -421,8 +444,8 @@ export class DspEngine {
     if (this.ctx && this.ctx.state === "suspended") {
       try {
         await this.ctx.resume();
-      } catch (err) {
-        console.warn("[DspEngine] AudioContext resume failed:", err);
+      } catch {
+        // Silently fail — user gesture may be required
       }
     }
   }

@@ -1,13 +1,18 @@
 import type { Track, AudioFormat } from "@/domain/music/types";
 import { extractAudioMetadata, cleanAudioText, type ExtractedMetadata } from "./audioMetadata";
 import { getAudioFormatName, SUPPORTED_AUDIO_EXTENSIONS } from "@/domain/music/quality-tier";
-import { storeAudioBlob, getAudioBlobUrl, deleteAudioBlob, getCachedAudioBlobUrl, registerNativeAudioUri } from "./indexedDbAudio";
-import cover1 from "@/assets/covers/cover-1.jpg";
-import cover2 from "@/assets/covers/cover-2.jpg";
-import cover3 from "@/assets/covers/cover-3.jpg";
-import cover4 from "@/assets/covers/cover-4.jpg";
-import cover5 from "@/assets/covers/cover-5.jpg";
-import cover6 from "@/assets/covers/cover-6.jpg";
+import {
+  storeAudioBlob,
+  getAudioBlobUrl,
+  deleteAudioBlob,
+  getCachedAudioBlobUrl,
+  registerNativeAudioUri,
+  storeArtworkBlob,
+  getArtworkBlobUrl,
+  deleteArtworkBlob,
+  getDB,
+  STORES,
+} from "./indexedDbAudio";
 
 export interface LocalTrack extends Track {
   folderPath?: string;
@@ -99,6 +104,7 @@ export const DEFAULT_OFFLINE_SETTINGS: OfflineSettings = {
  */
 export class OfflineService {
   private static listeners = new Set<() => void>();
+  private static artworkCache = new Map<string, string>();
 
   public static getTracks(): LocalTrack[] {
     if (typeof window === "undefined") return [];
@@ -110,11 +116,6 @@ export class OfflineService {
       // Clean out legacy demo/mock items while strictly preserving all user-imported music
       const userTracks = parsed.filter((t) => {
         if (!t) return false;
-        // User-imported tracks always have local identifiers or offline blob origins
-        if (t.id && (t.id.startsWith("local-imported-") || t.id.startsWith("local-"))) {
-          return true;
-        }
-        // Filter out legacy demo/mock catalog tracks
         const normTitle = (t.title || "").toLowerCase().trim();
         const normArtist = (t.artistName || t.artist || "").toLowerCase().trim();
         if (DEMO_TRACK_IDS.has(t.id)) return false;
@@ -123,7 +124,10 @@ export class OfflineService {
       });
 
       let needsResave = false;
-      const sanitizedUserTracks = userTracks.map((t) => {
+      const seenKeys = new Set<string>();
+      const sanitizedAndDeduplicated: LocalTrack[] = [];
+
+      for (const t of userTracks) {
         let cleanTitle = cleanAudioText(t.title);
         const rawArtist = t.artistName || t.artist || "";
         let cleanArtist = cleanAudioText(rawArtist);
@@ -137,47 +141,89 @@ export class OfflineService {
         }
         const cleanAlbum = cleanAudioText(t.album || "Local Master Imports");
 
-        if (cleanTitle !== t.title || cleanArtist !== rawArtist || cleanAlbum !== t.album) {
+        // Clean out any legacy mock cover asset paths
+        let cleanCover = t.coverImage || "";
+        if (cleanCover.includes("assets/covers/") || cleanCover.includes("cover-") && !cleanCover.startsWith("data:")) {
+          cleanCover = "";
           needsResave = true;
-          return {
-            ...t,
-            title: cleanTitle,
-            artist: cleanArtist || "Local Artist",
-            artistName: cleanArtist || "Local Artist",
-            album: cleanAlbum,
-          };
         }
-        return t;
-      });
 
-      // If any tracks were updated or legacy demo tracks pruned, update localStorage silently
-      if (needsResave || userTracks.length !== parsed.length) {
-        const persistent = sanitizedUserTracks.map((t) => ({ ...t, audioUrl: "" }));
-        localStorage.setItem(LOCAL_TRACKS_KEY, JSON.stringify(persistent));
+        const nativeUri = getNativeAudioUri(t.id);
+        const dedupeKey = nativeUri || `${cleanTitle.toLowerCase().trim()}|${cleanArtist.toLowerCase().trim()}|${t.fileSizeBytes || 0}`;
+
+        if (seenKeys.has(dedupeKey)) {
+          needsResave = true;
+          continue;
+        }
+        seenKeys.add(dedupeKey);
+
+        const updated: LocalTrack = {
+          ...t,
+          title: cleanTitle,
+          artist: cleanArtist || "Local Artist",
+          artistName: cleanArtist || "Local Artist",
+          album: cleanAlbum,
+          coverImage: cleanCover,
+        };
+
+        if (cleanTitle !== t.title || cleanArtist !== rawArtist || cleanAlbum !== t.album || cleanCover !== t.coverImage) {
+          needsResave = true;
+        }
+        sanitizedAndDeduplicated.push(updated);
       }
 
-      return sanitizedUserTracks.map((t) => {
+      // If any tracks were updated, duplicates pruned, or legacy demo tracks pruned, update localStorage silently
+      if (needsResave || sanitizedAndDeduplicated.length !== parsed.length) {
+        this.saveTracks(sanitizedAndDeduplicated, true);
+      }
+
+      return sanitizedAndDeduplicated.map((t) => {
         const cachedUrl = getCachedAudioBlobUrl(t.id);
-        if (cachedUrl) {
-          return { ...t, audioUrl: cachedUrl };
-        }
-        return t;
+        const cachedArt = this.artworkCache.get(t.id);
+        return {
+          ...t,
+          audioUrl: cachedUrl || t.audioUrl || "",
+          coverImage: cachedArt || t.coverImage || "",
+        };
       });
     } catch {
       return [];
     }
   }
 
-  public static saveTracks(tracks: LocalTrack[]): void {
+  public static async getTrackCover(trackId: string): Promise<string | null> {
+    if (this.artworkCache.has(trackId)) {
+      return this.artworkCache.get(trackId)!;
+    }
+    const blobUrl = await getArtworkBlobUrl(trackId);
+    if (blobUrl) {
+      this.artworkCache.set(trackId, blobUrl);
+      return blobUrl;
+    }
+    return null;
+  }
+
+  public static saveTracks(tracks: LocalTrack[], silent = false): void {
     if (typeof window === "undefined") return;
     try {
-      // Strip transient/dead runtime blob URLs before persisting metadata to localStorage
-      const persistentTracks = tracks.map((t) => ({ ...t, audioUrl: "" }));
+      // Critical fix: Strip large base64 data URLs & ephemeral blob URLs before saving to localStorage
+      // Data URLs are saved into IndexedDB to prevent localStorage 5MB quota overflow
+      const persistentTracks = tracks.map((t) => {
+        if (t.coverImage && t.coverImage.startsWith("data:")) {
+          void storeArtworkBlob(t.id, t.coverImage);
+          this.artworkCache.set(t.id, t.coverImage);
+        }
+        return {
+          ...t,
+          audioUrl: "",
+          coverImage: t.coverImage && t.coverImage.startsWith("data:") ? "" : (t.coverImage || ""),
+        };
+      });
       localStorage.setItem(LOCAL_TRACKS_KEY, JSON.stringify(persistentTracks));
-      this.notify();
-    } catch (e) {
-      console.warn("[OfflineService] Failed to save tracks:", e);
-    }
+      if (!silent) {
+        this.notify();
+      }
+    } catch {}
   }
 
   public static getPlaylists(): LocalPlaylist[] {
@@ -195,9 +241,7 @@ export class OfflineService {
     try {
       localStorage.setItem(LOCAL_PLAYLISTS_KEY, JSON.stringify(playlists));
       this.notify();
-    } catch (e) {
-      console.warn("[OfflineService] Failed to save playlists:", e);
-    }
+    } catch {}
   }
 
   public static getSettings(): OfflineSettings {
@@ -228,7 +272,6 @@ export class OfflineService {
     const existing = this.getTracks();
     const newTracks: LocalTrack[] = [];
     const updatedExisting = [...existing];
-    const coverFallbackArray = [cover1, cover2, cover3, cover4, cover5, cover6];
 
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i]!;
@@ -308,7 +351,7 @@ export class OfflineService {
         artistId: "local-device",
         artistName: rawArtist,
         artist: rawArtist,
-        coverImage: meta.coverImage || coverFallbackArray[i % coverFallbackArray.length]!,
+        coverImage: meta.coverImage || "",
         audioUrl: blobUrl, // Immediate active blob URL for playback
         duration: meta.duration || 180,
         genre: meta.genre || "Audiophile Master",
@@ -349,20 +392,66 @@ export class OfflineService {
     const map = new Map<string, LocalAlbum>();
     for (const t of list) {
       const albumName = t.album || "Local Master Imports";
-      if (!map.has(albumName)) {
-        map.set(albumName, {
+      const artistName = t.artistName || t.artist || "Unknown Artist";
+      // Composite key prevents different artists with same album name colliding
+      const compositeKey = `${albumName}::${artistName}`;
+      if (!map.has(compositeKey)) {
+        map.set(compositeKey, {
           name: albumName,
-          artistName: t.artistName || t.artist || "Unknown Artist",
+          artistName: artistName,
           coverImage: t.coverImage || "",
           trackCount: 0,
           tracks: [],
         });
       }
-      const grp = map.get(albumName)!;
+      const grp = map.get(compositeKey)!;
       grp.trackCount++;
       grp.tracks.push(t);
     }
     return Array.from(map.values());
+  }
+
+  public static async getRecentlyPlayed(limit = 10): Promise<LocalTrack[]> {
+    try {
+      const db = await getDB();
+      const historyRecords = await new Promise<Array<{ trackId: string; timestamp: number }>>((resolve) => {
+        const tx = db.transaction(STORES.PLAY_HISTORY, "readonly");
+        const store = tx.objectStore(STORES.PLAY_HISTORY);
+        const index = store.index("by_timestamp");
+        const req = index.openCursor(null, "prev");
+        const results: Array<{ trackId: string; timestamp: number }> = [];
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (cursor && results.length < limit * 3) {
+            results.push(cursor.value);
+            cursor.continue();
+          } else {
+            resolve(results);
+          }
+        };
+        req.onerror = () => resolve([]);
+      });
+
+      const allTracks = this.getTracks();
+      const trackMap = new Map(allTracks.map((t) => [t.id, t]));
+      const seenIds = new Set<string>();
+      const recentTracks: LocalTrack[] = [];
+
+      for (const record of historyRecords) {
+        if (!seenIds.has(record.trackId)) {
+          seenIds.add(record.trackId);
+          const track = trackMap.get(record.trackId);
+          if (track) {
+            recentTracks.push(track);
+            if (recentTracks.length >= limit) break;
+          }
+        }
+      }
+
+      return recentTracks.length > 0 ? recentTracks : allTracks.slice(0, limit);
+    } catch {
+      return this.getTracks().slice(0, limit);
+    }
   }
 
   public static getArtistGroups(tracks?: LocalTrack[]): LocalArtistGroup[] {
@@ -419,9 +508,7 @@ export class OfflineService {
         const blob = await res.blob();
         await storeAudioBlob(cleanId, blob, track.title);
       }
-    } catch (err) {
-      console.warn("[OfflineService] saveTrackOffline fetch note:", err);
-    }
+    } catch {}
 
     const localTrack: LocalTrack = {
       ...track,
@@ -448,6 +535,7 @@ export class OfflineService {
     this.saveTracks(updated);
     try {
       await deleteAudioBlob(trackId);
+      await deleteArtworkBlob(trackId);
     } catch {}
   }
 
@@ -514,18 +602,20 @@ export class OfflineService {
     const map = new Map<string, LocalTrack[]>();
     for (const t of tracks) {
       const albumName = t.album || "Single Tracks";
-      const key = `${albumName}__${t.artistName}`;
+      const artistName = t.artistName || t.artist || "Unknown Artist";
+      const key = `${albumName}::${artistName}`;
       const list = map.get(key) || [];
       list.push(t);
       map.set(key, list);
     }
 
     return Array.from(map.entries()).map(([key, groupTracks]) => {
-      const [albumName, artistName] = key.split("__");
+      const [albumName, artistName] = key.split("::");
+      const firstCover = groupTracks.find((t) => t.coverImage)?.coverImage || "";
       return {
         name: albumName || "Single Tracks",
         artistName: artistName || "Unknown Artist",
-        coverImage: groupTracks[0]?.coverImage || cover1,
+        coverImage: firstCover,
         trackCount: groupTracks.length,
         tracks: groupTracks,
       };
@@ -572,30 +662,53 @@ export class OfflineService {
     title: string;
     artist: string;
     album: string;
+    coverImage?: string;
     durationMs: number;
     bitrate: number;
     format: string;
   }>): LocalTrack[] {
     const existing = this.getTracks();
-    const existingKeys = new Set(
-      existing.map((track) => `${track.title.toLowerCase()}|${track.fileSizeBytes || 0}`),
-    );
+    const existingByUri = new Map<string, LocalTrack>();
+    const existingByKey = new Map<string, LocalTrack>();
+
+    for (const track of existing) {
+      const nativeUri = getNativeAudioUri(track.id);
+      if (nativeUri) existingByUri.set(nativeUri, track);
+      const titleKey = `${(track.title || "").toLowerCase().trim()}|${(track.artistName || track.artist || "").toLowerCase().trim()}|${track.fileSizeBytes || 0}`;
+      existingByKey.set(titleKey, track);
+    }
+
     const imported: LocalTrack[] = [];
+    let updatedExistingCount = 0;
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i]!;
-      const key = `${file.title.toLowerCase()}|${file.sizeBytes || 0}`;
-      if (existingKeys.has(key)) continue;
+      const cleanTitle = cleanAudioText(file.title || file.name.replace(/\.[^.]+$/, ""));
+      const cleanArtist = cleanAudioText(file.artist || "Local Artist");
+      const cleanAlbum = cleanAudioText(file.album || "Local Master Imports");
+      const titleKey = `${cleanTitle.toLowerCase().trim()}|${cleanArtist.toLowerCase().trim()}|${file.sizeBytes || 0}`;
+
+      const matchedExisting = (file.uri && existingByUri.get(file.uri)) || existingByKey.get(titleKey);
+
+      if (matchedExisting) {
+        if (file.uri) registerNativeAudioUri(matchedExisting.id, file.uri);
+        if (file.coverImage && (!matchedExisting.coverImage || !matchedExisting.coverImage.startsWith("data:image/"))) {
+          matchedExisting.coverImage = file.coverImage;
+          updatedExistingCount++;
+        }
+        continue;
+      }
 
       const id = `local-imported-android-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`;
-      registerNativeAudioUri(id, file.uri);
-      imported.push({
+      if (file.uri) registerNativeAudioUri(id, file.uri);
+
+      const newTrack: LocalTrack = {
         id,
-        title: file.title || file.name.replace(/\.[^.]+$/, ""),
+        title: cleanTitle,
         artistId: "local-device",
-        artistName: file.artist || "Local Artist",
-        artist: file.artist || "Local Artist",
-        coverImage: (file as any).coverImage || "",
+        artistName: cleanArtist,
+        artist: cleanArtist,
+        coverImage: file.coverImage || "",
         audioUrl: "",
         duration: file.durationMs > 0 ? file.durationMs / 1000 : 0,
         genre: "Local Audio",
@@ -611,16 +724,19 @@ export class OfflineService {
         createdAt: new Date().toISOString().slice(0, 10),
         uploaderId: "local-device",
         folderPath: "Android Music",
-        album: file.album || "Local Master Imports",
+        album: cleanAlbum,
         fileSizeBytes: file.sizeBytes || 0,
         replayGainTrack: (file as any).replayGainTrack,
         replayGainAlbum: (file as any).replayGainAlbum,
         replayGainPeak: (file as any).replayGainPeak,
-      });
-      existingKeys.add(key);
+      };
+
+      imported.push(newTrack);
+      if (file.uri) existingByUri.set(file.uri, newTrack);
+      existingByKey.set(titleKey, newTrack);
     }
 
-    if (imported.length > 0) {
+    if (imported.length > 0 || updatedExistingCount > 0) {
       this.saveTracks([...imported, ...existing]);
     }
     return imported;
